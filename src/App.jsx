@@ -28,13 +28,27 @@ import imgHammerCurl from './assets/Dumbbell-Hammer-Curl_Forearm.gif';
 import imgCurlBiceps from './assets/Curl_Biceps.png';
 
 // ==========================================
-// CONFIGURATION API SPOTIFY
+// CONFIGURATION API SPOTIFY (SÉCURITÉ PKCE)
 // ==========================================
 const SPOTIFY_CLIENT_ID = "4673eade76a7419c9bad9eaf6ca902fe";
 const REDIRECT_URI = window.location.origin + window.location.pathname; 
-const AUTH_ENDPOINT = "https://accounts.spotify.com/authorize";
-const RESPONSE_TYPE = "token";
 const SCOPES = "user-read-currently-playing user-modify-playback-state user-read-playback-state";
+
+// Outils Cryptographiques pour contourner l'erreur "response_type must be code"
+const generateRandomString = (length) => {
+  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const values = crypto.getRandomValues(new Uint8Array(length));
+  return values.reduce((acc, x) => acc + possible[x % possible.length], "");
+};
+const sha256 = async (plain) => {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(plain);
+  return window.crypto.subtle.digest('SHA-256', data);
+};
+const base64encode = (input) => {
+  return btoa(String.fromCharCode(...new Uint8Array(input)))
+    .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+};
 
 // ==========================================
 // BASE DE DONNÉES COMPLÈTE (7 JOURS)
@@ -60,7 +74,7 @@ const programData = {
     cardio: { name: "Vélo Assis (Recline)", duration: "30 min", bpm: "119-129", focus: "FATmax post-séance." }
   },
   3: { type: 'cardio', dayName: "Mercredi", focus: "Régénération & FATmax", desc: "Nettoyer les déchets et consommer la graisse viscérale.",
-    cardio: { name: "Elliptique ou Marche Inclinée", duration: "45-60 min", bpm: "119-129", focus: "Ne JAMAIS courir. Interdiction de dépasser 130 bpm. Conversation fluide." }
+    cardio: { name: "Elliptique ou Marche Inclinée", duration: "45-60 min", bpm: "119-129", focus: "Ne JAMAIS courir. Interdiction de dépasser 130 bpm." }
   },
   4: { type: 'mixed', dayName: "Jeudi", focus: "Tirage Supérieur + FATmax", desc: "Épaisseur Dorsale & Ouverture cage thoracique.",
     exercises: [
@@ -75,8 +89,8 @@ const programData = {
   5: { type: 'cardio', dayName: "Vendredi", focus: "Lavage Métabolique", desc: "Capitaliser sur l'état de sensibilité à l'insuline.",
     cardio: { name: "Protocole Croisé", duration: "60-75 min", bpm: "119-129", focus: "20' Vélo + 20' Elliptique + 20' Hand-Bike." }
   },
-  6: { type: 'rest', dayName: "Samedi", focus: "Régénération Tissulaire", desc: "La croissance s'opère aujourd'hui. L'inflammation locale va se résorber." },
-  7: { type: 'rest', dayName: "Dimanche", focus: "Repos Absolu", desc: "Restauration totale du système nerveux central avant la Semaine 2." }
+  6: { type: 'rest', dayName: "Samedi", focus: "Régénération Tissulaire", desc: "L'inflammation locale va se résorber." },
+  7: { type: 'rest', dayName: "Dimanche", focus: "Repos Absolu", desc: "Restauration totale du système nerveux." }
 };
 
 // ==========================================
@@ -90,24 +104,59 @@ export default function MecanikApp() {
   const [spotifyToken, setSpotifyToken] = useState("");
   const [spotifyTrack, setSpotifyTrack] = useState(null);
   
-  const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem('mecanik_v7_history')) || {});
+  const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem('mecanik_v8_history')) || {});
   const timerRef = useRef(null);
 
-  // AUTHENTIFICATION SPOTIFY
+  // ----------------------------------------------------
+  // NOUVELLE AUTHENTIFICATION SPOTIFY (PKCE - RESPONSE_TYPE=CODE)
+  // ----------------------------------------------------
   useEffect(() => {
-    const hash = window.location.hash;
+    const urlParams = new URLSearchParams(window.location.search);
+    let code = urlParams.get('code');
     let token = window.localStorage.getItem("spotify_token");
 
-    if (!token && hash) {
-      token = hash.substring(1).split("&").find(elem => elem.startsWith("access_token")).split("=")[1];
-      window.location.hash = "";
-      window.localStorage.setItem("spotify_token", token);
+    if (code && !token) {
+      // Échange du code contre un Token
+      const codeVerifier = window.localStorage.getItem('spotify_code_verifier');
+      fetch("https://accounts.spotify.com/api/token", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: SPOTIFY_CLIENT_ID,
+          grant_type: 'authorization_code',
+          code: code,
+          redirect_uri: REDIRECT_URI,
+          code_verifier: codeVerifier,
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.access_token) {
+          window.localStorage.setItem("spotify_token", data.access_token);
+          setSpotifyToken(data.access_token);
+          window.history.replaceState({}, document.title, window.location.pathname); // Nettoie l'URL
+        }
+      });
+    } else {
+      setSpotifyToken(token);
     }
-    setSpotifyToken(token);
   }, []);
 
-  const loginSpotify = () => {
-    window.location.href = `${AUTH_ENDPOINT}?client_id=${SPOTIFY_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=${RESPONSE_TYPE}&scope=${SCOPES}`;
+  const loginSpotify = async () => {
+    const codeVerifier = generateRandomString(64);
+    window.localStorage.setItem('spotify_code_verifier', codeVerifier);
+    const hashed = await sha256(codeVerifier);
+    const codeChallenge = base64encode(hashed);
+
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: SPOTIFY_CLIENT_ID,
+      scope: SCOPES,
+      code_challenge_method: 'S256',
+      code_challenge: codeChallenge,
+      redirect_uri: REDIRECT_URI,
+    });
+    window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
   };
 
   const logoutSpotify = () => {
@@ -116,34 +165,20 @@ export default function MecanikApp() {
     setSpotifyTrack(null);
   };
 
-  // REQUÊTES SPOTIFY
   const fetchCurrentlyPlaying = async () => {
     if (!spotifyToken) return;
     try {
       const response = await fetch("https://api.spotify.com/v1/me/player/currently-playing", {
         headers: { Authorization: `Bearer ${spotifyToken}` }
       });
-      
-      if (response.status === 401) {
-        logoutSpotify(); 
-        return;
-      }
-      
+      if (response.status === 401) { logoutSpotify(); return; }
       if (response.status === 200) {
         const data = await response.json();
         if(data && data.item) {
-          setSpotifyTrack({
-            title: data.item.name,
-            artist: data.item.artists[0].name,
-            isPlaying: data.is_playing
-          });
+          setSpotifyTrack({ title: data.item.name, artist: data.item.artists[0].name, isPlaying: data.is_playing });
         }
-      } else {
-         setSpotifyTrack(null); 
-      }
-    } catch (error) {
-      console.error("Erreur Spotify:", error);
-    }
+      } else { setSpotifyTrack(null); }
+    } catch (error) { console.error("Erreur Spotify:", error); }
   };
 
   useEffect(() => {
@@ -157,40 +192,43 @@ export default function MecanikApp() {
     await fetch("https://api.spotify.com/v1/me/player/pause", { method: "PUT", headers: { Authorization: `Bearer ${spotifyToken}` } });
     setTimeout(fetchCurrentlyPlaying, 500);
   };
-
   const playSpotify = async () => {
     if (!spotifyToken) return;
     await fetch("https://api.spotify.com/v1/me/player/play", { method: "PUT", headers: { Authorization: `Bearer ${spotifyToken}` } });
     setTimeout(fetchCurrentlyPlaying, 500);
   };
 
-  // CHRONO & LOGIQUE VIBRATION / MUSIQUE
+  // ----------------------------------------------------
+  // LOGIQUE CHRONO & CAMERA FORCEE
+  // ----------------------------------------------------
   useEffect(() => {
     if (restTime > 0) {
       timerRef.current = setInterval(() => setRestTime(t => t - 1), 1000);
     } else {
       if (restTime === 0 && timerRef.current) {
         window.navigator.vibrate?.([200, 100, 200]);
-        if (spotifyToken && spotifyTrack?.isPlaying) {
-            pauseSpotify(); 
-        }
+        if (spotifyToken && spotifyTrack?.isPlaying) pauseSpotify(); 
       }
       clearInterval(timerRef.current);
     }
     return () => clearInterval(timerRef.current);
   }, [restTime, spotifyToken, spotifyTrack]);
 
-  // SCANNER QR CODE
+  // Forcer la demande de caméra pour le QR Code
+  const startCamera = async () => {
+    try {
+      // Force le navigateur à demander l'autorisation
+      await navigator.mediaDevices.getUserMedia({ video: true });
+      setIsScanning(true);
+    } catch (err) {
+      alert("⚠️ Accès caméra refusé. Autorisez la caméra dans les paramètres de votre navigateur.");
+    }
+  };
+
   useEffect(() => {
     let scanner = null;
     if (isScanning) {
-      scanner = new Html5QrcodeScanner("reader", { 
-        fps: 10, 
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0,
-        showTorchButtonIfSupported: true 
-      }, false);
-      
+      scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 }, false);
       scanner.render(
         (decodedText) => {
           if (decodedText.startsWith("1")) setActiveDay(1);
@@ -203,11 +241,8 @@ export default function MecanikApp() {
         (error) => {}
       );
     }
-    return () => {
-      if (scanner) scanner.clear().catch(e => console.error(e));
-    };
+    return () => { if (scanner) scanner.clear().catch(e => console.error(e)); };
   }, [isScanning]);
-
   const logWeight = (id, weight) => {
     const date = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
     const newHistory = {
@@ -215,7 +250,7 @@ export default function MecanikApp() {
       [id]: [...(history[id] || []).filter(h => h.date !== date), { date, weight: parseFloat(weight) }].slice(-10)
     };
     setHistory(newHistory);
-    localStorage.setItem('mecanik_v7_history', JSON.stringify(newHistory));
+    localStorage.setItem('mecanik_v8_history', JSON.stringify(newHistory));
   };
 
   const currentDay = programData[activeDay];
@@ -228,7 +263,7 @@ export default function MecanikApp() {
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-black tracking-tight uppercase">MÉCANIK</h1>
-            <button onClick={() => setIsScanning(true)} className="p-2 bg-blue-600 rounded-full text-white active:scale-95 shadow-lg shadow-blue-900/50"><Scan size={16}/></button>
+            <button onClick={startCamera} className="p-2 bg-blue-600 rounded-full text-white active:scale-95 shadow-lg shadow-blue-900/50"><Scan size={16}/></button>
           </div>
           
           {!spotifyToken ? (
