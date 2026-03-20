@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+/* Ajustements "Zéro Friction" pour Mobile */
+body { 
+  overscroll-behavior-y: none; /* Empêche le rebond élastique de l'écran sur iOS */
+  background-color: #000000; 
+}
