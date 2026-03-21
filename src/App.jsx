@@ -4,7 +4,7 @@ import {
   BedDouble, Info, Activity, X, TrendingUp, Star, Download, 
   StickyNote, Scan, Music, SkipForward, SkipBack, Pause, RefreshCw, 
   LogIn, LogOut, Minus, MonitorSpeaker, FastForward, Rewind, 
-  Edit3, Plus, Trash2 
+  Edit3, Plus, Trash2, ChevronLeft, Utensils, Dumbbell 
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
@@ -93,46 +93,42 @@ const defaultProgramData = {
   7: { type: 'rest', dayName: "Dimanche", focus: "Repos Absolu", desc: "Restauration totale du système nerveux central avant la Semaine 2." }
 };
 
-// Extraction du CATALOGUE d'exercices (Panier)
 const CATALOGUE_EXERCICES = [];
 Object.values(defaultProgramData).forEach(day => {
   if (day.exercises) {
     day.exercises.forEach(exo => {
-      if (!CATALOGUE_EXERCICES.find(e => e.name === exo.name)) {
-        CATALOGUE_EXERCICES.push(exo);
-      }
+      if (!CATALOGUE_EXERCICES.find(e => e.name === exo.name)) { CATALOGUE_EXERCICES.push(exo); }
     });
   }
 });
 
 // ==========================================
-// COMPOSANT PRINCIPAL (APP)
+// COMPOSANT PRINCIPAL (ROUTING INTÉGRÉ)
 // ==========================================
 export default function MecanikApp() {
-  // --- PROGRAMME PERSONNALISÉ (LocalStorage) ---
+  // ROUTING & ÉTATS GLOBAUX
+  const [currentView, setCurrentView] = useState(() => window.location.search.includes('code=') ? 'workout' : 'home');
   const [program, setProgram] = useState(() => {
     const saved = localStorage.getItem('mecanik_custom_program');
     return saved ? JSON.parse(saved) : defaultProgramData;
   });
   
-  useEffect(() => {
-    localStorage.setItem('mecanik_custom_program', JSON.stringify(program));
-  }, [program]);
+  useEffect(() => { localStorage.setItem('mecanik_custom_program', JSON.stringify(program)); }, [program]);
 
+  // ÉTATS DE L'APPLICATION ENTRAÎNEMENT
   const [activeDay, setActiveDay] = useState(1);
   const [restTime, setRestTime] = useState(0);
   const [isScanning, setIsScanning] = useState(false);
   const [isEditingDay, setIsEditingDay] = useState(false);
-  
-  // États de l'API Spotify
-  const [spotifyToken, setSpotifyToken] = useState("");
-  const [spotifyTrack, setSpotifyTrack] = useState(null);
-  const [showSpotifyWidget, setShowSpotifyWidget] = useState(false);
-  
   const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem('mecanik_history_log')) || {});
   const timerRef = useRef(null);
 
-  // AUTHENTIFICATION PKCE (Sécurisée)
+  // ÉTATS API SPOTIFY
+  const [spotifyToken, setSpotifyToken] = useState("");
+  const [spotifyTrack, setSpotifyTrack] = useState(null);
+  const [showSpotifyWidget, setShowSpotifyWidget] = useState(false);
+
+  // AUTHENTIFICATION SPOTIFY PKCE
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     let code = urlParams.get('code');
@@ -143,13 +139,7 @@ export default function MecanikApp() {
       fetch("https://accounts.spotify.com/api/token", {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          client_id: SPOTIFY_CLIENT_ID,
-          grant_type: 'authorization_code',
-          code: code,
-          redirect_uri: REDIRECT_URI,
-          code_verifier: codeVerifier,
-        })
+        body: new URLSearchParams({ client_id: SPOTIFY_CLIENT_ID, grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI, code_verifier: codeVerifier })
       })
       .then(res => res.json())
       .then(data => {
@@ -157,11 +147,10 @@ export default function MecanikApp() {
           window.localStorage.setItem("spotify_token", data.access_token);
           setSpotifyToken(data.access_token);
           window.history.replaceState({}, document.title, window.location.pathname);
+          setCurrentView('workout'); // Redirection auto après connexion
         }
       });
-    } else {
-      setSpotifyToken(token);
-    }
+    } else { setSpotifyToken(token); }
   }, []);
 
   const loginSpotify = async () => {
@@ -171,12 +160,7 @@ export default function MecanikApp() {
     const codeChallenge = base64encode(hashed);
 
     const params = new URLSearchParams({
-      response_type: 'code',
-      client_id: SPOTIFY_CLIENT_ID,
-      scope: SCOPES,
-      code_challenge_method: 'S256',
-      code_challenge: codeChallenge,
-      redirect_uri: REDIRECT_URI,
+      response_type: 'code', client_id: SPOTIFY_CLIENT_ID, scope: SCOPES, code_challenge_method: 'S256', code_challenge: codeChallenge, redirect_uri: REDIRECT_URI
     });
     window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
   };
@@ -184,24 +168,12 @@ export default function MecanikApp() {
   const fetchCurrentlyPlaying = async () => {
     if (!spotifyToken) return;
     try {
-      const response = await fetch("https://api.spotify.com/v1/me/player", {
-        headers: { Authorization: `Bearer ${spotifyToken}` }
-      });
-      if (response.status === 401) { 
-        setSpotifyToken(""); window.localStorage.removeItem("spotify_token"); return; 
-      }
+      const response = await fetch("https://api.spotify.com/v1/me/player", { headers: { Authorization: `Bearer ${spotifyToken}` } });
+      if (response.status === 401) { setSpotifyToken(""); window.localStorage.removeItem("spotify_token"); return; }
       if (response.status === 200) {
         const data = await response.json();
         if(data && data.item) {
-          setSpotifyTrack({ 
-            title: data.item.name, 
-            artist: data.item.artists[0].name, 
-            isPlaying: data.is_playing,
-            progress: data.progress_ms,
-            duration: data.item.duration_ms,
-            image: data.item.album.images[0]?.url,
-            deviceId: data.device?.id
-          });
+          setSpotifyTrack({ title: data.item.name, artist: data.item.artists[0].name, isPlaying: data.is_playing, progress: data.progress_ms, duration: data.item.duration_ms, image: data.item.album.images[0]?.url, deviceId: data.device?.id });
         }
       } else { setSpotifyTrack(null); }
     } catch (error) { console.error(error); }
@@ -220,23 +192,16 @@ export default function MecanikApp() {
     } else {
       if (restTime === 0 && timerRef.current) {
         window.navigator.vibrate?.([200, 100, 200]);
-        if (spotifyToken && spotifyTrack?.isPlaying) {
-          fetch("https://api.spotify.com/v1/me/player/pause", { method: "PUT", headers: { Authorization: `Bearer ${spotifyToken}` } });
-        }
+        if (spotifyToken && spotifyTrack?.isPlaying) { fetch("https://api.spotify.com/v1/me/player/pause", { method: "PUT", headers: { Authorization: `Bearer ${spotifyToken}` } }); }
       }
       clearInterval(timerRef.current);
     }
     return () => clearInterval(timerRef.current);
   }, [restTime, spotifyToken, spotifyTrack]);
 
-  // CAMERA FORCÉE
   const startCamera = async () => {
-    try {
-      await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-      setIsScanning(true);
-    } catch (err) {
-      alert("⚠️ Autorisez la caméra dans les paramètres de votre navigateur.");
-    }
+    try { await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); setIsScanning(true); } 
+    catch (err) { alert("⚠️ Autorisez la caméra dans les paramètres de votre navigateur."); }
   };
 
   useEffect(() => {
@@ -254,16 +219,10 @@ export default function MecanikApp() {
     return () => { if (scanner) scanner.clear().catch(e => console.error(e)); };
   }, [isScanning]);
 
-  const currentDay = program[activeDay];
-  
   const logWeight = (id, weight) => {
     const date = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
-    const newHistory = {
-      ...history,
-      [id]: [...(history[id] || []).filter(h => h.date !== date), { date, weight: parseFloat(weight) }].slice(-10)
-    };
-    setHistory(newHistory);
-    localStorage.setItem('mecanik_history_log', JSON.stringify(newHistory));
+    const newHistory = { ...history, [id]: [...(history[id] || []).filter(h => h.date !== date), { date, weight: parseFloat(weight) }].slice(-10) };
+    setHistory(newHistory); localStorage.setItem('mecanik_history_log', JSON.stringify(newHistory));
   };
 
   const handleSaveDay = (dayId, newExercises) => {
@@ -271,100 +230,145 @@ export default function MecanikApp() {
       const updated = { ...prev };
       const hasExercises = newExercises.length > 0;
       const hasCardio = !!updated[dayId].cardio;
-      
-      updated[dayId] = {
-        ...updated[dayId],
-        exercises: newExercises,
-        type: hasExercises && hasCardio ? 'mixed' : hasExercises ? 'lift' : hasCardio ? 'cardio' : 'rest'
-      };
+      updated[dayId] = { ...updated[dayId], exercises: newExercises, type: hasExercises && hasCardio ? 'mixed' : hasExercises ? 'lift' : hasCardio ? 'cardio' : 'rest' };
       return updated;
     });
     setIsEditingDay(false);
   };
-return (
+
+  const currentDay = program[activeDay];
+
+  // ==========================================
+  // RENDU DES VUES (ROUTING)
+  // ==========================================
+  return (
     <div className="max-w-md mx-auto h-screen flex flex-col bg-black text-white font-sans relative overflow-hidden">
-      
-      {/* HEADER */}
-      <header className="px-5 pt-10 pb-4 bg-black/90 backdrop-blur-xl z-40 border-b border-zinc-900 flex-shrink-0">
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-black tracking-tight uppercase">MÉCANIK</h1>
-            <button onClick={startCamera} className="p-2 bg-blue-600 rounded-full text-white active:scale-95 shadow-lg shadow-blue-900/50"><Scan size={16}/></button>
-          </div>
-          
-          {!spotifyToken ? (
-            <button onClick={loginSpotify} className="bg-[#1DB954] px-4 py-2 rounded-full flex items-center gap-2 text-[10px] font-black uppercase text-black active:scale-95">
-               <LogIn size={14}/> Connect Spotify
-            </button>
-          ) : (
-            <button onClick={() => setShowSpotifyWidget(true)} className="bg-zinc-900 px-4 py-2 rounded-full flex items-center gap-2 text-[10px] font-black uppercase text-[#1DB954] border border-zinc-800 active:scale-95">
-               <Music size={14} className="animate-pulse" /> Ouvrir Lecteur
-            </button>
-          )}
-        </div>
+      <AnimatePresence mode="wait">
         
-        <div className="flex justify-between gap-1 overflow-x-auto scrollbar-hide pb-1">
-          {[1,2,3,4,5,6,7].map(d => (
-            <button key={d} onClick={() => setActiveDay(d)}
-              className={`flex-shrink-0 w-11 h-11 rounded-full font-bold text-xs flex items-center justify-center transition-all ${activeDay === d ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(10,132,255,0.4)]' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800'}`}>
-              {['LUN','MAR','MER','JEU','VEN','SAM','DIM'][d-1]}
-            </button>
-          ))}
-        </div>
-      </header>
-
-      {/* ZONE CONTENU */}
-      <main className="flex-1 overflow-y-auto px-4 pt-6 pb-24 space-y-6">
-        <AnimatePresence mode="wait">
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }} key={activeDay}>
+        {/* VUE 1 : ACCUEIL MINIMALISTE */}
+        {currentView === 'home' && (
+          <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center h-full w-full p-6 bg-black relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-900/10 via-black to-black pointer-events-none" />
             
-            {/* Titre et Bouton Éditer (Builder) */}
-            <div className="mb-6 pl-1 flex justify-between items-start border-l-2 border-blue-600">
-              <div>
-                <h2 className="text-[26px] font-black leading-tight text-white uppercase tracking-tighter pl-3">{currentDay.focus}</h2>
-                <p className="text-[#8E8E93] text-[12px] pl-3 mt-1">{currentDay.desc}</p>
-              </div>
-              <button onClick={() => setIsEditingDay(true)} className="p-3 bg-zinc-900 rounded-full text-zinc-400 hover:text-white border border-zinc-800 shadow-lg transition-colors">
-                <Edit3 size={18} />
-              </button>
+            <h1 className="text-5xl font-black tracking-tighter uppercase mb-2 z-10 text-white drop-shadow-2xl">MÉCANIK</h1>
+            <p className="text-zinc-500 text-[11px] mb-16 tracking-[0.3em] uppercase font-bold z-10">Écosystème de Performance</p>
+
+            <div className="w-full space-y-5 z-10">
+              <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setCurrentView('workout')}
+                className="w-full bg-[#151517] border border-zinc-800 rounded-[32px] p-8 flex flex-col items-center justify-center gap-5 shadow-2xl relative overflow-hidden group"
+              >
+                 <div className="absolute inset-0 bg-blue-600/10 opacity-0 group-active:opacity-100 transition-opacity" />
+                 <div className="w-20 h-20 bg-blue-600/10 rounded-full flex items-center justify-center border border-blue-500/20 shadow-[0_0_30px_rgba(10,132,255,0.2)]">
+                   <Dumbbell size={36} className="text-blue-500" />
+                 </div>
+                 <div className="text-center">
+                   <h2 className="text-2xl font-black uppercase tracking-tight mb-1">Mes Entraînements</h2>
+                   <p className="text-[11px] text-zinc-500 font-medium">Programmes, logs, scanner QR & Spotify</p>
+                 </div>
+              </motion.button>
+
+              <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setCurrentView('nutrition')}
+                className="w-full bg-[#151517] border border-zinc-800 rounded-[32px] p-8 flex flex-col items-center justify-center gap-5 shadow-2xl relative overflow-hidden group"
+              >
+                 <div className="absolute inset-0 bg-green-600/10 opacity-0 group-active:opacity-100 transition-opacity" />
+                 <div className="w-20 h-20 bg-green-600/10 rounded-full flex items-center justify-center border border-green-500/20 shadow-[0_0_30px_rgba(29,185,84,0.15)]">
+                   <Utensils size={36} className="text-green-500" />
+                 </div>
+                 <div className="text-center">
+                   <h2 className="text-2xl font-black uppercase tracking-tight mb-1">Suivi Nutrition</h2>
+                   <p className="text-[11px] text-zinc-500 font-medium">Macros, balance énergétique (Bientôt)</p>
+                 </div>
+              </motion.button>
             </div>
-
-            {/* Rendu des Cartes selon la db locale personnalisée */}
-            {(currentDay.type === 'lift' || currentDay.type === 'mixed') && currentDay.exercises && currentDay.exercises.map(exo => (
-              <ExerciseCard key={exo.id} data={exo} onStartRest={() => setRestTime(exo.rest)} history={history[exo.id] || []} onLogWeight={(w) => logWeight(exo.id, w)} />
-            ))}
-            {currentDay.cardio && <CardioCard data={currentDay.cardio} isFinisher={currentDay.type === 'mixed'} />}
-            {currentDay.type === 'rest' && <RestCard data={currentDay} />}
           </motion.div>
-        </AnimatePresence>
-      </main>
+        )}
 
-      {/* MODAL BUILDER : PERSONNALISATION DE LA SÉANCE */}
+        {/* VUE 2 : NUTRITION (EN CONSTRUCTION) */}
+        {currentView === 'nutrition' && (
+          <motion.div key="nutrition" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex flex-col items-center justify-center h-full w-full p-6 bg-black text-center relative">
+            <div className="w-28 h-28 bg-green-600/10 rounded-full flex items-center justify-center border border-green-500/20 mb-8 shadow-[0_0_50px_rgba(29,185,84,0.2)]">
+               <Utensils size={48} className="text-green-500" />
+            </div>
+            <h2 className="text-3xl font-black uppercase tracking-tighter mb-3">Suivi Nutrition</h2>
+            <p className="text-zinc-400 text-sm mb-12 max-w-[280px] leading-relaxed">Module intelligent de calcul des calories et macros (Style Lifesum).<br/><br/><span className="text-green-500 font-bold">En cours de développement.</span></p>
+            <button onClick={() => setCurrentView('home')} className="px-8 py-4 bg-zinc-900 rounded-full font-black uppercase text-xs text-white border border-zinc-800 active:scale-95 transition-transform flex items-center gap-3 shadow-xl">
+              <ChevronLeft size={16} /> Retour Accueil
+            </button>
+          </motion.div>
+        )}
+
+        {/* VUE 3 : L'APPLICATION D'ENTRAÎNEMENT COMPLÈTE */}
+        {currentView === 'workout' && (
+          <motion.div key="workout" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="flex flex-col h-full w-full relative">
+            
+            {/* WORKOUT HEADER */}
+            <header className="px-5 pt-10 pb-4 bg-black/90 backdrop-blur-xl z-40 border-b border-zinc-900 flex-shrink-0">
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setCurrentView('home')} className="p-2.5 bg-zinc-900 rounded-full text-zinc-400 active:scale-95 border border-zinc-800"><ChevronLeft size={16}/></button>
+                  <h1 className="text-xl font-black tracking-tight uppercase">MÉCANIK</h1>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <button onClick={startCamera} className="p-2 bg-blue-600 rounded-full text-white active:scale-95 shadow-lg shadow-blue-900/50"><Scan size={16}/></button>
+                  {!spotifyToken ? (
+                    <button onClick={loginSpotify} className="bg-[#1DB954] p-2 rounded-full text-black active:scale-95"><LogIn size={16}/></button>
+                  ) : (
+                    <button onClick={() => setShowSpotifyWidget(true)} className="bg-zinc-900 p-2 rounded-full text-[#1DB954] border border-zinc-800 active:scale-95"><Music size={16} className="animate-pulse" /></button>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex justify-between gap-1 overflow-x-auto scrollbar-hide pb-1">
+                {[1,2,3,4,5,6,7].map(d => (
+                  <button key={d} onClick={() => setActiveDay(d)}
+                    className={`flex-shrink-0 w-11 h-11 rounded-full font-bold text-xs flex items-center justify-center transition-all ${activeDay === d ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(10,132,255,0.4)]' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800'}`}>
+                    {['LUN','MAR','MER','JEU','VEN','SAM','DIM'][d-1]}
+                  </button>
+                ))}
+              </div>
+            </header>
+
+            {/* WORKOUT CONTENT */}
+            <div className="flex-1 overflow-y-auto px-4 pt-6 pb-24 space-y-6">
+              <AnimatePresence mode="wait">
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }} key={`day-${activeDay}`}>
+                  
+                  <div className="mb-6 pl-1 flex justify-between items-start border-l-2 border-blue-600">
+                    <div>
+                      <h2 className="text-[26px] font-black leading-tight text-white uppercase tracking-tighter pl-3">{currentDay.focus}</h2>
+                      <p className="text-[#8E8E93] text-[12px] pl-3 mt-1">{currentDay.desc}</p>
+                    </div>
+                    <button onClick={() => setIsEditingDay(true)} className="p-3 bg-zinc-900 rounded-full text-zinc-400 hover:text-white border border-zinc-800 shadow-lg transition-colors"><Edit3 size={18} /></button>
+                  </div>
+
+                  {(currentDay.type === 'lift' || currentDay.type === 'mixed') && currentDay.exercises && currentDay.exercises.map(exo => (
+                    <ExerciseCard key={exo.id} data={exo} onStartRest={() => setRestTime(exo.rest)} history={history[exo.id] || []} onLogWeight={(w) => logWeight(exo.id, w)} />
+                  ))}
+                  {currentDay.cardio && <CardioCard data={currentDay.cardio} isFinisher={currentDay.type === 'mixed'} />}
+                  {currentDay.type === 'rest' && <RestCard data={currentDay} />}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* ==================================================== */}
+      {/* OVERLAYS GLOBAUX (Valables dans la vue Workout)      */}
+      {/* ==================================================== */}
       <AnimatePresence>
-        {isEditingDay && (
-          <EditDayModal 
-            dayId={activeDay} 
-            dayData={currentDay} 
-            catalog={CATALOGUE_EXERCICES} 
-            onClose={() => setIsEditingDay(false)} 
-            onSave={(newExercises) => handleSaveDay(activeDay, newExercises)} 
-          />
+        {isEditingDay && currentView === 'workout' && (
+          <EditDayModal dayId={activeDay} dayData={currentDay} catalog={CATALOGUE_EXERCICES} onClose={() => setIsEditingDay(false)} onSave={(newExercises) => handleSaveDay(activeDay, newExercises)} />
         )}
       </AnimatePresence>
 
-      {/* WIDGET FLOTTANT SPOTIFY */}
-      {showSpotifyWidget && spotifyToken && (
-        <FloatingSpotifyWidget 
-          token={spotifyToken} track={spotifyTrack} 
-          onClose={() => setShowSpotifyWidget(false)} 
-          refreshTrack={fetchCurrentlyPlaying} 
-        />
+      {showSpotifyWidget && spotifyToken && currentView === 'workout' && (
+        <FloatingSpotifyWidget token={spotifyToken} track={spotifyTrack} onClose={() => setShowSpotifyWidget(false)} refreshTrack={fetchCurrentlyPlaying} />
       )}
 
-      {/* MODAL SCANNER */}
       <AnimatePresence>
-        {isScanning && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-xl p-6 flex flex-col items-center justify-center">
+        {isScanning && currentView === 'workout' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-[100] bg-black/90 backdrop-blur-xl p-6 flex flex-col items-center justify-center">
             <h2 className="text-white mb-6 font-black uppercase tracking-widest text-lg">Scan Machine</h2>
             <div className="w-full max-w-sm rounded-[32px] overflow-hidden bg-black border-4 border-blue-600 shadow-[0_0_30px_rgba(10,132,255,0.3)] relative"><div id="reader" className="w-full"></div></div>
             <button onClick={() => setIsScanning(false)} className="mt-8 px-10 py-4 bg-zinc-900 rounded-full font-black uppercase text-xs text-white border border-zinc-800 active:scale-95">Fermer la caméra</button>
@@ -372,9 +376,8 @@ return (
         )}
       </AnimatePresence>
 
-      {/* OVERLAY CHRONO */}
       <AnimatePresence>
-        {restTime > 0 && (
+        {restTime > 0 && currentView === 'workout' && (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} className="absolute inset-0 z-[90] bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center p-6 cursor-pointer" onClick={() => setRestTime(0)}>
             <Timer size={56} className="text-blue-500 mb-8 animate-pulse" />
             <span className="text-8xl font-mono font-black tabular-nums tracking-tighter drop-shadow-[0_0_20px_rgba(10,132,255,0.3)]">{Math.floor(restTime/60)}:{(restTime%60).toString().padStart(2,'0')}</span>
@@ -393,7 +396,6 @@ function EditDayModal({ dayId, dayData, catalog, onClose, onSave }) {
   const [localExercises, setLocalExercises] = useState(dayData.exercises || []);
 
   const addExercise = (exo) => {
-    // Générer un ID unique basé sur l'heure pour autoriser les doublons si besoin
     const newExo = { ...exo, id: `${dayId}${Date.now().toString().slice(-4)}` };
     setLocalExercises([...localExercises, newExo]);
   };
@@ -402,57 +404,49 @@ function EditDayModal({ dayId, dayData, catalog, onClose, onSave }) {
     setLocalExercises(localExercises.filter(e => e.id !== exoId));
   };
 
-  // Filtrer le catalogue pour ne montrer que les exercices non présents (Optionnel, ici on montre tout)
   return (
-    <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} 
-      className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col">
+    <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="absolute inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col">
       <div className="p-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
         <h2 className="text-lg font-black uppercase tracking-tighter">Personnaliser Jour {dayId}</h2>
-        <button onClick={onClose} className="p-2 bg-zinc-800 rounded-full"><X size={20}/></button>
+        <button onClick={onClose} className="p-2 bg-zinc-800 rounded-full active:scale-90"><X size={20}/></button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        {/* Exercices Actuels */}
         <div>
           <h3 className="text-[11px] font-black uppercase text-blue-500 tracking-widest mb-3">Panier de la séance</h3>
           {localExercises.length === 0 ? (
-            <p className="text-xs text-zinc-500 italic p-4 bg-zinc-900 rounded-xl">Aucun exercice. Ce sera un jour de repos ou cardio.</p>
+            <p className="text-xs text-zinc-500 italic p-4 bg-zinc-900 rounded-xl">Aucun exercice de musculation.</p>
           ) : (
             <div className="space-y-2">
               {localExercises.map((exo, idx) => (
                 <div key={exo.id} className="flex justify-between items-center bg-zinc-900 p-3 rounded-[20px] border border-zinc-800">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 overflow-hidden">
                     <span className="text-zinc-600 font-black text-xs w-4">{idx + 1}.</span>
-                    <div>
-                      <p className="font-bold text-sm text-white">{exo.name}</p>
+                    <div className="truncate">
+                      <p className="font-bold text-sm text-white truncate">{exo.name}</p>
                       <p className="text-[10px] text-zinc-500">{exo.sets}x{exo.reps}</p>
                     </div>
                   </div>
-                  <button onClick={() => removeExercise(exo.id)} className="p-2 text-red-500 hover:bg-red-500/20 rounded-xl transition-colors">
-                    <Trash2 size={16} />
-                  </button>
+                  <button onClick={() => removeExercise(exo.id)} className="p-2 text-red-500 hover:bg-red-500/20 rounded-xl transition-colors shrink-0"><Trash2 size={16} /></button>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Catalogue */}
         <div>
-          <h3 className="text-[11px] font-black uppercase text-zinc-500 tracking-widest mb-3">Catalogue (Contenu Figé)</h3>
+          <h3 className="text-[11px] font-black uppercase text-zinc-500 tracking-widest mb-3">Catalogue (Figé)</h3>
           <div className="grid grid-cols-1 gap-2">
             {catalog.map((exo, idx) => (
               <div key={`cat-${idx}`} className="flex justify-between items-center bg-black p-3 rounded-[20px] border border-zinc-800">
-                 <div className="flex items-center gap-3">
-                    <img src={exo.image} alt="" className="w-10 h-10 rounded-lg object-contain bg-zinc-900 border border-zinc-800" />
-                    <div>
-                      <p className="font-bold text-sm text-white truncate max-w-[180px]">{exo.name}</p>
+                 <div className="flex items-center gap-3 overflow-hidden">
+                    <img src={exo.image} alt="" className="w-10 h-10 rounded-lg object-contain bg-zinc-900 border border-zinc-800 shrink-0" />
+                    <div className="truncate">
+                      <p className="font-bold text-sm text-white truncate">{exo.name}</p>
                       <p className="text-[10px] text-zinc-500">{exo.muscle}</p>
                     </div>
                  </div>
-                 <button onClick={() => addExercise(exo)} className="p-2 bg-blue-600/20 text-blue-500 hover:bg-blue-600 hover:text-white rounded-xl transition-colors">
-                   <Plus size={16} />
-                 </button>
+                 <button onClick={() => addExercise(exo)} className="p-2 bg-blue-600/20 text-blue-500 hover:bg-blue-600 hover:text-white rounded-xl transition-colors shrink-0"><Plus size={16} /></button>
               </div>
             ))}
           </div>
@@ -477,140 +471,77 @@ function FloatingSpotifyWidget({ token, track, onClose, refreshTrack }) {
   const [showDevices, setShowDevices] = useState(false);
   const [devices, setDevices] = useState([]);
   const [localProgress, setLocalProgress] = useState(0);
-  
   const [scale, setScale] = useState(1);
   const pinchRef = useRef(null);
 
   useEffect(() => { setLocalProgress(track?.progress || 0); }, [track?.progress]);
-
-  useEffect(() => {
-    let int;
-    if (track?.isPlaying) { int = setInterval(() => setLocalProgress(p => p + 1000), 1000); }
-    return () => clearInterval(int);
-  }, [track?.isPlaying]);
+  useEffect(() => { let int; if (track?.isPlaying) { int = setInterval(() => setLocalProgress(p => p + 1000), 1000); } return () => clearInterval(int); }, [track?.isPlaying]);
 
   const apiCall = async (endpoint, method = "POST", body = null) => {
-    try {
-      await fetch(`https://api.spotify.com/v1/me/player/${endpoint}`, {
-        method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: body ? JSON.stringify(body) : null
-      });
-      setTimeout(refreshTrack, 600);
-    } catch (e) { console.error(e); }
+    try { await fetch(`https://api.spotify.com/v1/me/player/${endpoint}`, { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : null }); setTimeout(refreshTrack, 600); } catch (e) { console.error(e); }
   };
 
   const getDevices = async () => {
     const res = await fetch("https://api.spotify.com/v1/me/player/devices", { headers: { Authorization: `Bearer ${token}` } });
-    const data = await res.json();
-    setDevices(data.devices || []);
-    setShowDevices(!showDevices);
+    const data = await res.json(); setDevices(data.devices || []); setShowDevices(!showDevices);
   };
 
-  const handleSeek = (e) => {
-    const newMs = parseInt(e.target.value);
-    setLocalProgress(newMs);
-    apiCall(`seek?position_ms=${newMs}`, "PUT");
-  };
-
-  const formatTime = (ms) => {
-    const total = Math.floor(ms / 1000);
-    return `${Math.floor(total / 60)}:${(total % 60).toString().padStart(2, '0')}`;
-  };
+  const handleSeek = (e) => { const newMs = parseInt(e.target.value); setLocalProgress(newMs); apiCall(`seek?position_ms=${newMs}`, "PUT"); };
+  const formatTime = (ms) => { const total = Math.floor(ms / 1000); return `${Math.floor(total / 60)}:${(total % 60).toString().padStart(2, '0')}`; };
 
   const handleTouchMove = (e) => {
     if (e.touches.length === 2) {
       e.stopPropagation(); 
       const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-      if (pinchRef.current) {
-        const delta = dist - pinchRef.current;
-        setScale(s => Math.min(Math.max(0.7, s + delta * 0.005), 1.3)); 
-      }
+      if (pinchRef.current) { const delta = dist - pinchRef.current; setScale(s => Math.min(Math.max(0.7, s + delta * 0.005), 1.3)); }
       pinchRef.current = dist;
     }
   };
   const handleTouchEnd = () => pinchRef.current = null;
 
   return (
-    <motion.div 
-      drag dragControls={dragControls} dragListener={false} dragMomentum={true} 
-      dragConstraints={{ left: -10, right: 10, top: -500, bottom: 20 }}
-      initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }}
-      style={{ scale, touchAction: 'none' }} 
-      onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
-      className={`fixed bottom-24 right-4 z-[80] bg-black/85 backdrop-blur-2xl border border-zinc-800 rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.8)] flex flex-col transition-[width,height] origin-bottom-right ${minimized ? 'w-[250px] h-auto' : 'w-[320px] resize overflow-hidden min-h-[160px]'}`}
+    <motion.div drag dragControls={dragControls} dragListener={false} dragMomentum={true} dragConstraints={{ left: -10, right: 10, top: -500, bottom: 20 }}
+      initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} style={{ scale, touchAction: 'none' }} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
+      className={`absolute bottom-24 right-4 z-[80] bg-black/85 backdrop-blur-2xl border border-zinc-800 rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.8)] flex flex-col transition-[width,height] origin-bottom-right ${minimized ? 'w-[250px] h-auto' : 'w-[320px] min-h-[160px]'}`}
     >
       <div className="bg-zinc-900/60 p-3.5 flex justify-between items-center cursor-grab active:cursor-grabbing border-b border-zinc-800 touch-none" onPointerDown={(e) => dragControls.start(e)}>
-        <div className="flex items-center gap-2 pointer-events-none">
-          <Music size={14} className="text-[#1DB954]" />
-          <span className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Lecteur</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <button onClick={() => setMinimized(!minimized)} className="p-1.5 hover:bg-zinc-800 rounded-xl transition-colors"><Minus size={14} className="text-zinc-400"/></button>
-          <button onClick={onClose} className="p-1.5 hover:bg-red-900/40 rounded-xl transition-colors"><X size={14} className="text-zinc-400"/></button>
-        </div>
+        <div className="flex items-center gap-2 pointer-events-none"><Music size={14} className="text-[#1DB954]" /><span className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Lecteur</span></div>
+        <div className="flex items-center gap-3"><button onClick={() => setMinimized(!minimized)} className="p-1.5 hover:bg-zinc-800 rounded-xl transition-colors"><Minus size={14} className="text-zinc-400"/></button><button onClick={onClose} className="p-1.5 hover:bg-red-900/40 rounded-xl transition-colors"><X size={14} className="text-zinc-400"/></button></div>
       </div>
-
       {!minimized && track && (
         <div className="p-5 flex flex-col gap-5 flex-1">
           <div className="flex items-center gap-4">
             {track.image && <img src={track.image} alt="Album" className="w-16 h-16 rounded-2xl shadow-lg border border-zinc-800 pointer-events-none" />}
-            <div className="flex flex-col overflow-hidden">
-              <span className="font-bold text-white text-sm truncate">{track.title}</span>
-              <span className="text-[11px] text-zinc-400 truncate mt-0.5 font-medium">{track.artist}</span>
-            </div>
+            <div className="flex flex-col overflow-hidden"><span className="font-bold text-white text-sm truncate">{track.title}</span><span className="text-[11px] text-zinc-400 truncate mt-0.5 font-medium">{track.artist}</span></div>
           </div>
-
-          <div className="flex items-center gap-3">
-            <span className="text-[10px] text-zinc-500 font-mono w-7 text-right">{formatTime(localProgress)}</span>
-            <input type="range" min="0" max={track.duration || 100} value={localProgress} onChange={handleSeek} className="flex-1 h-1.5 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-[#1DB954]" />
-            <span className="text-[10px] text-zinc-500 font-mono w-7">{formatTime(track.duration)}</span>
-          </div>
-
+          <div className="flex items-center gap-3"><span className="text-[10px] text-zinc-500 font-mono w-7 text-right">{formatTime(localProgress)}</span><input type="range" min="0" max={track.duration || 100} value={localProgress} onChange={handleSeek} className="flex-1 h-1.5 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-[#1DB954]" /><span className="text-[10px] text-zinc-500 font-mono w-7">{formatTime(track.duration)}</span></div>
           <div className="flex justify-between items-center px-1">
-            <button onClick={() => apiCall(`seek?position_ms=${Math.max(0, localProgress - 10000)}`, "PUT")} className="p-2 text-zinc-500 hover:text-white transition-colors active:scale-90"><Rewind size={18}/></button>
-            <button onClick={() => apiCall("previous")} className="p-2 text-zinc-300 hover:text-white transition-colors active:scale-90"><SkipBack size={20}/></button>
-            <button onClick={() => apiCall(track.isPlaying ? "pause" : "play", "PUT")} className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-105 active:scale-95 transition-all">
-              {track.isPlaying ? <Pause size={22} fill="black" /> : <Play size={22} fill="black" className="ml-1" />}
-            </button>
-            <button onClick={() => apiCall("next")} className="p-2 text-zinc-300 hover:text-white transition-colors active:scale-90"><SkipForward size={20}/></button>
-            <button onClick={() => apiCall(`seek?position_ms=${Math.min(track.duration, localProgress + 10000)}`, "PUT")} className="p-2 text-zinc-500 hover:text-white transition-colors active:scale-90"><FastForward size={18}/></button>
+            <button onClick={() => apiCall(`seek?position_ms=${Math.max(0, localProgress - 10000)}`, "PUT")} className="p-2 text-zinc-500 active:scale-90"><Rewind size={18}/></button>
+            <button onClick={() => apiCall("previous")} className="p-2 text-zinc-300 active:scale-90"><SkipBack size={20}/></button>
+            <button onClick={() => apiCall(track.isPlaying ? "pause" : "play", "PUT")} className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.2)] active:scale-95">{track.isPlaying ? <Pause size={22} fill="black" /> : <Play size={22} fill="black" className="ml-1" />}</button>
+            <button onClick={() => apiCall("next")} className="p-2 text-zinc-300 active:scale-90"><SkipForward size={20}/></button>
+            <button onClick={() => apiCall(`seek?position_ms=${Math.min(track.duration, localProgress + 10000)}`, "PUT")} className="p-2 text-zinc-500 active:scale-90"><FastForward size={18}/></button>
           </div>
-
           <div className="mt-2 pt-4 border-t border-zinc-800/80 relative">
-            <button onClick={getDevices} className="w-full py-3 bg-zinc-900 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase text-zinc-400 border border-zinc-800 active:scale-95 transition-transform">
-              <MonitorSpeaker size={14}/> Sortie Audio
-            </button>
+            <button onClick={getDevices} className="w-full py-3 bg-zinc-900 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase text-zinc-400 border border-zinc-800 active:scale-95"><MonitorSpeaker size={14}/> Sortie Audio</button>
             <AnimatePresence>
               {showDevices && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute bottom-full mb-3 left-0 w-full bg-[#1a1a1c] border border-zinc-700 rounded-2xl p-2 flex flex-col gap-1 shadow-[0_10px_40px_rgba(0,0,0,0.8)]">
-                  {devices.map(dev => (
-                    <button key={dev.id} onClick={() => { apiCall("", "PUT", { device_ids: [dev.id] }); setShowDevices(false); }} className={`p-3 text-left text-xs font-bold rounded-xl transition-colors ${dev.is_active ? 'bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/20' : 'hover:bg-zinc-800 text-white'}`}>{dev.name} {dev.is_active && " • Actif"}</button>
-                  ))}
-                  {devices.length === 0 && <p className="text-xs text-center text-zinc-500 p-2 font-medium">Ouvrez Spotify sur un appareil</p>}
+                  {devices.map(dev => (<button key={dev.id} onClick={() => { apiCall("", "PUT", { device_ids: [dev.id] }); setShowDevices(false); }} className={`p-3 text-left text-xs font-bold rounded-xl transition-colors ${dev.is_active ? 'bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/20' : 'hover:bg-zinc-800 text-white'}`}>{dev.name} {dev.is_active && " • Actif"}</button>))}
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
         </div>
       )}
-
-      {minimized && track && (
-        <div className="p-4 flex items-center justify-between">
-          <div className="flex flex-col truncate flex-1 pr-3">
-            <span className="text-xs font-bold text-white truncate">{track.title}</span>
-          </div>
-          <button onClick={() => apiCall(track.isPlaying ? "pause" : "play", "PUT")} className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg active:scale-95">
-            {track.isPlaying ? <Pause size={16} fill="black" /> : <Play size={16} fill="black" className="ml-1" />}
-          </button>
-        </div>
-      )}
+      {minimized && track && (<div className="p-4 flex items-center justify-between"><div className="flex flex-col truncate flex-1 pr-3"><span className="text-xs font-bold text-white truncate">{track.title}</span></div><button onClick={() => apiCall(track.isPlaying ? "pause" : "play", "PUT")} className="w-10 h-10 bg-white rounded-full flex items-center justify-center active:scale-95">{track.isPlaying ? <Pause size={16} fill="black" /> : <Play size={16} fill="black" className="ml-1" />}</button></div>)}
       {!track && <div className="p-6 text-center text-xs text-zinc-500 font-bold uppercase tracking-widest">Ouvrez Spotify pour commencer</div>}
     </motion.div>
   );
 }
 
 // ==========================================
-// COMPOSANTS SECONDAIRES (Cartes)
+// COMPOSANTS SECONDAIRES (Cartes d'Exercices)
 // ==========================================
 function ExerciseCard({ data, onStartRest, history, onLogWeight }) {
   const [completedSets, setCompletedSets] = useState([]);
@@ -632,7 +563,7 @@ function ExerciseCard({ data, onStartRest, history, onLogWeight }) {
       <div className="p-5 flex justify-between items-center border-b border-[#222225] bg-[#1a1a1c]">
         <div>
           <div className="flex items-center gap-2 mb-1">
-             <h3 className="text-[17px] font-bold text-white leading-tight">{isAlt ? data.alternative.name : data.name}</h3>
+             <h3 className="text-[17px] font-bold text-white leading-tight">{isAlt ? data.alternative?.name || data.name : data.name}</h3>
              {weight && parseFloat(weight) >= maxWeight && maxWeight > 0 && <Star size={14} className="text-yellow-500 fill-yellow-500" />}
           </div>
           <div className="bg-black px-2.5 py-1 rounded-md text-[10px] font-black text-blue-500 inline-block uppercase tracking-widest border border-zinc-800 shadow-inner">{data.sets}x{data.reps} • {data.tempo}</div>
@@ -669,7 +600,7 @@ function ExerciseCard({ data, onStartRest, history, onLogWeight }) {
                   </div>
                   <button onClick={onStartRest} className="w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center active:scale-90 shadow-[0_0_20px_rgba(10,132,255,0.4)] mr-1"><Play size={24} fill="white" className="ml-1"/></button>
               </div>
-              {isAlt && <p className="text-[11px] text-orange-400 font-bold bg-orange-500/10 p-4 rounded-[20px] border border-orange-500/20 text-center">{data.alternative.note}</p>}
+              {isAlt && data.alternative && <p className="text-[11px] text-orange-400 font-bold bg-orange-500/10 p-4 rounded-[20px] border border-orange-500/20 text-center">{data.alternative.note}</p>}
             </motion.div>
           ) : (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-56 pt-2">
