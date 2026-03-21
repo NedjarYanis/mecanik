@@ -1,3 +1,4 @@
+import Nutrition from './Nutrition';
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, Timer, Check, ShieldAlert, Target, HeartPulse, 
@@ -283,18 +284,9 @@ export default function MecanikApp() {
           </motion.div>
         )}
 
-        {/* VUE 2 : NUTRITION (EN CONSTRUCTION) */}
+        {/* VUE 2 : NUTRITION MODULAIRE */}
         {currentView === 'nutrition' && (
-          <motion.div key="nutrition" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex flex-col items-center justify-center h-full w-full p-6 bg-black text-center relative">
-            <div className="w-28 h-28 bg-green-600/10 rounded-full flex items-center justify-center border border-green-500/20 mb-8 shadow-[0_0_50px_rgba(29,185,84,0.2)]">
-               <Utensils size={48} className="text-green-500" />
-            </div>
-            <h2 className="text-3xl font-black uppercase tracking-tighter mb-3">Suivi Nutrition</h2>
-            <p className="text-zinc-400 text-sm mb-12 max-w-[280px] leading-relaxed">Module intelligent de calcul des calories et macros (Style Lifesum).<br/><br/><span className="text-green-500 font-bold">En cours de développement.</span></p>
-            <button onClick={() => setCurrentView('home')} className="px-8 py-4 bg-zinc-900 rounded-full font-black uppercase text-xs text-white border border-zinc-800 active:scale-95 transition-transform flex items-center gap-3 shadow-xl">
-              <ChevronLeft size={16} /> Retour Accueil
-            </button>
-          </motion.div>
+          <Nutrition key="nutrition" onBack={() => setCurrentView('home')} />
         )}
 
         {/* VUE 3 : L'APPLICATION D'ENTRAÎNEMENT COMPLÈTE */}
