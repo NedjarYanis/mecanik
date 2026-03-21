@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, Flame, Plus, Beef, Wheat, Droplet, Coffee } from 'lucide-react';
+import { ChevronLeft, Flame, Plus, Beef, Wheat, Droplet, Coffee, Utensils } from 'lucide-react';
 
 export default function Nutrition({ onBack }) {
   // Valeurs simulées (en attendant la vraie logique de calcul)
