@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ChevronLeft, Flame, Plus, Beef, Wheat, Droplet, 
   Coffee, Utensils, Moon, Cookie, Activity, X, 
-  Search, CheckCircle2, Globe, DatabaseZap, CloudLightning
+  Search, CheckCircle2, Globe, DatabaseZap, CloudLightning, RefreshCw
 } from 'lucide-react';
 
 // ==========================================
@@ -75,7 +75,7 @@ export default function Nutrition({ onBack }) {
         const foodsFromFirebase = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
         if (foodsFromFirebase.length === 0) {
-          setGlobalFoodDB(INITIAL_GLOBAL_DB); // Met les valeurs de base si la BDD est vide
+          setGlobalFoodDB(INITIAL_GLOBAL_DB);
         } else {
           setGlobalFoodDB([...INITIAL_GLOBAL_DB, ...foodsFromFirebase]);
         }
@@ -141,7 +141,7 @@ export default function Nutrition({ onBack }) {
       setNewFood({ name: "", cals: "", prot: "", carbs: "", fat: "" });
       setShowContributeModal(false);
     } catch (error) {
-      alert("Erreur lors de l'envoi sur le Cloud.");
+      alert("Erreur lors de l'envoi sur le Cloud. Vérifiez les règles Firestore.");
       console.error(error);
     } finally {
       setIsPublishing(false);
@@ -282,7 +282,7 @@ export default function Nutrition({ onBack }) {
           </div>
         </section>
       </main>
-    {/* ==================================================== */}
+      {/* ==================================================== */}
       {/* MODAL 1 : RECHERCHE INTELLIGENTE DANS UN REPAS         */}
       {/* ==================================================== */}
       <AnimatePresence>
