@@ -3,7 +3,8 @@ import {
   Play, Timer, Check, ShieldAlert, Target, HeartPulse, 
   BedDouble, Info, Activity, X, TrendingUp, Star, Download, 
   StickyNote, Scan, Music, SkipForward, SkipBack, Pause, RefreshCw, 
-  LogIn, LogOut, Minus, MonitorSpeaker, FastForward, Rewind
+  LogIn, LogOut, Minus, MonitorSpeaker, FastForward, Rewind, 
+  Edit3, Plus, Trash2 
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
@@ -35,7 +36,6 @@ const SPOTIFY_CLIENT_ID = "4673eade76a7419c9bad9eaf6ca902fe";
 const REDIRECT_URI = window.location.origin + window.location.pathname; 
 const SCOPES = "user-read-currently-playing user-modify-playback-state user-read-playback-state";
 
-// Outils Cryptographiques
 const generateRandomString = (length) => {
   const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   const values = crypto.getRandomValues(new Uint8Array(length));
@@ -51,9 +51,9 @@ const base64encode = (input) => {
 };
 
 // ==========================================
-// BASE DE DONNÉES COMPLÈTE (7 JOURS)
+// BASE DE DONNÉES PAR DÉFAUT
 // ==========================================
-const programData = {
+const defaultProgramData = {
   1: { type: 'lift', dayName: "Lundi", focus: "Membres Inférieurs", desc: "Surstimulation globale. Vider le glycogène.",
     exercises: [
       { id: '1A', name: "Presse à Cuisses (45°)", sets: 4, reps: "12-15", tempo: "3-0-1-1", rest: 180, weight: "175 kg", muscle: "Quadriceps", safety: "Profondeur max SANS rétroversion.", image: imgPresse, alternative: { name: "Presse Horizontale Matrix", note: "Même ciblage, plus stable pour le dos." } },
@@ -93,20 +93,43 @@ const programData = {
   7: { type: 'rest', dayName: "Dimanche", focus: "Repos Absolu", desc: "Restauration totale du système nerveux central avant la Semaine 2." }
 };
 
+// Extraction du CATALOGUE d'exercices (Panier)
+const CATALOGUE_EXERCICES = [];
+Object.values(defaultProgramData).forEach(day => {
+  if (day.exercises) {
+    day.exercises.forEach(exo => {
+      if (!CATALOGUE_EXERCICES.find(e => e.name === exo.name)) {
+        CATALOGUE_EXERCICES.push(exo);
+      }
+    });
+  }
+});
+
 // ==========================================
 // COMPOSANT PRINCIPAL (APP)
 // ==========================================
 export default function MecanikApp() {
+  // --- PROGRAMME PERSONNALISÉ (LocalStorage) ---
+  const [program, setProgram] = useState(() => {
+    const saved = localStorage.getItem('mecanik_custom_program');
+    return saved ? JSON.parse(saved) : defaultProgramData;
+  });
+  
+  useEffect(() => {
+    localStorage.setItem('mecanik_custom_program', JSON.stringify(program));
+  }, [program]);
+
   const [activeDay, setActiveDay] = useState(1);
   const [restTime, setRestTime] = useState(0);
   const [isScanning, setIsScanning] = useState(false);
+  const [isEditingDay, setIsEditingDay] = useState(false);
   
   // États de l'API Spotify
   const [spotifyToken, setSpotifyToken] = useState("");
   const [spotifyTrack, setSpotifyTrack] = useState(null);
   const [showSpotifyWidget, setShowSpotifyWidget] = useState(false);
   
-  const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem('mecanik_v10_history')) || {});
+  const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem('mecanik_history_log')) || {});
   const timerRef = useRef(null);
 
   // AUTHENTIFICATION PKCE (Sécurisée)
@@ -231,7 +254,7 @@ export default function MecanikApp() {
     return () => { if (scanner) scanner.clear().catch(e => console.error(e)); };
   }, [isScanning]);
 
-  const currentDay = programData[activeDay];
+  const currentDay = program[activeDay];
   
   const logWeight = (id, weight) => {
     const date = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
@@ -240,10 +263,25 @@ export default function MecanikApp() {
       [id]: [...(history[id] || []).filter(h => h.date !== date), { date, weight: parseFloat(weight) }].slice(-10)
     };
     setHistory(newHistory);
-    localStorage.setItem('mecanik_v10_history', JSON.stringify(newHistory));
+    localStorage.setItem('mecanik_history_log', JSON.stringify(newHistory));
   };
 
-  return (
+  const handleSaveDay = (dayId, newExercises) => {
+    setProgram(prev => {
+      const updated = { ...prev };
+      const hasExercises = newExercises.length > 0;
+      const hasCardio = !!updated[dayId].cardio;
+      
+      updated[dayId] = {
+        ...updated[dayId],
+        exercises: newExercises,
+        type: hasExercises && hasCardio ? 'mixed' : hasExercises ? 'lift' : hasCardio ? 'cardio' : 'rest'
+      };
+      return updated;
+    });
+    setIsEditingDay(false);
+  };
+return (
     <div className="max-w-md mx-auto h-screen flex flex-col bg-black text-white font-sans relative overflow-hidden">
       
       {/* HEADER */}
@@ -279,12 +317,20 @@ export default function MecanikApp() {
       <main className="flex-1 overflow-y-auto px-4 pt-6 pb-24 space-y-6">
         <AnimatePresence mode="wait">
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }} key={activeDay}>
-            <div className="mb-6 pl-1 border-l-2 border-blue-600">
-              <h2 className="text-[26px] font-black leading-tight text-white uppercase tracking-tighter pl-3">{currentDay.focus}</h2>
-              <p className="text-[#8E8E93] text-[12px] pl-3 mt-1">{currentDay.desc}</p>
+            
+            {/* Titre et Bouton Éditer (Builder) */}
+            <div className="mb-6 pl-1 flex justify-between items-start border-l-2 border-blue-600">
+              <div>
+                <h2 className="text-[26px] font-black leading-tight text-white uppercase tracking-tighter pl-3">{currentDay.focus}</h2>
+                <p className="text-[#8E8E93] text-[12px] pl-3 mt-1">{currentDay.desc}</p>
+              </div>
+              <button onClick={() => setIsEditingDay(true)} className="p-3 bg-zinc-900 rounded-full text-zinc-400 hover:text-white border border-zinc-800 shadow-lg transition-colors">
+                <Edit3 size={18} />
+              </button>
             </div>
 
-            {(currentDay.type === 'lift' || currentDay.type === 'mixed') && currentDay.exercises.map(exo => (
+            {/* Rendu des Cartes selon la db locale personnalisée */}
+            {(currentDay.type === 'lift' || currentDay.type === 'mixed') && currentDay.exercises && currentDay.exercises.map(exo => (
               <ExerciseCard key={exo.id} data={exo} onStartRest={() => setRestTime(exo.rest)} history={history[exo.id] || []} onLogWeight={(w) => logWeight(exo.id, w)} />
             ))}
             {currentDay.cardio && <CardioCard data={currentDay.cardio} isFinisher={currentDay.type === 'mixed'} />}
@@ -292,6 +338,19 @@ export default function MecanikApp() {
           </motion.div>
         </AnimatePresence>
       </main>
+
+      {/* MODAL BUILDER : PERSONNALISATION DE LA SÉANCE */}
+      <AnimatePresence>
+        {isEditingDay && (
+          <EditDayModal 
+            dayId={activeDay} 
+            dayData={currentDay} 
+            catalog={CATALOGUE_EXERCICES} 
+            onClose={() => setIsEditingDay(false)} 
+            onSave={(newExercises) => handleSaveDay(activeDay, newExercises)} 
+          />
+        )}
+      </AnimatePresence>
 
       {/* WIDGET FLOTTANT SPOTIFY */}
       {showSpotifyWidget && spotifyToken && (
@@ -326,8 +385,91 @@ export default function MecanikApp() {
     </div>
   );
 }
+
 // ==========================================
-// WIDGET FLOTTANT SPOTIFY (NOUVEAU - TACTILE, ZOOM, MAGNÉTISME)
+// COMPOSANT BUILDER (PANIER D'EXERCICES)
+// ==========================================
+function EditDayModal({ dayId, dayData, catalog, onClose, onSave }) {
+  const [localExercises, setLocalExercises] = useState(dayData.exercises || []);
+
+  const addExercise = (exo) => {
+    // Générer un ID unique basé sur l'heure pour autoriser les doublons si besoin
+    const newExo = { ...exo, id: `${dayId}${Date.now().toString().slice(-4)}` };
+    setLocalExercises([...localExercises, newExo]);
+  };
+
+  const removeExercise = (exoId) => {
+    setLocalExercises(localExercises.filter(e => e.id !== exoId));
+  };
+
+  // Filtrer le catalogue pour ne montrer que les exercices non présents (Optionnel, ici on montre tout)
+  return (
+    <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} 
+      className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col">
+      <div className="p-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
+        <h2 className="text-lg font-black uppercase tracking-tighter">Personnaliser Jour {dayId}</h2>
+        <button onClick={onClose} className="p-2 bg-zinc-800 rounded-full"><X size={20}/></button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        {/* Exercices Actuels */}
+        <div>
+          <h3 className="text-[11px] font-black uppercase text-blue-500 tracking-widest mb-3">Panier de la séance</h3>
+          {localExercises.length === 0 ? (
+            <p className="text-xs text-zinc-500 italic p-4 bg-zinc-900 rounded-xl">Aucun exercice. Ce sera un jour de repos ou cardio.</p>
+          ) : (
+            <div className="space-y-2">
+              {localExercises.map((exo, idx) => (
+                <div key={exo.id} className="flex justify-between items-center bg-zinc-900 p-3 rounded-[20px] border border-zinc-800">
+                  <div className="flex items-center gap-3">
+                    <span className="text-zinc-600 font-black text-xs w-4">{idx + 1}.</span>
+                    <div>
+                      <p className="font-bold text-sm text-white">{exo.name}</p>
+                      <p className="text-[10px] text-zinc-500">{exo.sets}x{exo.reps}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => removeExercise(exo.id)} className="p-2 text-red-500 hover:bg-red-500/20 rounded-xl transition-colors">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Catalogue */}
+        <div>
+          <h3 className="text-[11px] font-black uppercase text-zinc-500 tracking-widest mb-3">Catalogue (Contenu Figé)</h3>
+          <div className="grid grid-cols-1 gap-2">
+            {catalog.map((exo, idx) => (
+              <div key={`cat-${idx}`} className="flex justify-between items-center bg-black p-3 rounded-[20px] border border-zinc-800">
+                 <div className="flex items-center gap-3">
+                    <img src={exo.image} alt="" className="w-10 h-10 rounded-lg object-contain bg-zinc-900 border border-zinc-800" />
+                    <div>
+                      <p className="font-bold text-sm text-white truncate max-w-[180px]">{exo.name}</p>
+                      <p className="text-[10px] text-zinc-500">{exo.muscle}</p>
+                    </div>
+                 </div>
+                 <button onClick={() => addExercise(exo)} className="p-2 bg-blue-600/20 text-blue-500 hover:bg-blue-600 hover:text-white rounded-xl transition-colors">
+                   <Plus size={16} />
+                 </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="p-5 border-t border-zinc-800 bg-zinc-900/50">
+        <button onClick={() => onSave(localExercises)} className="w-full py-4 bg-blue-600 rounded-full font-black uppercase text-xs shadow-lg shadow-blue-900/50 active:scale-95 transition-transform">
+          Sauvegarder la séance
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+// ==========================================
+// WIDGET FLOTTANT SPOTIFY (TACTILE, ZOOM, MAGNÉTISME)
 // ==========================================
 function FloatingSpotifyWidget({ token, track, onClose, refreshTrack }) {
   const dragControls = useDragControls();
@@ -336,7 +478,6 @@ function FloatingSpotifyWidget({ token, track, onClose, refreshTrack }) {
   const [devices, setDevices] = useState([]);
   const [localProgress, setLocalProgress] = useState(0);
   
-  // États de manipulation Tactile
   const [scale, setScale] = useState(1);
   const pinchRef = useRef(null);
 
@@ -376,17 +517,13 @@ function FloatingSpotifyWidget({ token, track, onClose, refreshTrack }) {
     return `${Math.floor(total / 60)}:${(total % 60).toString().padStart(2, '0')}`;
   };
 
-  // Logique PINCH-TO-ZOOM
   const handleTouchMove = (e) => {
     if (e.touches.length === 2) {
-      e.stopPropagation(); // Bloque le scroll de la page web derrière
-      const dist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
+      e.stopPropagation(); 
+      const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
       if (pinchRef.current) {
         const delta = dist - pinchRef.current;
-        setScale(s => Math.min(Math.max(0.7, s + delta * 0.005), 1.3)); // Limites du zoom
+        setScale(s => Math.min(Math.max(0.7, s + delta * 0.005), 1.3)); 
       }
       pinchRef.current = dist;
     }
@@ -395,26 +532,14 @@ function FloatingSpotifyWidget({ token, track, onClose, refreshTrack }) {
 
   return (
     <motion.div 
-      drag 
-      dragControls={dragControls} 
-      dragListener={false} 
-      dragMomentum={true} // Active l'inertie physique
-      // MAGNÉTISME : Limites de l'écran (Snap naturel)
+      drag dragControls={dragControls} dragListener={false} dragMomentum={true} 
       dragConstraints={{ left: -10, right: 10, top: -500, bottom: 20 }}
       initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }}
-      
-      // EMPÊCHER LE SCROLL LORS DU DRAG & APPLIQUER LE ZOOM
       style={{ scale, touchAction: 'none' }} 
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      
+      onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
       className={`fixed bottom-24 right-4 z-[80] bg-black/85 backdrop-blur-2xl border border-zinc-800 rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.8)] flex flex-col transition-[width,height] origin-bottom-right ${minimized ? 'w-[250px] h-auto' : 'w-[320px] resize overflow-hidden min-h-[160px]'}`}
     >
-      {/* Barre de titre "Draggable" */}
-      <div 
-        className="bg-zinc-900/60 p-3.5 flex justify-between items-center cursor-grab active:cursor-grabbing border-b border-zinc-800 touch-none" 
-        onPointerDown={(e) => dragControls.start(e)}
-      >
+      <div className="bg-zinc-900/60 p-3.5 flex justify-between items-center cursor-grab active:cursor-grabbing border-b border-zinc-800 touch-none" onPointerDown={(e) => dragControls.start(e)}>
         <div className="flex items-center gap-2 pointer-events-none">
           <Music size={14} className="text-[#1DB954]" />
           <span className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Lecteur</span>
@@ -425,11 +550,8 @@ function FloatingSpotifyWidget({ token, track, onClose, refreshTrack }) {
         </div>
       </div>
 
-      {/* Contenu du Lecteur */}
       {!minimized && track && (
         <div className="p-5 flex flex-col gap-5 flex-1">
-          
-          {/* Info Track */}
           <div className="flex items-center gap-4">
             {track.image && <img src={track.image} alt="Album" className="w-16 h-16 rounded-2xl shadow-lg border border-zinc-800 pointer-events-none" />}
             <div className="flex flex-col overflow-hidden">
@@ -438,41 +560,31 @@ function FloatingSpotifyWidget({ token, track, onClose, refreshTrack }) {
             </div>
           </div>
 
-          {/* Barre de Progression interactive */}
           <div className="flex items-center gap-3">
             <span className="text-[10px] text-zinc-500 font-mono w-7 text-right">{formatTime(localProgress)}</span>
             <input type="range" min="0" max={track.duration || 100} value={localProgress} onChange={handleSeek} className="flex-1 h-1.5 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-[#1DB954]" />
             <span className="text-[10px] text-zinc-500 font-mono w-7">{formatTime(track.duration)}</span>
           </div>
 
-          {/* Contrôles Playback & Avance Rapide */}
           <div className="flex justify-between items-center px-1">
             <button onClick={() => apiCall(`seek?position_ms=${Math.max(0, localProgress - 10000)}`, "PUT")} className="p-2 text-zinc-500 hover:text-white transition-colors active:scale-90"><Rewind size={18}/></button>
             <button onClick={() => apiCall("previous")} className="p-2 text-zinc-300 hover:text-white transition-colors active:scale-90"><SkipBack size={20}/></button>
-            
             <button onClick={() => apiCall(track.isPlaying ? "pause" : "play", "PUT")} className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-105 active:scale-95 transition-all">
               {track.isPlaying ? <Pause size={22} fill="black" /> : <Play size={22} fill="black" className="ml-1" />}
             </button>
-            
             <button onClick={() => apiCall("next")} className="p-2 text-zinc-300 hover:text-white transition-colors active:scale-90"><SkipForward size={20}/></button>
             <button onClick={() => apiCall(`seek?position_ms=${Math.min(track.duration, localProgress + 10000)}`, "PUT")} className="p-2 text-zinc-500 hover:text-white transition-colors active:scale-90"><FastForward size={18}/></button>
           </div>
 
-          {/* Sortie Audio (Routing) */}
           <div className="mt-2 pt-4 border-t border-zinc-800/80 relative">
             <button onClick={getDevices} className="w-full py-3 bg-zinc-900 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase text-zinc-400 border border-zinc-800 active:scale-95 transition-transform">
               <MonitorSpeaker size={14}/> Sortie Audio
             </button>
-            
-            {/* Menu Déroulant des Périphériques */}
             <AnimatePresence>
               {showDevices && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute bottom-full mb-3 left-0 w-full bg-[#1a1a1c] border border-zinc-700 rounded-2xl p-2 flex flex-col gap-1 shadow-[0_10px_40px_rgba(0,0,0,0.8)]">
                   {devices.map(dev => (
-                    <button key={dev.id} onClick={() => { apiCall("", "PUT", { device_ids: [dev.id] }); setShowDevices(false); }}
-                      className={`p-3 text-left text-xs font-bold rounded-xl transition-colors ${dev.is_active ? 'bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/20' : 'hover:bg-zinc-800 text-white'}`}>
-                      {dev.name} {dev.is_active && " • Actif"}
-                    </button>
+                    <button key={dev.id} onClick={() => { apiCall("", "PUT", { device_ids: [dev.id] }); setShowDevices(false); }} className={`p-3 text-left text-xs font-bold rounded-xl transition-colors ${dev.is_active ? 'bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/20' : 'hover:bg-zinc-800 text-white'}`}>{dev.name} {dev.is_active && " • Actif"}</button>
                   ))}
                   {devices.length === 0 && <p className="text-xs text-center text-zinc-500 p-2 font-medium">Ouvrez Spotify sur un appareil</p>}
                 </motion.div>
@@ -482,7 +594,6 @@ function FloatingSpotifyWidget({ token, track, onClose, refreshTrack }) {
         </div>
       )}
 
-      {/* Vue Minimisée */}
       {minimized && track && (
         <div className="p-4 flex items-center justify-between">
           <div className="flex flex-col truncate flex-1 pr-3">
@@ -493,14 +604,13 @@ function FloatingSpotifyWidget({ token, track, onClose, refreshTrack }) {
           </button>
         </div>
       )}
-
       {!track && <div className="p-6 text-center text-xs text-zinc-500 font-bold uppercase tracking-widest">Ouvrez Spotify pour commencer</div>}
     </motion.div>
   );
 }
 
 // ==========================================
-// COMPOSANTS SECONDAIRES (Exercices)
+// COMPOSANTS SECONDAIRES (Cartes)
 // ==========================================
 function ExerciseCard({ data, onStartRest, history, onLogWeight }) {
   const [completedSets, setCompletedSets] = useState([]);
