@@ -3,19 +3,38 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ChevronLeft, Flame, Plus, Beef, Wheat, Droplet, 
   Coffee, Utensils, Moon, Cookie, Activity, X, 
-  Search, CheckCircle2, Globe, DatabaseZap
+  Search, CheckCircle2, Globe, DatabaseZap, CloudLightning
 } from 'lucide-react';
+
+// ==========================================
+// 1. CONFIGURATION CLOUD FIREBASE (VRAIE BDD)
+// ==========================================
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, getDocs, addDoc } from "firebase/firestore";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDgWfWXpAV6ZHHrlE4q1EC3mFeZAJOV5wc",
+  authDomain: "mecanik-21fad.firebaseapp.com",
+  projectId: "mecanik-21fad",
+  storageBucket: "mecanik-21fad.firebasestorage.app",
+  messagingSenderId: "669005036732",
+  appId: "1:669005036732:web:a998919f7b462fe19fe4b9"
+};
+
+// Initialisation de l'application Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const foodsCollection = collection(db, 'foods');
 
 // --- CONFIGURATION DES OBJECTIFS ---
 const GOALS = { calories: 2600, carbs: 300, protein: 160, fat: 80, water: 2000 };
 
-// --- BASE DE DONNÉES GLOBALE (Simulée "Cloud") ---
+// Base de données par défaut (au cas où Firebase est vide au 1er lancement)
 const INITIAL_GLOBAL_DB = [
   { id: '1', name: 'Flocons d\'avoine', cals: 389, prot: 16.9, carbs: 66.3, fat: 6.9, verified: true },
   { id: '2', name: 'Poulet (Blanc)', cals: 165, prot: 31, carbs: 0, fat: 3.6, verified: true },
   { id: '3', name: 'Riz Basmati (Cuit)', cals: 130, prot: 2.7, carbs: 28, fat: 0.3, verified: true },
   { id: '4', name: 'Oeuf entier', cals: 155, prot: 13, carbs: 1.1, fat: 11, verified: true },
-  { id: '5', name: 'Amandes', cals: 579, prot: 21, carbs: 22, fat: 50, verified: false },
   { id: '6', name: 'Pâtes (Crues)', cals: 350, prot: 12, carbs: 72, fat: 1.5, verified: true },
   { id: '7', name: 'Whey Protein', cals: 115, prot: 24, carbs: 2, fat: 1.5, verified: true }
 ];
@@ -44,15 +63,33 @@ const CircularGauge = ({ value, max, color, size = 64, strokeWidth = 6, icon: Ic
 // COMPOSANT PRINCIPAL NUTRITION
 // ==========================================
 export default function Nutrition({ onBack }) {
-  // 1. ÉTATS : Base de Données Globale (Communauté)
-  const [globalDB, setGlobalFoodDB] = useState(() => {
-    const savedDB = localStorage.getItem('mecanik_global_food_db');
-    return savedDB ? JSON.parse(savedDB) : INITIAL_GLOBAL_DB;
-  });
+  // 1. ÉTATS : Base de Données Globale (Connectée à Firebase)
+  const [globalDB, setGlobalFoodDB] = useState([]);
+  const [isCloudSyncing, setIsCloudSyncing] = useState(true);
 
-  useEffect(() => { localStorage.setItem('mecanik_global_food_db', JSON.stringify(globalDB)); }, [globalDB]);
+  // CHARGEMENT DEPUIS LE CLOUD FIREBASE
+  useEffect(() => {
+    const fetchFoodsFromCloud = async () => {
+      try {
+        const snapshot = await getDocs(foodsCollection);
+        const foodsFromFirebase = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        if (foodsFromFirebase.length === 0) {
+          setGlobalFoodDB(INITIAL_GLOBAL_DB); // Met les valeurs de base si la BDD est vide
+        } else {
+          setGlobalFoodDB([...INITIAL_GLOBAL_DB, ...foodsFromFirebase]);
+        }
+        setIsCloudSyncing(false);
+      } catch (error) {
+        console.error("Erreur de connexion Firebase :", error);
+        setGlobalFoodDB(INITIAL_GLOBAL_DB); // Mode hors-ligne
+        setIsCloudSyncing(false);
+      }
+    };
+    fetchFoodsFromCloud();
+  }, []);
 
-  // 2. ÉTATS : Journal Personnel de l'Utilisateur
+  // 2. ÉTATS : Journal Personnel de l'Utilisateur (Reste en LocalStorage)
   const [data, setData] = useState(() => {
     const saved = localStorage.getItem('mecanik_nutrition_journal');
     return saved ? JSON.parse(saved) : {
@@ -73,6 +110,7 @@ export default function Nutrition({ onBack }) {
   const [showContributeModal, setShowContributeModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [newFood, setNewFood] = useState({ name: "", cals: "", prot: "", carbs: "", fat: "" });
+  const [isPublishing, setIsPublishing] = useState(false);
 
   // 4. CALCULS GLOBAUX
   const totalConsumed = Object.values(data.meals).reduce((acc, meal) => acc + meal.cals, 0);
@@ -81,22 +119,36 @@ export default function Nutrition({ onBack }) {
   const totalFat = Object.values(data.meals).reduce((acc, meal) => acc + meal.fat, 0);
   const remainingCals = GOALS.calories - totalConsumed + data.activity;
 
-  // 5. ACTIONS : Contribution (Crowdsourcing)
-  const handleContributeFood = () => {
+  // 5. ACTIONS : Contribution (ENVOI SUR FIREBASE)
+  const handleContributeFood = async () => {
     if (!newFood.name || !newFood.cals) return;
+    setIsPublishing(true);
+    
     const foodItem = {
-      id: `custom_${Date.now()}`,
       name: newFood.name,
-      cals: Number(newFood.cals), prot: Number(newFood.prot || 0),
-      carbs: Number(newFood.carbs || 0), fat: Number(newFood.fat || 0),
+      cals: Number(newFood.cals), 
+      prot: Number(newFood.prot || 0),
+      carbs: Number(newFood.carbs || 0), 
+      fat: Number(newFood.fat || 0),
       verified: false // Tag "Communauté"
     };
-    setGlobalFoodDB([foodItem, ...globalDB]);
-    setNewFood({ name: "", cals: "", prot: "", carbs: "", fat: "" });
-    setShowContributeModal(false);
+
+    try {
+      // Envoi de la donnée sur le serveur Google Firebase
+      const docRef = await addDoc(foodsCollection, foodItem);
+      // Mise à jour de l'affichage local immédiatement
+      setGlobalFoodDB([{ id: docRef.id, ...foodItem }, ...globalDB]);
+      setNewFood({ name: "", cals: "", prot: "", carbs: "", fat: "" });
+      setShowContributeModal(false);
+    } catch (error) {
+      alert("Erreur lors de l'envoi sur le Cloud.");
+      console.error(error);
+    } finally {
+      setIsPublishing(false);
+    }
   };
 
-  // 6. ACTIONS : Ajouter au journal
+  // 6. ACTIONS : Ajouter au journal perso
   const handleAddFoodToMeal = (food) => {
     setData(prev => {
       const meal = prev.meals[activeMealModal];
@@ -112,7 +164,7 @@ export default function Nutrition({ onBack }) {
         }
       };
     });
-    setSearchQuery(""); // Reset la barre de recherche après ajout
+    setSearchQuery("");
   };
 
   const handleAddWater = () => setData(p => ({ ...p, water: Math.min(p.water + 250, GOALS.water + 1000) }));
@@ -131,7 +183,13 @@ export default function Nutrition({ onBack }) {
       <header className="px-5 pt-10 pb-4 bg-black/90 backdrop-blur-xl z-40 border-b border-zinc-900 flex-shrink-0">
         <div className="flex justify-between items-center">
           <button onClick={onBack} className="p-2.5 bg-zinc-900 rounded-full text-zinc-400 active:scale-95 border border-zinc-800 transition-transform"><ChevronLeft size={18}/></button>
-          <h1 className="text-xl font-black tracking-tight uppercase">Nutrition</h1>
+          <div className="flex flex-col items-center">
+            <h1 className="text-xl font-black tracking-tight uppercase">Nutrition</h1>
+            <div className="flex items-center gap-1 mt-0.5">
+               {isCloudSyncing ? <RefreshCw size={10} className="text-zinc-500 animate-spin" /> : <CloudLightning size={10} className="text-blue-500" />}
+               <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest">{isCloudSyncing ? "Sync..." : "Cloud Connecté"}</span>
+            </div>
+          </div>
           <button onClick={() => setShowContributeModal(true)} className="p-2.5 bg-blue-600/10 text-blue-500 rounded-full border border-blue-500/20 active:scale-95" title="Base de données communautaire">
             <DatabaseZap size={18} />
           </button>
@@ -194,11 +252,8 @@ export default function Nutrition({ onBack }) {
                   </div>
                   <div className="w-8 h-8 bg-blue-600/20 rounded-full flex items-center justify-center text-blue-500"><Plus size={16}/></div>
                 </div>
-                {/* Aperçu des aliments ajoutés */}
                 {data.meals[meal.id].items.length > 0 && (
-                  <p className="text-[10px] text-zinc-500 mt-3 pl-1 truncate">
-                    {data.meals[meal.id].items.map(i => i.name).join(", ")}
-                  </p>
+                  <p className="text-[10px] text-zinc-500 mt-3 pl-1 truncate">{data.meals[meal.id].items.map(i => i.name).join(", ")}</p>
                 )}
               </div>
             ))}
@@ -227,7 +282,7 @@ export default function Nutrition({ onBack }) {
           </div>
         </section>
       </main>
-      {/* ==================================================== */}
+    {/* ==================================================== */}
       {/* MODAL 1 : RECHERCHE INTELLIGENTE DANS UN REPAS         */}
       {/* ==================================================== */}
       <AnimatePresence>
@@ -239,21 +294,18 @@ export default function Nutrition({ onBack }) {
             </div>
 
             <div className="p-4 flex-1 flex flex-col overflow-hidden">
-              {/* Barre de recherche */}
               <div className="flex items-center gap-3 bg-zinc-900 p-4 rounded-2xl border border-zinc-800 mb-6 shrink-0 shadow-inner">
                 <Search size={20} className="text-zinc-500" />
                 <input type="text" placeholder="Rechercher un aliment..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="bg-transparent text-sm font-bold text-white outline-none w-full placeholder:text-zinc-600" autoFocus />
               </div>
 
-              {/* Résultats de recherche */}
               <div className="flex-1 overflow-y-auto space-y-3 pb-6">
                 {searchQuery ? (
-                  searchResults.length > 0 ? searchResults.map(food => (
-                    <div key={food.id} className="bg-[#151517] p-4 rounded-[20px] border border-zinc-800 flex justify-between items-center shadow-lg">
+                  searchResults.length > 0 ? searchResults.map((food, idx) => (
+                    <div key={food.id || idx} className="bg-[#151517] p-4 rounded-[20px] border border-zinc-800 flex justify-between items-center shadow-lg">
                       <div className="flex-1 pr-3">
                         <div className="flex items-center gap-2 mb-1">
                           <p className="font-bold text-sm text-white truncate">{food.name}</p>
-                          {/* Badges de Base de Données */}
                           {food.verified ? (
                             <CheckCircle2 size={14} className="text-blue-500 shrink-0" title="Base Vérifiée" />
                           ) : (
@@ -272,8 +324,8 @@ export default function Nutrition({ onBack }) {
                   )) : (
                     <div className="text-center py-10">
                       <Search size={40} className="text-zinc-800 mx-auto mb-4" />
-                      <p className="text-zinc-500 text-sm font-bold">Aucun aliment trouvé.</p>
-                      <button onClick={() => { setShowContributeModal(true); setActiveMealModal(null); setSearchQuery(""); }} className="mt-4 px-6 py-3 bg-zinc-900 rounded-full text-xs font-black uppercase text-blue-500 border border-zinc-800">Contribuer à la base</button>
+                      <p className="text-zinc-500 text-sm font-bold">Aucun aliment trouvé dans le Cloud.</p>
+                      <button onClick={() => { setShowContributeModal(true); setActiveMealModal(null); setSearchQuery(""); }} className="mt-4 px-6 py-3 bg-zinc-900 rounded-full text-xs font-black uppercase text-blue-500 border border-zinc-800">Ajouter à la communauté</button>
                     </div>
                   )
                 ) : (
@@ -288,20 +340,23 @@ export default function Nutrition({ onBack }) {
       </AnimatePresence>
 
       {/* ==================================================== */}
-      {/* MODAL 2 : CROWDSOURCING (AJOUTER À LA BDD GLOBALE)     */}
+      {/* MODAL 2 : CROWDSOURCING (AJOUTER À FIREBASE)           */}
       {/* ==================================================== */}
       <AnimatePresence>
         {showContributeModal && (
           <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col">
             <div className="p-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
-              <h2 className="text-lg font-black uppercase tracking-tighter">Base Communautaire</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-black uppercase tracking-tighter">Base Cloud</h2>
+                <CloudLightning size={16} className="text-orange-500" />
+              </div>
               <button onClick={() => setShowContributeModal(false)} className="p-2 bg-zinc-800 rounded-full active:scale-90"><X size={20}/></button>
             </div>
 
             <div className="p-5 overflow-y-auto space-y-6">
               <div className="bg-orange-500/10 border border-orange-500/20 p-4 rounded-[20px] flex gap-3 items-start">
                 <Globe size={20} className="text-orange-500 shrink-0 mt-0.5" />
-                <p className="text-[11px] text-orange-200 leading-relaxed font-medium">Les aliments que vous ajoutez ici seront synchronisés et disponibles pour <strong>tous les utilisateurs</strong> lors de leurs recherches. Soyez précis ! (Valeurs pour 100g).</p>
+                <p className="text-[11px] text-orange-200 leading-relaxed font-medium">Les aliments que vous ajoutez ici seront synchronisés en temps réel et disponibles pour <strong>tous les utilisateurs du monde</strong>. Soyez précis ! (Valeurs pour 100g).</p>
               </div>
 
               <div className="space-y-4">
@@ -331,8 +386,8 @@ export default function Nutrition({ onBack }) {
                 </div>
               </div>
 
-              <button onClick={handleContributeFood} className={`w-full py-5 rounded-full font-black uppercase text-xs shadow-xl transition-all active:scale-95 ${newFood.name && newFood.cals ? 'bg-orange-500 text-black shadow-orange-900/50' : 'bg-zinc-800 text-zinc-500'}`}>
-                Publier dans la base
+              <button onClick={handleContributeFood} disabled={isPublishing} className={`w-full py-5 rounded-full font-black uppercase text-xs shadow-xl transition-all active:scale-95 flex justify-center items-center gap-2 ${newFood.name && newFood.cals ? 'bg-orange-500 text-black shadow-orange-900/50' : 'bg-zinc-800 text-zinc-500'}`}>
+                {isPublishing ? <RefreshCw size={16} className="animate-spin" /> : "Publier sur le Cloud"}
               </button>
             </div>
           </motion.div>
