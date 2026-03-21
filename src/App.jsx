@@ -106,7 +106,7 @@ export default function MecanikApp() {
   const [spotifyTrack, setSpotifyTrack] = useState(null);
   const [showSpotifyWidget, setShowSpotifyWidget] = useState(false);
   
-  const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem('mecanik_v9_history')) || {});
+  const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem('mecanik_v10_history')) || {});
   const timerRef = useRef(null);
 
   // AUTHENTIFICATION PKCE (Sécurisée)
@@ -232,7 +232,17 @@ export default function MecanikApp() {
   }, [isScanning]);
 
   const currentDay = programData[activeDay];
-// ... SUITE DE LA PARTIE 2 ...
+  
+  const logWeight = (id, weight) => {
+    const date = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+    const newHistory = {
+      ...history,
+      [id]: [...(history[id] || []).filter(h => h.date !== date), { date, weight: parseFloat(weight) }].slice(-10)
+    };
+    setHistory(newHistory);
+    localStorage.setItem('mecanik_v10_history', JSON.stringify(newHistory));
+  };
+
   return (
     <div className="max-w-md mx-auto h-screen flex flex-col bg-black text-white font-sans relative overflow-hidden">
       
@@ -275,10 +285,7 @@ export default function MecanikApp() {
             </div>
 
             {(currentDay.type === 'lift' || currentDay.type === 'mixed') && currentDay.exercises.map(exo => (
-              <ExerciseCard key={exo.id} data={exo} onStartRest={() => setRestTime(exo.rest)} history={history[exo.id] || []} onLogWeight={(w) => {
-                const date = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
-                setHistory(prev => ({...prev, [exo.id]: [...(prev[exo.id] || []).filter(h => h.date !== date), { date, weight: parseFloat(w) }].slice(-10)}));
-              }} />
+              <ExerciseCard key={exo.id} data={exo} onStartRest={() => setRestTime(exo.rest)} history={history[exo.id] || []} onLogWeight={(w) => logWeight(exo.id, w)} />
             ))}
             {currentDay.cardio && <CardioCard data={currentDay.cardio} isFinisher={currentDay.type === 'mixed'} />}
             {currentDay.type === 'rest' && <RestCard data={currentDay} />}
@@ -319,9 +326,8 @@ export default function MecanikApp() {
     </div>
   );
 }
-
 // ==========================================
-// WIDGET FLOTTANT SPOTIFY (NOUVEAU)
+// WIDGET FLOTTANT SPOTIFY (NOUVEAU - TACTILE, ZOOM, MAGNÉTISME)
 // ==========================================
 function FloatingSpotifyWidget({ token, track, onClose, refreshTrack }) {
   const dragControls = useDragControls();
@@ -329,6 +335,10 @@ function FloatingSpotifyWidget({ token, track, onClose, refreshTrack }) {
   const [showDevices, setShowDevices] = useState(false);
   const [devices, setDevices] = useState([]);
   const [localProgress, setLocalProgress] = useState(0);
+  
+  // États de manipulation Tactile
+  const [scale, setScale] = useState(1);
+  const pinchRef = useRef(null);
 
   useEffect(() => { setLocalProgress(track?.progress || 0); }, [track?.progress]);
 
@@ -366,95 +376,131 @@ function FloatingSpotifyWidget({ token, track, onClose, refreshTrack }) {
     return `${Math.floor(total / 60)}:${(total % 60).toString().padStart(2, '0')}`;
   };
 
+  // Logique PINCH-TO-ZOOM
+  const handleTouchMove = (e) => {
+    if (e.touches.length === 2) {
+      e.stopPropagation(); // Bloque le scroll de la page web derrière
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      if (pinchRef.current) {
+        const delta = dist - pinchRef.current;
+        setScale(s => Math.min(Math.max(0.7, s + delta * 0.005), 1.3)); // Limites du zoom
+      }
+      pinchRef.current = dist;
+    }
+  };
+  const handleTouchEnd = () => pinchRef.current = null;
+
   return (
     <motion.div 
-      drag dragControls={dragControls} dragListener={false} dragMomentum={false}
+      drag 
+      dragControls={dragControls} 
+      dragListener={false} 
+      dragMomentum={true} // Active l'inertie physique
+      // MAGNÉTISME : Limites de l'écran (Snap naturel)
+      dragConstraints={{ left: -10, right: 10, top: -500, bottom: 20 }}
       initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }}
-      className={`fixed bottom-24 right-4 z-[80] bg-black/80 backdrop-blur-2xl border border-zinc-800 rounded-[24px] shadow-2xl overflow-hidden flex flex-col transition-all ${minimized ? 'w-[250px] h-auto' : 'w-[320px] resize overflow-hidden min-h-[160px]'}`}
-      style={{ resize: minimized ? 'none' : 'horizontal' }}
+      
+      // EMPÊCHER LE SCROLL LORS DU DRAG & APPLIQUER LE ZOOM
+      style={{ scale, touchAction: 'none' }} 
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      
+      className={`fixed bottom-24 right-4 z-[80] bg-black/85 backdrop-blur-2xl border border-zinc-800 rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.8)] flex flex-col transition-[width,height] origin-bottom-right ${minimized ? 'w-[250px] h-auto' : 'w-[320px] resize overflow-hidden min-h-[160px]'}`}
     >
       {/* Barre de titre "Draggable" */}
-      <div className="bg-zinc-900/50 p-3 flex justify-between items-center cursor-grab active:cursor-grabbing border-b border-zinc-800" onPointerDown={(e) => dragControls.start(e)}>
+      <div 
+        className="bg-zinc-900/60 p-3.5 flex justify-between items-center cursor-grab active:cursor-grabbing border-b border-zinc-800 touch-none" 
+        onPointerDown={(e) => dragControls.start(e)}
+      >
         <div className="flex items-center gap-2 pointer-events-none">
           <Music size={14} className="text-[#1DB954]" />
           <span className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Lecteur</span>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setMinimized(!minimized)} className="p-1 hover:bg-zinc-800 rounded-md"><Minus size={14} className="text-zinc-400"/></button>
-          <button onClick={onClose} className="p-1 hover:bg-red-900 rounded-md"><X size={14} className="text-zinc-400"/></button>
+        <div className="flex items-center gap-3">
+          <button onClick={() => setMinimized(!minimized)} className="p-1.5 hover:bg-zinc-800 rounded-xl transition-colors"><Minus size={14} className="text-zinc-400"/></button>
+          <button onClick={onClose} className="p-1.5 hover:bg-red-900/40 rounded-xl transition-colors"><X size={14} className="text-zinc-400"/></button>
         </div>
       </div>
 
       {/* Contenu du Lecteur */}
       {!minimized && track && (
-        <div className="p-4 flex flex-col gap-4 flex-1">
+        <div className="p-5 flex flex-col gap-5 flex-1">
           
           {/* Info Track */}
           <div className="flex items-center gap-4">
-            {track.image && <img src={track.image} alt="Album" className="w-16 h-16 rounded-xl shadow-lg border border-zinc-800" />}
+            {track.image && <img src={track.image} alt="Album" className="w-16 h-16 rounded-2xl shadow-lg border border-zinc-800 pointer-events-none" />}
             <div className="flex flex-col overflow-hidden">
-              <span className="font-bold text-white truncate">{track.title}</span>
-              <span className="text-xs text-zinc-400 truncate">{track.artist}</span>
+              <span className="font-bold text-white text-sm truncate">{track.title}</span>
+              <span className="text-[11px] text-zinc-400 truncate mt-0.5 font-medium">{track.artist}</span>
             </div>
           </div>
 
           {/* Barre de Progression interactive */}
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] text-zinc-500 font-mono w-6">{formatTime(localProgress)}</span>
-            <input type="range" min="0" max={track.duration || 100} value={localProgress} onChange={handleSeek} className="flex-1 h-1 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-[#1DB954]" />
-            <span className="text-[9px] text-zinc-500 font-mono w-6">{formatTime(track.duration)}</span>
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] text-zinc-500 font-mono w-7 text-right">{formatTime(localProgress)}</span>
+            <input type="range" min="0" max={track.duration || 100} value={localProgress} onChange={handleSeek} className="flex-1 h-1.5 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-[#1DB954]" />
+            <span className="text-[10px] text-zinc-500 font-mono w-7">{formatTime(track.duration)}</span>
           </div>
 
-          {/* Contrôles Playback */}
-          <div className="flex justify-between items-center px-2">
-            <button onClick={() => apiCall(`seek?position_ms=${Math.max(0, localProgress - 10000)}`, "PUT")} className="p-2 text-zinc-400 hover:text-white"><Rewind size={18}/></button>
-            <button onClick={() => apiCall("previous")} className="p-2 text-zinc-400 hover:text-white"><SkipBack size={20}/></button>
-            <button onClick={() => apiCall(track.isPlaying ? "pause" : "play", "PUT")} className="p-4 bg-white rounded-full text-black shadow-lg hover:scale-105 transition-transform">
-              {track.isPlaying ? <Pause size={20} fill="black" /> : <Play size={20} fill="black" className="ml-1" />}
+          {/* Contrôles Playback & Avance Rapide */}
+          <div className="flex justify-between items-center px-1">
+            <button onClick={() => apiCall(`seek?position_ms=${Math.max(0, localProgress - 10000)}`, "PUT")} className="p-2 text-zinc-500 hover:text-white transition-colors active:scale-90"><Rewind size={18}/></button>
+            <button onClick={() => apiCall("previous")} className="p-2 text-zinc-300 hover:text-white transition-colors active:scale-90"><SkipBack size={20}/></button>
+            
+            <button onClick={() => apiCall(track.isPlaying ? "pause" : "play", "PUT")} className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-105 active:scale-95 transition-all">
+              {track.isPlaying ? <Pause size={22} fill="black" /> : <Play size={22} fill="black" className="ml-1" />}
             </button>
-            <button onClick={() => apiCall("next")} className="p-2 text-zinc-400 hover:text-white"><SkipForward size={20}/></button>
-            <button onClick={() => apiCall(`seek?position_ms=${Math.min(track.duration, localProgress + 10000)}`, "PUT")} className="p-2 text-zinc-400 hover:text-white"><FastForward size={18}/></button>
+            
+            <button onClick={() => apiCall("next")} className="p-2 text-zinc-300 hover:text-white transition-colors active:scale-90"><SkipForward size={20}/></button>
+            <button onClick={() => apiCall(`seek?position_ms=${Math.min(track.duration, localProgress + 10000)}`, "PUT")} className="p-2 text-zinc-500 hover:text-white transition-colors active:scale-90"><FastForward size={18}/></button>
           </div>
 
           {/* Sortie Audio (Routing) */}
-          <div className="mt-auto pt-2 border-t border-zinc-800 relative">
-            <button onClick={getDevices} className="w-full py-2 bg-zinc-900 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase text-zinc-400 border border-zinc-800">
+          <div className="mt-2 pt-4 border-t border-zinc-800/80 relative">
+            <button onClick={getDevices} className="w-full py-3 bg-zinc-900 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase text-zinc-400 border border-zinc-800 active:scale-95 transition-transform">
               <MonitorSpeaker size={14}/> Sortie Audio
             </button>
             
-            {showDevices && (
-              <div className="absolute bottom-full mb-2 left-0 w-full bg-zinc-900 border border-zinc-700 rounded-xl p-2 flex flex-col gap-1 shadow-2xl">
-                {devices.map(dev => (
-                  <button key={dev.id} onClick={() => { apiCall("", "PUT", { device_ids: [dev.id] }); setShowDevices(false); }}
-                    className={`p-2 text-left text-xs font-bold rounded-lg ${dev.is_active ? 'bg-[#1DB954]/20 text-[#1DB954]' : 'hover:bg-zinc-800 text-white'}`}>
-                    {dev.name} {dev.is_active && "(Actif)"}
-                  </button>
-                ))}
-              </div>
-            )}
+            {/* Menu Déroulant des Périphériques */}
+            <AnimatePresence>
+              {showDevices && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute bottom-full mb-3 left-0 w-full bg-[#1a1a1c] border border-zinc-700 rounded-2xl p-2 flex flex-col gap-1 shadow-[0_10px_40px_rgba(0,0,0,0.8)]">
+                  {devices.map(dev => (
+                    <button key={dev.id} onClick={() => { apiCall("", "PUT", { device_ids: [dev.id] }); setShowDevices(false); }}
+                      className={`p-3 text-left text-xs font-bold rounded-xl transition-colors ${dev.is_active ? 'bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/20' : 'hover:bg-zinc-800 text-white'}`}>
+                      {dev.name} {dev.is_active && " • Actif"}
+                    </button>
+                  ))}
+                  {devices.length === 0 && <p className="text-xs text-center text-zinc-500 p-2 font-medium">Ouvrez Spotify sur un appareil</p>}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       )}
 
       {/* Vue Minimisée */}
       {minimized && track && (
-        <div className="p-3 flex items-center justify-between">
-          <div className="flex flex-col truncate flex-1 pr-2">
+        <div className="p-4 flex items-center justify-between">
+          <div className="flex flex-col truncate flex-1 pr-3">
             <span className="text-xs font-bold text-white truncate">{track.title}</span>
           </div>
-          <button onClick={() => apiCall(track.isPlaying ? "pause" : "play", "PUT")} className="p-2 bg-white rounded-full text-black">
-            {track.isPlaying ? <Pause size={14} fill="black" /> : <Play size={14} fill="black" className="ml-0.5" />}
+          <button onClick={() => apiCall(track.isPlaying ? "pause" : "play", "PUT")} className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg active:scale-95">
+            {track.isPlaying ? <Pause size={16} fill="black" /> : <Play size={16} fill="black" className="ml-1" />}
           </button>
         </div>
       )}
 
-      {!track && <div className="p-4 text-center text-xs text-zinc-500 font-bold uppercase">Aucune lecture Spotify active</div>}
+      {!track && <div className="p-6 text-center text-xs text-zinc-500 font-bold uppercase tracking-widest">Ouvrez Spotify pour commencer</div>}
     </motion.div>
   );
 }
 
 // ==========================================
-// COMPOSANTS SECONDAIRES (Exercice, Cardio, Repos)
+// COMPOSANTS SECONDAIRES (Exercices)
 // ==========================================
 function ExerciseCard({ data, onStartRest, history, onLogWeight }) {
   const [completedSets, setCompletedSets] = useState([]);
