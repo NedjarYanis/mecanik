@@ -80,7 +80,7 @@ const CircularGauge = React.memo(({ value, max, color, size = 64, strokeWidth = 
 });
 
 // ==========================================
-// 3. SCANNER LIVE
+// 3. SCANNER LIVE (ZÉRO CLIC & HAUTE PORTÉE DOUCE)
 // ==========================================
 const LiveBarcodeScanner = ({ onScanComplete, onClose }) => {
   useEffect(() => {
@@ -98,7 +98,7 @@ const LiveBarcodeScanner = ({ onScanComplete, onClose }) => {
       (error) => {}
     ).catch(err => {
       console.error("Camera Error:", err);
-      alert("Impossible d'accéder à la caméra.");
+      alert("Impossible d'accéder à la caméra. Vérifiez vos permissions.");
       onClose();
     });
 
@@ -112,7 +112,11 @@ const LiveBarcodeScanner = ({ onScanComplete, onClose }) => {
         <div id="live-reader" className="w-full h-[300px] object-cover flex items-center justify-center bg-zinc-900"></div>
         <motion.div animate={{ y: [0, 300, 0] }} transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }} className="absolute top-0 left-0 w-full h-1 bg-emerald-500 shadow-[0_0_20px_#10b981]" />
       </div>
-      <button onClick={onClose} className="mt-12 px-10 py-4 bg-zinc-900 rounded-full font-black uppercase text-xs text-white border border-zinc-800 active:scale-95 shadow-lg">Annuler</button>
+      <p className="text-xs text-zinc-400 mt-6 text-center font-bold uppercase tracking-widest leading-relaxed">
+        <span className="text-emerald-500">Scan intelligent activé.</span><br/>
+        Maintenez l'aliment dans le cadre.
+      </p>
+      <button onClick={onClose} className="mt-8 px-10 py-4 bg-zinc-900 rounded-full font-black uppercase text-xs text-white border border-zinc-800 active:scale-95 shadow-lg">Annuler</button>
     </motion.div>
   );
 };
@@ -171,6 +175,7 @@ function OnboardingWizard({ onComplete }) {
     </motion.div>
   );
 }
+
 // ==========================================
 // 5. COMPOSANT PRINCIPAL NUTRITION (BLINDÉ)
 // ==========================================
@@ -211,7 +216,6 @@ export default function Nutrition({ onBack, dataContext }) {
     fetchFoodsFromCloud();
   }, []);
 
-  // SECURITÉ ANTI-CRASH SUR LES DONNÉES
   const currentData = useMemo(() => {
     const j = journal[currentDateStr];
     if (j && j.meals) return j;
