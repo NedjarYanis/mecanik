@@ -5,9 +5,10 @@ import {
   Coffee, Utensils, Moon, Cookie, Activity, X, 
   Search, CheckCircle2, Globe, DatabaseZap, CloudLightning, RefreshCw,
   User, Calendar as CalendarIcon, TrendingDown, BrainCircuit, Info, Settings, TrendingUp,
-  History, Heart, Bookmark, ScanBarcode, Zap, ZapOff
+  History, Heart, Bookmark, ScanBarcode, Zap, ZapOff, Save, Camera, Loader2, UtensilsCrossed
 } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'; 
+import Tesseract from 'tesseract.js'; // <-- IMPORT DE L'IA OCR
 
 // ==========================================
 // 1. CONFIGURATION CLOUD FIREBASE
@@ -61,14 +62,6 @@ const simulateRandomForest = (profile) => {
   return { type: "Profil Atypique", risk: "À surveiller", focus: "Ajustement progressif." };
 };
 
-const simulateLinearRegression = (profile, tdee) => {
-  if (!profile) return { prediction30Days: 0, trend: 'Stagnation' };
-  const target = calculateTargetGoals(profile, tdee).targetCalories;
-  const dailyDiff = target - tdee; const weeklyChange = (dailyDiff * 7) / 7000; const w = Number(profile.weight) || 75;
-  const prediction30Days = (w + (weeklyChange * 4.2)).toFixed(1);
-  return { prediction30Days, trend: dailyDiff < 0 ? 'Baisse' : dailyDiff > 0 ? 'Hausse' : 'Stagnation' };
-};
-
 const CircularGauge = React.memo(({ value, max, color, size = 64, strokeWidth = 6, icon: Icon }) => {
   const radius = (size - strokeWidth) / 2; const circumference = 2 * Math.PI * radius; const percent = Math.min((value || 0) / (max || 1), 1);
   const strokeDashoffset = circumference - percent * circumference;
@@ -81,7 +74,7 @@ const CircularGauge = React.memo(({ value, max, color, size = 64, strokeWidth = 
 });
 
 // ==========================================
-// 3. SCANNER LIVE BLINDÉ (Correction Ultime)
+// 3. SCANNER LIVE CODE-BARRES (Code Précédent)
 // ==========================================
 const LiveBarcodeScanner = ({ onScanComplete, onClose }) => {
   const [torchOn, setTorchOn] = useState(false);
@@ -93,40 +86,23 @@ const LiveBarcodeScanner = ({ onScanComplete, onClose }) => {
     scannerRef.current = new Html5Qrcode("live-reader");
 
     const startScanner = async () => {
-      // Bloque le double-lancement du Strict Mode de React
       if (isStartingRef.current) return;
       isStartingRef.current = true;
 
       try {
-        // Configuration LA PLUS SIMPLE possible pour éviter les crashs de contraintes
-        const config = { 
-          fps: 10, 
-          qrbox: { width: 250, height: 150 }, 
-          aspectRatio: 1.0 
-        };
-        
+        const config = { fps: 10, qrbox: { width: 250, height: 150 }, aspectRatio: 1.0 };
         const onScanSuccess = (decodedText) => {
           if (scannerRef.current && scannerRef.current.isScanning) {
             scannerRef.current.stop().then(() => {
               if (isComponentMounted) onScanComplete(decodedText);
-            }).catch(() => {
-              if (isComponentMounted) onScanComplete(decodedText);
-            });
+            }).catch(() => { if (isComponentMounted) onScanComplete(decodedText); });
           }
         };
 
-        // On demande UNIQUEMENT la caméra arrière, sans forcer la HD (qui fait planter bcp de tels)
-        await scannerRef.current.start(
-          { facingMode: "environment" }, 
-          config, 
-          onScanSuccess, 
-          () => {} // Ignore les avertissements de frame vide
-        );
-
+        await scannerRef.current.start({ facingMode: "environment" }, config, onScanSuccess, () => {});
       } catch (error) {
         if (isComponentMounted) {
           console.error("Camera Error:", error);
-          // ON AFFICHE LA VRAIE RAISON DU CRASH AU LIEU DU MESSAGE GÉNÉRIQUE
           alert("Erreur système : " + (error?.message || error?.name || error));
           onClose();
         }
@@ -135,11 +111,7 @@ const LiveBarcodeScanner = ({ onScanComplete, onClose }) => {
       }
     };
 
-    // TRÈS IMPORTANT : Petit délai de sécurité (300ms) pour s'assurer que Framer Motion 
-    // a bien eu le temps de créer la balise <div id="live-reader"> dans le navigateur.
-    const timeoutId = setTimeout(() => {
-      if (isComponentMounted) startScanner();
-    }, 300);
+    const timeoutId = setTimeout(() => { if (isComponentMounted) startScanner(); }, 300);
 
     return () => { 
       isComponentMounted = false;
@@ -151,13 +123,11 @@ const LiveBarcodeScanner = ({ onScanComplete, onClose }) => {
   }, [onScanComplete, onClose]);
 
   const toggleTorch = async () => {
-    if (scannerRef.current && scannerRef.current.getState() === 2) { // 2 = SCANNING
+    if (scannerRef.current && scannerRef.current.getState() === 2) {
       try {
         await scannerRef.current.applyVideoConstraints({ advanced: [{ torch: !torchOn }] });
         setTorchOn(!torchOn);
-      } catch (error) {
-        alert("Flash non supporté par cet appareil.");
-      }
+      } catch (error) { alert("Flash non supporté par cet appareil."); }
     }
   };
 
@@ -248,8 +218,11 @@ export default function Nutrition({ onBack, dataContext }) {
   const [favorites, setFavorites] = useState(() => { try { return JSON.parse(localStorage.getItem('mecanik_favorites_v1')) || []; } catch(e){ return []; }});
   const [recentFoods, setRecentFoods] = useState(() => { try { return JSON.parse(localStorage.getItem('mecanik_recents_v1')) || []; } catch(e){ return []; }});
   const [myFoods, setMyFoods] = useState(() => { try { return JSON.parse(localStorage.getItem('mecanik_my_foods_v1')) || []; } catch(e){ return []; }});
-  const [activeSearchTab, setActiveSearchTab] = useState('recent'); 
   
+  // NOUVEAU SPRINT 2 : REPAS TYPES (RECETTES)
+  const [mealTemplates, setMealTemplates] = useState(() => { try { return JSON.parse(localStorage.getItem('mecanik_meal_templates_v1')) || []; } catch(e){ return []; }});
+  
+  const [activeSearchTab, setActiveSearchTab] = useState('recent'); 
   const [isScanningFood, setIsScanningFood] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -260,10 +233,15 @@ export default function Nutrition({ onBack, dataContext }) {
   const [showContributeModal, setShowContributeModal] = useState(false);
   const [newFood, setNewFood] = useState({ name: "", brand: "", cals: "", prot: "", carbs: "", fat: "", barcode: "" });
   const [isPublishing, setIsPublishing] = useState(false);
+  
+  // NOUVEAU SPRINT 2 : ÉTATS POUR L'OCR
+  const [isOcrScanning, setIsOcrScanning] = useState(false);
+  const fileInputRef = useRef(null);
 
   useEffect(() => { localStorage.setItem('mecanik_favorites_v1', JSON.stringify(favorites)); }, [favorites]);
   useEffect(() => { localStorage.setItem('mecanik_recents_v1', JSON.stringify(recentFoods)); }, [recentFoods]);
   useEffect(() => { localStorage.setItem('mecanik_my_foods_v1', JSON.stringify(myFoods)); }, [myFoods]);
+  useEffect(() => { localStorage.setItem('mecanik_meal_templates_v1', JSON.stringify(mealTemplates)); }, [mealTemplates]);
 
   useEffect(() => {
     const fetchFoodsFromCloud = async () => {
@@ -365,6 +343,87 @@ export default function Nutrition({ onBack, dataContext }) {
 
   const changeDate = (offset) => { const d = new Date(currentDateStr); d.setDate(d.getDate() + offset); setCurrentDateStr(d.toISOString().split('T')[0]); };
 
+  // SPRINT 2 : SAUVEGARDER UN REPAS TYPE
+  const handleSaveMealAsTemplate = (e, mealId, mealName) => {
+    e.stopPropagation();
+    const meal = currentData.meals[mealId];
+    if (!meal || !meal.items || meal.items.length === 0) return alert("Ce repas est vide.");
+    
+    const name = prompt(`Nommez votre recette/repas type : (ex: "Mon ${mealName} préféré")`);
+    if (!name) return;
+    
+    const newTemplate = {
+      id: 'tpl-' + Date.now(),
+      name,
+      items: meal.items,
+      cals: meal.cals,
+      prot: meal.prot,
+      carbs: meal.carbs,
+      fat: meal.fat
+    };
+    
+    setMealTemplates([...mealTemplates, newTemplate]);
+    alert("✅ Recette sauvegardée ! Vous la retrouverez dans l'onglet 'Recettes' lors de l'ajout.");
+  };
+
+  // SPRINT 2 : AJOUTER UN REPAS TYPE ENTIER
+  const handleAddTemplateToMeal = (template) => {
+    const meal = currentData.meals[activeMealModal];
+    updateCurrentJournal({
+      meals: { 
+        ...currentData.meals, 
+        [activeMealModal]: { 
+          items: [...(meal.items||[]), ...template.items], 
+          cals: (meal.cals||0) + template.cals, 
+          carbs: (meal.carbs||0) + template.carbs, 
+          prot: (meal.prot||0) + template.prot, 
+          fat: (meal.fat||0) + template.fat 
+        } 
+      }
+    });
+    setActiveMealModal(null);
+    setSearchQuery("");
+  };
+
+  // SPRINT 2 : SCANNER OCR IA
+  const handleOcrScan = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    setIsOcrScanning(true);
+    try {
+      const result = await Tesseract.recognize(file, 'fra');
+      const textClean = result.data.text.replace(/\n/g, ' ').toLowerCase();
+      
+      const extractNumber = (regex) => {
+        const match = textClean.match(regex);
+        return match ? parseFloat(match[1].replace(',', '.')) : 0;
+      };
+
+      // Expressions régulières ultra-robustes pour lire l'étiquette
+      const cals = extractNumber(/(?:kcal|calories|énergie|energie|kj).*?(\d+[.,]?\d*)/i) || extractNumber(/(\d+[.,]?\d*)\s*kcal/i);
+      const prot = extractNumber(/(?:protéines|proteines|protein).*?(\d+[.,]?\d*)/i);
+      const carbs = extractNumber(/(?:glucides|carbs|dont sucres).*?(\d+[.,]?\d*)/i);
+      const fat = extractNumber(/(?:lipides|fat|matières grasses).*?(\d+[.,]?\d*)/i);
+
+      setNewFood(prev => ({
+        ...prev,
+        cals: Math.round(cals) || prev.cals,
+        prot: Math.round(prot) || prev.prot,
+        carbs: Math.round(carbs) || prev.carbs,
+        fat: Math.round(fat) || prev.fat
+      }));
+      
+      alert("🤖 OCR Terminé ! J'ai pré-rempli les champs. Vérifiez si c'est correct avant de sauvegarder.");
+    } catch (err) {
+      console.error(err);
+      alert("Erreur de l'IA OCR lors de la lecture de l'image.");
+    } finally {
+      setIsOcrScanning(false);
+      if(fileInputRef.current) fileInputRef.current.value = ""; // Reset input
+    }
+  };
+
   if (!profile) return <OnboardingWizard onComplete={(p) => setProfile(p)} />;
 
   return (
@@ -402,10 +461,19 @@ export default function Nutrition({ onBack, dataContext }) {
         <section>
           <div className="space-y-3">
             {[ { id: 'breakfast', name: 'Petit-déjeuner', icon: Coffee }, { id: 'lunch', name: 'Déjeuner', icon: Utensils }, { id: 'dinner', name: 'Dîner', icon: Moon }, { id: 'snacks', name: 'Snacks', icon: Cookie } ].map(meal => (
-              <div key={meal.id} onClick={() => setActiveMealModal(meal.id)} className="bg-[#151517] border border-[#222225] rounded-[24px] p-4 flex flex-col active:scale-95 transition-transform cursor-pointer">
+              <div key={meal.id} onClick={() => setActiveMealModal(meal.id)} className="bg-[#151517] border border-[#222225] rounded-[24px] p-4 flex flex-col active:scale-95 transition-transform cursor-pointer group">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4"><div className="w-12 h-12 bg-zinc-900 rounded-full flex items-center justify-center"><meal.icon size={20} className="text-zinc-400"/></div><div><p className="font-bold text-sm text-white">{meal.name}</p><p className="text-[11px] font-mono text-blue-500 font-bold">{Math.round(currentData.meals[meal.id]?.cals || 0)} Kcal</p></div></div>
-                  <div className="w-8 h-8 bg-blue-600/20 rounded-full flex items-center justify-center text-blue-500"><Plus size={16}/></div>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-zinc-900 rounded-full flex items-center justify-center"><meal.icon size={20} className="text-zinc-400"/></div>
+                    <div><p className="font-bold text-sm text-white">{meal.name}</p><p className="text-[11px] font-mono text-blue-500 font-bold">{Math.round(currentData.meals[meal.id]?.cals || 0)} Kcal</p></div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {/* SPRINT 2 : BOUTON SAUVEGARDER REPAS */}
+                    {currentData.meals[meal.id]?.items?.length > 0 && (
+                      <button onClick={(e) => handleSaveMealAsTemplate(e, meal.id, meal.name)} className="w-8 h-8 bg-emerald-600/20 rounded-full flex items-center justify-center text-emerald-500 border border-emerald-500/20 shadow-lg active:scale-90"><Save size={14}/></button>
+                    )}
+                    <div className="w-8 h-8 bg-blue-600/20 rounded-full flex items-center justify-center text-blue-500"><Plus size={16}/></div>
+                  </div>
                 </div>
                 {(currentData.meals[meal.id]?.items?.length > 0) && <p className="text-[10px] text-zinc-500 mt-3 truncate">{currentData.meals[meal.id].items.map(i => i.name).join(", ")}</p>}
               </div>
@@ -492,24 +560,18 @@ export default function Nutrition({ onBack, dataContext }) {
             <div className="p-4 flex-1 flex flex-col">
               <div className="flex items-center gap-3 bg-zinc-900 p-4 rounded-2xl mb-4 border border-zinc-800 shadow-inner">
                 <Search size={20} className="text-zinc-500" />
-                <input type="text" placeholder="Aliment, repas..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="bg-transparent font-bold text-white outline-none w-full placeholder:text-zinc-600" autoFocus />
+                <input type="text" placeholder="Aliment, recette..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="bg-transparent font-bold text-white outline-none w-full placeholder:text-zinc-600" autoFocus />
                 <button onClick={() => setIsScanningFood(true)} className="active:scale-90 transition-transform p-1 bg-emerald-500/10 rounded-lg"><ScanBarcode size={24} className="text-emerald-500 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]" /></button>
               </div>
 
               {!searchQuery && (
                 <>
-                  <div className="bg-[#151517] p-4 rounded-2xl border border-[#222225] mb-4 shadow-xl">
-                    <div className="flex justify-between items-center mb-3 border-b border-zinc-800/50 pb-2"><span className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Aperçu Jour</span><span className="text-xs font-black text-blue-500">{Math.round(totalConsumed)} / {targetGoals.targetCalories} kcal</span></div>
-                    <div className="flex justify-between text-center px-2">
-                      <div><p className="text-[9px] uppercase text-zinc-500 font-bold mb-1">G</p><p className="text-xs font-black text-white">{Math.round(totalCarbs)}</p></div>
-                      <div><p className="text-[9px] uppercase text-zinc-500 font-bold mb-1">P</p><p className="text-xs font-black text-white">{Math.round(totalProt)}</p></div>
-                      <div><p className="text-[9px] uppercase text-zinc-500 font-bold mb-1">L</p><p className="text-xs font-black text-white">{Math.round(totalFat)}</p></div>
-                    </div>
-                  </div>
                   <div className="flex gap-2 mb-4 bg-[#151517] p-1.5 rounded-2xl border border-[#222225] shadow-inner">
+                    {/* SPRINT 2 : ONGLET RECETTES */}
                     <button onClick={() => setActiveSearchTab('recent')} className={`flex-1 py-3 rounded-xl flex justify-center transition-all ${activeSearchTab === 'recent' ? 'bg-[#222225] text-white border border-zinc-800' : 'text-zinc-500'}`}><History size={18} /></button>
                     <button onClick={() => setActiveSearchTab('favorites')} className={`flex-1 py-3 rounded-xl flex justify-center transition-all ${activeSearchTab === 'favorites' ? 'bg-[#222225] text-red-500 border border-zinc-800' : 'text-zinc-500'}`}><Heart size={18} fill={activeSearchTab === 'favorites' ? 'currentColor' : 'none'} /></button>
                     <button onClick={() => setActiveSearchTab('my')} className={`flex-1 py-3 rounded-xl flex justify-center transition-all ${activeSearchTab === 'my' ? 'bg-[#222225] text-emerald-500 border border-zinc-800' : 'text-zinc-500'}`}><Bookmark size={18} fill={activeSearchTab === 'my' ? 'currentColor' : 'none'} /></button>
+                    <button onClick={() => setActiveSearchTab('templates')} className={`flex-1 py-3 rounded-xl flex justify-center transition-all ${activeSearchTab === 'templates' ? 'bg-[#222225] text-blue-500 border border-zinc-800' : 'text-zinc-500'}`}><UtensilsCrossed size={18} /></button>
                   </div>
                 </>
               )}
@@ -524,20 +586,36 @@ export default function Nutrition({ onBack, dataContext }) {
                     if (activeSearchTab === 'recent') listToRender = recentFoods;
                     else if (activeSearchTab === 'favorites') listToRender = favorites;
                     else if (activeSearchTab === 'my') listToRender = myFoods;
+                    else if (activeSearchTab === 'templates') listToRender = mealTemplates;
+                    
                     if (listToRender.length === 0) return <p className="text-center text-zinc-500 font-bold text-xs mt-10 uppercase tracking-widest">Liste vide.</p>;
                   }
 
-                  return listToRender.map((food, idx) => {
-                    const isFav = favorites.some(f => f.id === food.id);
+                  return listToRender.map((item, idx) => {
+                    // Si c'est un Meal Template
+                    if (activeSearchTab === 'templates' && !searchQuery) {
+                      return (
+                        <div key={`${item.id}-${idx}`} className="bg-[#151517] p-4 rounded-2xl flex justify-between items-center border border-zinc-800">
+                          <div className="flex-1 pr-4">
+                            <p className="font-bold text-sm text-white flex items-center gap-2">{item.name}</p>
+                            <p className="text-[10px] text-blue-500 font-bold uppercase mt-1">{item.items.length} Aliments • {item.cals} Kcal</p>
+                          </div>
+                          <button onClick={() => handleAddTemplateToMeal(item)} className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center active:scale-90 shadow-lg"><Plus size={20}/></button>
+                        </div>
+                      );
+                    }
+                    
+                    // Si c'est un aliment normal
+                    const isFav = favorites.some(f => f.id === item.id);
                     return (
-                      <div key={`${food.id}-${idx}`} className="bg-[#151517] p-4 rounded-2xl flex justify-between items-center border border-zinc-800">
+                      <div key={`${item.id}-${idx}`} className="bg-[#151517] p-4 rounded-2xl flex justify-between items-center border border-zinc-800">
                         <div className="flex-1 pr-4">
-                          <p className="font-bold text-sm text-white flex items-center gap-2">{food.name} {food.verified && <CheckCircle2 size={14} className="text-blue-500"/>}</p>
-                          <p className="text-[10px] text-zinc-500 font-bold uppercase mt-1">{food.cals} Kcal • {food.carbs}g G • {food.prot}g P</p>
+                          <p className="font-bold text-sm text-white flex items-center gap-2">{item.name} {item.verified && <CheckCircle2 size={14} className="text-blue-500"/>}</p>
+                          <p className="text-[10px] text-zinc-500 font-bold uppercase mt-1">{item.cals} Kcal • {item.carbs}g G • {item.prot}g P</p>
                         </div>
                         <div className="flex gap-2">
-                          <button onClick={() => toggleFavorite(food)} className={`p-2 rounded-full active:scale-90 ${isFav ? 'text-red-500 bg-red-500/10' : 'text-zinc-600 bg-zinc-800'}`}><Heart size={16} fill={isFav ? "currentColor" : "none"} /></button>
-                          <button onClick={() => handleAddFoodToMeal(food)} className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center active:scale-90"><Plus size={20}/></button>
+                          <button onClick={() => toggleFavorite(item)} className={`p-2 rounded-full active:scale-90 ${isFav ? 'text-red-500 bg-red-500/10' : 'text-zinc-600 bg-zinc-800'}`}><Heart size={16} fill={isFav ? "currentColor" : "none"} /></button>
+                          <button onClick={() => handleAddFoodToMeal(item)} className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center active:scale-90"><Plus size={20}/></button>
                         </div>
                       </div>
                     );
@@ -560,7 +638,22 @@ export default function Nutrition({ onBack, dataContext }) {
               <div className="flex items-center gap-2"><h2 className="text-lg font-black uppercase tracking-tighter">Ajout Manuel</h2></div>
               <button onClick={() => setShowContributeModal(false)} className="p-2 bg-zinc-800 rounded-full active:scale-90"><X size={20}/></button>
             </div>
+            
             <div className="p-5 overflow-y-auto space-y-6">
+              
+              {/* SPRINT 2 : BOUTON OCR (IA) */}
+              <div className="bg-gradient-to-r from-blue-900/40 to-indigo-900/20 border border-blue-500/30 rounded-[24px] p-5 relative overflow-hidden">
+                <input type="file" accept="image/*" capture="environment" ref={fileInputRef} className="hidden" onChange={handleOcrScan} />
+                <div className="flex items-center gap-4 relative z-10">
+                  <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center shrink-0 border border-blue-500/50"><BrainCircuit size={24} className="text-blue-400" /></div>
+                  <div><h3 className="font-black text-white text-sm uppercase">Scanner via IA</h3><p className="text-[10px] text-blue-200 mt-1">Prenez en photo le tableau des valeurs nutritionnelles. L'IA remplira les cases !</p></div>
+                </div>
+                <button onClick={() => fileInputRef.current.click()} disabled={isOcrScanning} className="w-full mt-4 py-3 bg-blue-600 rounded-full font-black uppercase text-[10px] tracking-widest text-white shadow-[0_0_15px_rgba(37,99,235,0.5)] active:scale-95 flex items-center justify-center gap-2">
+                  {isOcrScanning ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
+                  {isOcrScanning ? "Analyse de l'image en cours..." : "Photographier l'étiquette"}
+                </button>
+              </div>
+
               {newFood.barcode && (
                 <div className="bg-emerald-500/10 border border-emerald-500/30 p-3 rounded-xl flex items-center gap-3">
                   <ScanBarcode size={20} className="text-emerald-500" />
