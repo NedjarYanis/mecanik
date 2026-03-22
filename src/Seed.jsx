@@ -1,22 +1,9 @@
 import React, { useState } from 'react';
-import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc } from "firebase/firestore";
+import { collection, addDoc } from "firebase/firestore";
+// On importe la connexion Firebase que tu as déjà configurée !
+import { db } from './services/firebase'; 
 
-// Ta configuration Firebase
-const firebaseConfig = {
-  apiKey: "AIzaSyDgWfWXpAV6ZHHrlE4q1EC3mFeZAJOV5wc",
-  authDomain: "mecanik-21fad.firebaseapp.com",
-  projectId: "mecanik-21fad",
-  storageBucket: "mecanik-21fad.firebasestorage.app",
-  messagingSenderId: "669005036732",
-  appId: "1:669005036732:web:a998919f7b462fe19fe4b9"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const foodsCollection = collection(db, 'foods');
-
-// LES 50 ALIMENTS (Valeurs pour 100g)
+// LES 50 ALIMENTS
 const FOOD_DATABASE = [
   { name: "Blanc de Poulet (cru)", cals: 110, prot: 23, carbs: 0, fat: 1.5, verified: true },
   { name: "Riz Basmati (cru)", cals: 350, prot: 8, carbs: 77, fat: 1, verified: true },
@@ -70,13 +57,15 @@ const FOOD_DATABASE = [
   { name: "Concombre", cals: 15, prot: 0.6, carbs: 3.6, fat: 0.1, verified: true }
 ];
 
-export default function SeedDatabase() {
+export default function Seed() {
   const [progress, setProgress] = useState(0);
   const [isInjecting, setIsInjecting] = useState(false);
 
   const handleInject = async () => {
     setIsInjecting(true);
     let count = 0;
+    const foodsCollection = collection(db, 'foods');
+
     for (const food of FOOD_DATABASE) {
       try {
         await addDoc(foodsCollection, food);
@@ -86,25 +75,28 @@ export default function SeedDatabase() {
         console.error("Erreur sur l'aliment :", food.name, error);
       }
     }
-    alert("Injection terminée ! 50 aliments ajoutés au Cloud.");
+    
+    alert("Injection terminée ! Tes 50 aliments sont dans Firebase.");
     setIsInjecting(false);
   };
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6">
-      <h1 className="text-3xl font-black uppercase mb-4 text-center">Base de données</h1>
-      <p className="text-zinc-400 mb-8 text-center text-sm">Ce bouton va envoyer 50 aliments certifiés dans Firebase.</p>
+      <h1 className="text-3xl font-black uppercase mb-4 text-center">Cloud Database</h1>
+      <p className="text-zinc-400 mb-8 text-center text-sm">Ce script va envoyer 50 aliments directement dans ta base Firestore.</p>
       
       <button 
         onClick={handleInject} 
         disabled={isInjecting}
-        className="w-full max-w-sm py-5 bg-blue-600 rounded-2xl font-black uppercase tracking-widest text-lg shadow-[0_0_30px_rgba(10,132,255,0.4)] disabled:bg-zinc-800 disabled:shadow-none"
+        className="w-full max-w-sm py-5 bg-blue-600 rounded-2xl font-black uppercase tracking-widest text-lg shadow-[0_0_30px_rgba(10,132,255,0.4)] disabled:bg-zinc-800 disabled:text-zinc-500 disabled:shadow-none transition-all"
       >
-        {isInjecting ? `Injection... (${progress}/50)` : "INJECTER 50 ALIMENTS"}
+        {isInjecting ? `Injection... (${progress}/50)` : "INJECTER VERS FIREBASE"}
       </button>
 
       {progress === 50 && (
-        <p className="mt-8 text-green-500 font-bold uppercase">Succès ! Vous pouvez supprimer ce fichier.</p>
+        <p className="mt-8 text-emerald-500 font-bold uppercase tracking-widest text-center">
+          ✅ Succès ! Tu peux retourner sur l'application.
+        </p>
       )}
     </div>
   );
