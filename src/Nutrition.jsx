@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  ChevronLeft, Flame, Plus, Beef, Wheat, Droplet, 
+  ChevronLeft, ChevronRight, Flame, Plus, Beef, Wheat, Droplet, 
   Coffee, Utensils, Moon, Cookie, Activity, X, 
-  Search, CheckCircle2, Globe, DatabaseZap, CloudLightning, RefreshCw
+  Search, CheckCircle2, Globe, DatabaseZap, CloudLightning, RefreshCw,
+  User, Calendar as CalendarIcon, TrendingDown, BrainCircuit
 } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 // ==========================================
-// 1. CONFIGURATION CLOUD FIREBASE (VRAIE BDD)
+// 1. CONFIGURATION CLOUD FIREBASE
 // ==========================================
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, getDocs, addDoc } from "firebase/firestore";
@@ -20,24 +22,43 @@ const firebaseConfig = {
   messagingSenderId: "669005036732",
   appId: "1:669005036732:web:a998919f7b462fe19fe4b9"
 };
-
-// Initialisation de l'application Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const foodsCollection = collection(db, 'foods');
 
-// --- CONFIGURATION DES OBJECTIFS ---
-const GOALS = { calories: 2600, carbs: 300, protein: 160, fat: 80, water: 2000 };
+// ==========================================
+// 2. MOTEUR D'ANALYSE MÉTABOLIQUE (IA Simulée)
+// ==========================================
 
-// Base de données par défaut (au cas où Firebase est vide au 1er lancement)
-const INITIAL_GLOBAL_DB = [
-  { id: '1', name: 'Flocons d\'avoine', cals: 389, prot: 16.9, carbs: 66.3, fat: 6.9, verified: true },
-  { id: '2', name: 'Poulet (Blanc)', cals: 165, prot: 31, carbs: 0, fat: 3.6, verified: true },
-  { id: '3', name: 'Riz Basmati (Cuit)', cals: 130, prot: 2.7, carbs: 28, fat: 0.3, verified: true },
-  { id: '4', name: 'Oeuf entier', cals: 155, prot: 13, carbs: 1.1, fat: 11, verified: true },
-  { id: '6', name: 'Pâtes (Crues)', cals: 350, prot: 12, carbs: 72, fat: 1.5, verified: true },
-  { id: '7', name: 'Whey Protein', cals: 115, prot: 24, carbs: 2, fat: 1.5, verified: true }
-];
+// Équation de Mifflin-St Jeor
+const calculateMifflin = (profile) => {
+  let bmr = (10 * profile.weight) + (6.25 * profile.height) - (5 * profile.age);
+  bmr += profile.gender === 'M' ? 5 : -161;
+  const multipliers = { 'Sédentaire': 1.2, 'Léger': 1.375, 'Modéré': 1.55, 'Intense': 1.725 };
+  const tdee = bmr * (multipliers[profile.activityLevel] || 1.55);
+  return { bmr: Math.round(bmr), tdee: Math.round(tdee) };
+};
+
+// Simulation Random Forest (Arbre de décision)
+const simulateRandomForest = (profile) => {
+  const fat = profile.bodyFat;
+  const bmi = profile.weight / Math.pow(profile.height / 100, 2);
+  
+  if (fat > 25 && bmi > 25) return { type: "Endomorphe Lourd", risk: "Élevé", focus: "Déficit calorique strict, Focus Lipides bas." };
+  if (fat <= 15 && bmi < 22) return { type: "Ectomorphe Rapide", risk: "Faible", focus: "Surplus calorique, Hyper-protéiné." };
+  if (fat >= 15 && fat <= 25 && bmi >= 22 && bmi <= 25) return { type: "Mésomorphe Équilibré", risk: "Modéré", focus: "Recomposition corporelle." };
+  return { type: "Profil Atypique", risk: "À surveiller", focus: "Ajustement progressif des macros." };
+};
+
+// Simulation Régression Linéaire Multiple (Prédiction de perte)
+const simulateLinearRegression = (currentWeight, history, targetDeficit = 500) => {
+  // Poids perdu estimé par semaine (7000 kcal = ~1kg de graisse)
+  const weeklyLoss = (targetDeficit * 7) / 7000; 
+  return {
+    prediction30Days: (currentWeight - (weeklyLoss * 4.2)).toFixed(1),
+    trend: weeklyLoss > 0 ? 'Baisse' : 'Stagnation'
+  };
+};
 
 // ==========================================
 // COMPOSANTS VISUELS (Jauges)
@@ -47,7 +68,6 @@ const CircularGauge = ({ value, max, color, size = 64, strokeWidth = 6, icon: Ic
   const circumference = 2 * Math.PI * radius;
   const percent = Math.min(value / max, 1);
   const strokeDashoffset = circumference - percent * circumference;
-
   return (
     <div className="flex flex-col items-center justify-center relative" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="transform -rotate-90 absolute">
@@ -60,335 +80,320 @@ const CircularGauge = ({ value, max, color, size = 64, strokeWidth = 6, icon: Ic
 };
 
 // ==========================================
+// COMPOSANT ONBOARDING (Première Connexion)
+// ==========================================
+function OnboardingWizard({ onComplete }) {
+  const [step, setStep] = useState(1);
+  const [profile, setProfile] = useState({
+    age: 25, gender: 'M', weight: 75, height: 175, activityLevel: 'Modéré',
+    bodyFat: 15, muscleMass: 40, boneMass: 3, hydration: 60
+  });
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[200] bg-black text-white flex flex-col p-6 overflow-y-auto">
+      <div className="flex-1 flex flex-col justify-center max-w-sm mx-auto w-full space-y-8">
+        <div className="text-center">
+          <BrainCircuit size={48} className="text-blue-500 mx-auto mb-4 animate-pulse" />
+          <h1 className="text-3xl font-black uppercase tracking-tighter">Étalonnage<br/>Métabolique</h1>
+          <p className="text-zinc-400 text-sm mt-2">L'IA de MÉCANIK a besoin de vos biométries pour générer vos algorithmes de croissance.</p>
+        </div>
+
+        {step === 1 ? (
+          <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="space-y-4">
+            <h2 className="text-xs font-black uppercase tracking-widest text-blue-500">1. Données de Base</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-zinc-900 p-4 rounded-2xl"><span className="text-[10px] uppercase text-zinc-500 font-bold">Âge</span><input type="number" value={profile.age} onChange={e=>setProfile({...profile, age: e.target.value})} className="bg-transparent w-full font-black text-xl outline-none" /></div>
+              <div className="bg-zinc-900 p-4 rounded-2xl"><span className="text-[10px] uppercase text-zinc-500 font-bold">Genre (M/F)</span><select value={profile.gender} onChange={e=>setProfile({...profile, gender: e.target.value})} className="bg-transparent w-full font-black text-xl outline-none"><option value="M">M</option><option value="F">F</option></select></div>
+              <div className="bg-zinc-900 p-4 rounded-2xl"><span className="text-[10px] uppercase text-zinc-500 font-bold">Poids (kg)</span><input type="number" value={profile.weight} onChange={e=>setProfile({...profile, weight: e.target.value})} className="bg-transparent w-full font-black text-xl outline-none" /></div>
+              <div className="bg-zinc-900 p-4 rounded-2xl"><span className="text-[10px] uppercase text-zinc-500 font-bold">Taille (cm)</span><input type="number" value={profile.height} onChange={e=>setProfile({...profile, height: e.target.value})} className="bg-transparent w-full font-black text-xl outline-none" /></div>
+            </div>
+            <div className="bg-zinc-900 p-4 rounded-2xl"><span className="text-[10px] uppercase text-zinc-500 font-bold">Activité</span><select value={profile.activityLevel} onChange={e=>setProfile({...profile, activityLevel: e.target.value})} className="bg-transparent w-full font-black text-lg outline-none"><option>Sédentaire</option><option>Léger</option><option>Modéré</option><option>Intense</option></select></div>
+            <button onClick={() => setStep(2)} className="w-full py-4 bg-blue-600 rounded-full font-black uppercase text-xs">Suivant</button>
+          </motion.div>
+        ) : (
+          <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="space-y-4">
+            <h2 className="text-xs font-black uppercase tracking-widest text-cyan-500">2. Composition (Options)</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-zinc-900 p-4 rounded-2xl border border-blue-900/30"><span className="text-[10px] uppercase text-zinc-500 font-bold">Masse Grasse (%)</span><input type="number" value={profile.bodyFat} onChange={e=>setProfile({...profile, bodyFat: e.target.value})} className="bg-transparent w-full font-black text-xl outline-none text-blue-400" /></div>
+              <div className="bg-zinc-900 p-4 rounded-2xl border border-red-900/30"><span className="text-[10px] uppercase text-zinc-500 font-bold">Muscle (kg)</span><input type="number" value={profile.muscleMass} onChange={e=>setProfile({...profile, muscleMass: e.target.value})} className="bg-transparent w-full font-black text-xl outline-none text-red-400" /></div>
+              <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-700/50"><span className="text-[10px] uppercase text-zinc-500 font-bold">Os (kg)</span><input type="number" value={profile.boneMass} onChange={e=>setProfile({...profile, boneMass: e.target.value})} className="bg-transparent w-full font-black text-xl outline-none" /></div>
+              <div className="bg-zinc-900 p-4 rounded-2xl border border-cyan-900/30"><span className="text-[10px] uppercase text-zinc-500 font-bold">Eau (%)</span><input type="number" value={profile.hydration} onChange={e=>setProfile({...profile, hydration: e.target.value})} className="bg-transparent w-full font-black text-xl outline-none text-cyan-400" /></div>
+            </div>
+            <div className="flex gap-2">
+               <button onClick={() => setStep(1)} className="p-4 bg-zinc-800 rounded-2xl"><ChevronLeft size={20}/></button>
+               <button onClick={() => onComplete(profile)} className="flex-1 py-4 bg-cyan-600 text-black rounded-2xl font-black uppercase text-xs shadow-[0_0_20px_rgba(6,182,212,0.4)]">Générer mon profil IA</button>
+            </div>
+          </motion.div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+// ==========================================
 // COMPOSANT PRINCIPAL NUTRITION
 // ==========================================
 export default function Nutrition({ onBack }) {
-  // 1. ÉTATS : Base de Données Globale (Connectée à Firebase)
-  const [globalDB, setGlobalFoodDB] = useState([]);
-  const [isCloudSyncing, setIsCloudSyncing] = useState(true);
+  // 1. ÉTATS : Profil Utilisateur & Onboarding
+  const [profile, setProfile] = useState(() => {
+    const saved = localStorage.getItem('mecanik_user_profile');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
-  // CHARGEMENT DEPUIS LE CLOUD FIREBASE
+  // 2. ÉTATS : Journal Temporel (Navigation par Jour)
+  const getTodayStr = () => new Date().toISOString().split('T')[0];
+  const [currentDateStr, setCurrentDateStr] = useState(getTodayStr());
+  
+  const [journal, setJournal] = useState(() => {
+    const saved = localStorage.getItem('mecanik_nutrition_journal_v2');
+    if (saved) return JSON.parse(saved);
+    // Structure initiale si vide
+    return {
+      [getTodayStr()]: {
+        meals: { breakfast: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, lunch: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, dinner: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, snacks: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 } },
+        activity: 0, water: 0
+      }
+    };
+  });
+
+  const currentData = journal[currentDateStr] || {
+    meals: { breakfast: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, lunch: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, dinner: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, snacks: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 } },
+    activity: 0, water: 0
+  };
+
+  // Sauvegardes locales
+  useEffect(() => { if (profile) localStorage.setItem('mecanik_user_profile', JSON.stringify(profile)); }, [profile]);
+  useEffect(() => { localStorage.setItem('mecanik_nutrition_journal_v2', JSON.stringify(journal)); }, [journal]);
+
+  // 3. ÉTATS : Cloud & Recherche
+  const [globalDB, setGlobalFoodDB] = useState([]);
+  const [activeMealModal, setActiveMealModal] = useState(null); 
+  const [searchQuery, setSearchQuery] = useState("");
+
   useEffect(() => {
     const fetchFoodsFromCloud = async () => {
       try {
         const snapshot = await getDocs(foodsCollection);
         const foodsFromFirebase = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        
-        if (foodsFromFirebase.length === 0) {
-          setGlobalFoodDB(INITIAL_GLOBAL_DB);
-        } else {
-          setGlobalFoodDB([...INITIAL_GLOBAL_DB, ...foodsFromFirebase]);
-        }
-        setIsCloudSyncing(false);
-      } catch (error) {
-        console.error("Erreur de connexion Firebase :", error);
-        setGlobalFoodDB(INITIAL_GLOBAL_DB); // Mode hors-ligne
-        setIsCloudSyncing(false);
-      }
+        setGlobalFoodDB(foodsFromFirebase.length === 0 ? [] : foodsFromFirebase);
+      } catch (error) { console.error(error); }
     };
     fetchFoodsFromCloud();
   }, []);
 
-  // 2. ÉTATS : Journal Personnel de l'Utilisateur (Reste en LocalStorage)
-  const [data, setData] = useState(() => {
-    const saved = localStorage.getItem('mecanik_nutrition_journal');
-    return saved ? JSON.parse(saved) : {
-      meals: {
-        breakfast: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 },
-        lunch: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 },
-        dinner: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 },
-        snacks: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }
-      },
-      activity: 0, water: 0
-    };
-  });
+  // 4. CALCULS GLOBAUX DU JOUR ACTUEL
+  const totalConsumed = Object.values(currentData.meals).reduce((acc, meal) => acc + meal.cals, 0);
+  const totalCarbs = Object.values(currentData.meals).reduce((acc, meal) => acc + meal.carbs, 0);
+  const totalProt = Object.values(currentData.meals).reduce((acc, meal) => acc + meal.prot, 0);
+  const totalFat = Object.values(currentData.meals).reduce((acc, meal) => acc + meal.fat, 0);
+  
+  // IA : Calcul des objectifs basés sur le profil
+  const metabolicStats = profile ? calculateMifflin(profile) : { tdee: 2600 };
+  const dynamicGoals = {
+    calories: metabolicStats.tdee,
+    carbs: Math.round((metabolicStats.tdee * 0.45) / 4), // 45% Glucides
+    protein: Math.round(profile ? profile.weight * 2.2 : 160), // 2.2g par kg
+    fat: Math.round((metabolicStats.tdee * 0.25) / 9), // 25% Lipides
+    water: profile ? Math.round(profile.weight * 35) : 2500 // 35ml par kg
+  };
+  const remainingCals = dynamicGoals.calories - totalConsumed + currentData.activity;
 
-  useEffect(() => { localStorage.setItem('mecanik_nutrition_journal', JSON.stringify(data)); }, [data]);
-
-  // 3. ÉTATS : Modals et Recherche
-  const [activeMealModal, setActiveMealModal] = useState(null); 
-  const [showContributeModal, setShowContributeModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [newFood, setNewFood] = useState({ name: "", cals: "", prot: "", carbs: "", fat: "" });
-  const [isPublishing, setIsPublishing] = useState(false);
-
-  // 4. CALCULS GLOBAUX
-  const totalConsumed = Object.values(data.meals).reduce((acc, meal) => acc + meal.cals, 0);
-  const totalCarbs = Object.values(data.meals).reduce((acc, meal) => acc + meal.carbs, 0);
-  const totalProt = Object.values(data.meals).reduce((acc, meal) => acc + meal.prot, 0);
-  const totalFat = Object.values(data.meals).reduce((acc, meal) => acc + meal.fat, 0);
-  const remainingCals = GOALS.calories - totalConsumed + data.activity;
-
-  // 5. ACTIONS : Contribution (ENVOI SUR FIREBASE)
-  const handleContributeFood = async () => {
-    if (!newFood.name || !newFood.cals) return;
-    setIsPublishing(true);
-    
-    const foodItem = {
-      name: newFood.name,
-      cals: Number(newFood.cals), 
-      prot: Number(newFood.prot || 0),
-      carbs: Number(newFood.carbs || 0), 
-      fat: Number(newFood.fat || 0),
-      verified: false // Tag "Communauté"
-    };
-
-    try {
-      // Envoi de la donnée sur le serveur Google Firebase
-      const docRef = await addDoc(foodsCollection, foodItem);
-      // Mise à jour de l'affichage local immédiatement
-      setGlobalFoodDB([{ id: docRef.id, ...foodItem }, ...globalDB]);
-      setNewFood({ name: "", cals: "", prot: "", carbs: "", fat: "" });
-      setShowContributeModal(false);
-    } catch (error) {
-      alert("Erreur lors de l'envoi sur le Cloud. Vérifiez les règles Firestore.");
-      console.error(error);
-    } finally {
-      setIsPublishing(false);
-    }
+  // 5. ACTIONS NUTRITION
+  const updateCurrentJournal = (newData) => {
+    setJournal(prev => ({ ...prev, [currentDateStr]: { ...currentData, ...newData } }));
   };
 
-  // 6. ACTIONS : Ajouter au journal perso
+  const handleAddWater = () => updateCurrentJournal({ water: Math.min(currentData.water + 250, dynamicGoals.water + 1000) });
+  const handleRemoveWater = () => updateCurrentJournal({ water: Math.max(currentData.water - 250, 0) });
+
   const handleAddFoodToMeal = (food) => {
-    setData(prev => {
-      const meal = prev.meals[activeMealModal];
-      return {
-        ...prev,
-        meals: {
-          ...prev.meals,
-          [activeMealModal]: {
-            items: [...meal.items, food],
-            cals: meal.cals + food.cals, carbs: meal.carbs + food.carbs,
-            prot: meal.prot + food.prot, fat: meal.fat + food.fat
-          }
+    const meal = currentData.meals[activeMealModal];
+    updateCurrentJournal({
+      meals: {
+        ...currentData.meals,
+        [activeMealModal]: {
+          items: [...meal.items, food],
+          cals: meal.cals + food.cals, carbs: meal.carbs + food.carbs, prot: meal.prot + food.prot, fat: meal.fat + food.fat
         }
-      };
+      }
     });
     setSearchQuery("");
   };
 
-  const handleAddWater = () => setData(p => ({ ...p, water: Math.min(p.water + 250, GOALS.water + 1000) }));
-  const handleRemoveWater = () => setData(p => ({ ...p, water: Math.max(p.water - 250, 0) }));
+  // 6. GESTION DU SWIPE TEMPOREL (Changement de date)
+  const changeDate = (offset) => {
+    const d = new Date(currentDateStr);
+    d.setDate(d.getDate() + offset);
+    setCurrentDateStr(d.toISOString().split('T')[0]);
+  };
 
-  // Filtrage intelligent de la barre de recherche
-  const searchResults = useMemo(() => {
-    if (!searchQuery) return [];
-    return globalDB.filter(food => food.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 10);
-  }, [searchQuery, globalDB]);
+  const handleDragEnd = (event, info) => {
+    if (info.offset.x > 100) changeDate(-1); // Swipe Droite = Hier
+    if (info.offset.x < -100) changeDate(1); // Swipe Gauche = Demain
+  };
+
+  // --- RENDU ---
+  if (!profile) return <OnboardingWizard onComplete={(p) => setProfile(p)} />;
 
   return (
-    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex flex-col h-full w-full bg-black text-white relative overflow-hidden">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col h-full w-full bg-black text-white relative overflow-hidden">
       
-      {/* HEADER */}
+      {/* HEADER AVEC BOUTONS ACCÈS RAPIDE */}
       <header className="px-5 pt-10 pb-4 bg-black/90 backdrop-blur-xl z-40 border-b border-zinc-900 flex-shrink-0">
-        <div className="flex justify-between items-center">
-          <button onClick={onBack} className="p-2.5 bg-zinc-900 rounded-full text-zinc-400 active:scale-95 border border-zinc-800 transition-transform"><ChevronLeft size={18}/></button>
+        <div className="flex justify-between items-center mb-4">
+          <button onClick={onBack} className="p-2.5 bg-zinc-900 rounded-full text-zinc-400 active:scale-95"><ChevronLeft size={18}/></button>
           <div className="flex flex-col items-center">
             <h1 className="text-xl font-black tracking-tight uppercase">Nutrition</h1>
-            <div className="flex items-center gap-1 mt-0.5">
-               {isCloudSyncing ? <RefreshCw size={10} className="text-zinc-500 animate-spin" /> : <CloudLightning size={10} className="text-blue-500" />}
-               <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest">{isCloudSyncing ? "Sync..." : "Cloud Connecté"}</span>
-            </div>
           </div>
-          <button onClick={() => setShowContributeModal(true)} className="p-2.5 bg-blue-600/10 text-blue-500 rounded-full border border-blue-500/20 active:scale-95" title="Base de données communautaire">
-            <DatabaseZap size={18} />
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => setShowProfileModal(true)} className="p-2.5 bg-cyan-600/10 text-cyan-500 rounded-full border border-cyan-500/20 active:scale-95 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+              <User size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* NAVIGATION TEMPORELLE */}
+        <div className="flex justify-between items-center bg-zinc-900/50 p-2 rounded-full border border-zinc-800">
+          <button onClick={() => changeDate(-1)} className="p-1 text-zinc-400 hover:text-white"><ChevronLeft size={18}/></button>
+          <span className="text-xs font-black uppercase tracking-widest text-blue-500 flex items-center gap-2">
+            <CalendarIcon size={12}/> 
+            {currentDateStr === getTodayStr() ? "Aujourd'hui" : new Date(currentDateStr).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
+          </span>
+          <button onClick={() => changeDate(1)} className="p-1 text-zinc-400 hover:text-white"><ChevronRight size={18}/></button>
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-4 pt-6 pb-32 space-y-6">
-        
-        {/* 1. TABLEAU DE BORD PRINCIPAL */}
-        <section className="bg-[#151517] rounded-[32px] p-6 border border-[#222225] shadow-2xl">
+      {/* ZONE SWIPEABLE (Le journal du jour) */}
+      <motion.main 
+        drag="x" dragConstraints={{ left: 0, right: 0 }} onDragEnd={handleDragEnd}
+        key={currentDateStr} initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ type: "spring", bounce: 0.4 }}
+        className="flex-1 overflow-y-auto px-4 pt-6 pb-32 space-y-6"
+      >
+        {/* 1. TABLEAU DE BORD (CALORIES & MACROS) */}
+        <section className="bg-[#151517] rounded-[32px] p-6 border border-[#222225] shadow-2xl pointer-events-none">
           <div className="flex justify-between items-center mb-8">
             <div className="flex flex-col items-center gap-2">
-              <CircularGauge value={totalConsumed} max={GOALS.calories} color="#3B82F6" icon={Utensils} size={60} />
-              <span className="text-[10px] font-black uppercase text-blue-500 tracking-widest mt-2">{Math.round(totalConsumed)}</span>
-              <span className="text-[9px] text-zinc-500 uppercase font-bold">Consommé</span>
+              <CircularGauge value={totalConsumed} max={dynamicGoals.calories} color="#3B82F6" icon={Utensils} size={60} />
+              <span className="text-[10px] font-black uppercase text-blue-500 mt-2">{Math.round(totalConsumed)}</span>
             </div>
-            <div className="flex flex-col items-center justify-center relative mt-[-10px]">
-              <span className="text-5xl font-black tracking-tighter drop-shadow-[0_0_20px_rgba(16,185,129,0.3)]">{Math.round(remainingCals)}</span>
+            <div className="flex flex-col items-center justify-center">
+              <span className="text-5xl font-black tracking-tighter">{Math.round(remainingCals)}</span>
               <span className="text-[10px] font-bold uppercase text-zinc-400 tracking-widest mt-1">Kcal Restantes</span>
             </div>
             <div className="flex flex-col items-center gap-2">
-              <CircularGauge value={data.activity} max={1000} color="#EF4444" icon={Flame} size={60} />
-              <span className="text-[10px] font-black uppercase text-red-500 tracking-widest mt-2">{data.activity}</span>
-              <span className="text-[9px] text-zinc-500 uppercase font-bold">Brûlées</span>
+              <CircularGauge value={currentData.activity} max={1000} color="#EF4444" icon={Flame} size={60} />
+              <span className="text-[10px] font-black uppercase text-red-500 mt-2">{currentData.activity}</span>
             </div>
           </div>
-
           <div className="grid grid-cols-3 gap-3 border-t border-zinc-800 pt-6">
-            <div className="flex flex-col items-center gap-2">
-               <span className="text-[10px] font-black text-yellow-500 uppercase tracking-widest">Glucides</span>
-               <div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden"><div className="h-full bg-yellow-500 transition-all duration-1000" style={{ width: `${Math.min((totalCarbs/GOALS.carbs)*100, 100)}%` }}/></div>
-               <span className="text-xs font-bold">{Math.round(totalCarbs)} <span className="text-[9px] text-zinc-500">/ {GOALS.carbs}g</span></span>
-            </div>
-            <div className="flex flex-col items-center gap-2">
-               <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Protéines</span>
-               <div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden"><div className="h-full bg-blue-500 transition-all duration-1000" style={{ width: `${Math.min((totalProt/GOALS.protein)*100, 100)}%` }}/></div>
-               <span className="text-xs font-bold">{Math.round(totalProt)} <span className="text-[9px] text-zinc-500">/ {GOALS.protein}g</span></span>
-            </div>
-            <div className="flex flex-col items-center gap-2">
-               <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">Lipides</span>
-               <div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden"><div className="h-full bg-red-500 transition-all duration-1000" style={{ width: `${Math.min((totalFat/GOALS.fat)*100, 100)}%` }}/></div>
-               <span className="text-xs font-bold">{Math.round(totalFat)} <span className="text-[9px] text-zinc-500">/ {GOALS.fat}g</span></span>
-            </div>
+            <div className="flex flex-col items-center gap-2"><span className="text-[9px] font-black text-yellow-500 uppercase tracking-widest">Glucides</span><div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden"><div className="h-full bg-yellow-500" style={{ width: `${Math.min((totalCarbs/dynamicGoals.carbs)*100, 100)}%` }}/></div><span className="text-xs font-bold">{Math.round(totalCarbs)} <span className="text-[9px] text-zinc-500">/ {dynamicGoals.carbs}g</span></span></div>
+            <div className="flex flex-col items-center gap-2"><span className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Protéines</span><div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden"><div className="h-full bg-blue-500" style={{ width: `${Math.min((totalProt/dynamicGoals.protein)*100, 100)}%` }}/></div><span className="text-xs font-bold">{Math.round(totalProt)} <span className="text-[9px] text-zinc-500">/ {dynamicGoals.protein}g</span></span></div>
+            <div className="flex flex-col items-center gap-2"><span className="text-[9px] font-black text-red-500 uppercase tracking-widest">Lipides</span><div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden"><div className="h-full bg-red-500" style={{ width: `${Math.min((totalFat/dynamicGoals.fat)*100, 100)}%` }}/></div><span className="text-xs font-bold">{Math.round(totalFat)} <span className="text-[9px] text-zinc-500">/ {dynamicGoals.fat}g</span></span></div>
           </div>
         </section>
 
-        {/* 2. JOURNAL ALIMENTAIRE (REPAS) */}
+        {/* 2. REPAS */}
         <section>
-          <h3 className="text-[11px] font-black uppercase text-zinc-500 tracking-widest mb-3 pl-2">Journal Alimentaire</h3>
           <div className="space-y-3">
-            {[ { id: 'breakfast', name: 'Petit-déjeuner', icon: Coffee }, { id: 'lunch', name: 'Déjeuner', icon: Utensils }, { id: 'dinner', name: 'Dîner', icon: Moon }, { id: 'snacks', name: 'Snacks', icon: Cookie } ].map(meal => (
-              <div key={meal.id} onClick={() => setActiveMealModal(meal.id)} className="bg-[#151517] border border-[#222225] rounded-[24px] p-4 flex flex-col active:scale-95 transition-transform cursor-pointer shadow-lg">
+            {[ { id: 'breakfast', name: 'Petit-déj', icon: Coffee }, { id: 'lunch', name: 'Déjeuner', icon: Utensils }, { id: 'dinner', name: 'Dîner', icon: Moon }, { id: 'snacks', name: 'Snacks', icon: Cookie } ].map(meal => (
+              <div key={meal.id} onClick={() => setActiveMealModal(meal.id)} className="bg-[#151517] border border-[#222225] rounded-[24px] p-4 flex flex-col active:scale-95 transition-transform cursor-pointer">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-zinc-900 rounded-full flex items-center justify-center border border-zinc-800"><meal.icon size={20} className="text-zinc-400"/></div>
-                    <div>
-                      <p className="font-bold text-sm text-white">{meal.name}</p>
-                      <p className="text-[11px] font-mono text-blue-500 font-bold mt-0.5">{Math.round(data.meals[meal.id].cals)} Kcal</p>
-                    </div>
-                  </div>
+                  <div className="flex items-center gap-4"><div className="w-12 h-12 bg-zinc-900 rounded-full flex items-center justify-center"><meal.icon size={20} className="text-zinc-400"/></div><div><p className="font-bold text-sm text-white">{meal.name}</p><p className="text-[11px] font-mono text-blue-500 font-bold">{Math.round(currentData.meals[meal.id].cals)} Kcal</p></div></div>
                   <div className="w-8 h-8 bg-blue-600/20 rounded-full flex items-center justify-center text-blue-500"><Plus size={16}/></div>
                 </div>
-                {data.meals[meal.id].items.length > 0 && (
-                  <p className="text-[10px] text-zinc-500 mt-3 pl-1 truncate">{data.meals[meal.id].items.map(i => i.name).join(", ")}</p>
-                )}
+                {currentData.meals[meal.id].items.length > 0 && <p className="text-[10px] text-zinc-500 mt-3 truncate">{currentData.meals[meal.id].items.map(i => i.name).join(", ")}</p>}
               </div>
             ))}
           </div>
         </section>
 
-        {/* 3. HYDRATATION */}
-        <section className="bg-[#151517] border border-[#222225] rounded-[32px] p-6 shadow-2xl relative overflow-hidden">
-          <div className="absolute -bottom-10 -right-10 opacity-5 pointer-events-none"><Droplet size={150}/></div>
-          <div className="flex justify-between items-start mb-6 relative z-10">
-             <div>
-               <h3 className="font-bold text-lg text-white mb-1">Suivi de l'eau</h3>
-               <p className="text-[11px] font-black text-cyan-500 uppercase tracking-widest">{data.water} / {GOALS.water} ml</p>
-             </div>
-             {data.water > 0 && <button onClick={handleRemoveWater} className="text-[10px] text-zinc-500 font-bold uppercase underline">Annuler</button>}
+        {/* 3. EAU */}
+        <section className="bg-[#151517] border border-[#222225] rounded-[32px] p-6 relative overflow-hidden">
+          <div className="flex justify-between items-start mb-6">
+             <div><h3 className="font-bold text-lg mb-1">Hydratation</h3><p className="text-[11px] font-black text-cyan-500 uppercase">{currentData.water} / {dynamicGoals.water} ml</p></div>
+             {currentData.water > 0 && <button onClick={handleRemoveWater} className="text-[10px] text-zinc-500 underline uppercase">Annuler</button>}
           </div>
-          <div className="flex justify-between items-center relative z-10 gap-1">
+          <div className="flex justify-between items-center gap-1">
              {[...Array(8)].map((_, i) => {
-               const isFilled = data.water >= (i + 1) * 250;
-               return (
-                 <button key={i} onClick={handleAddWater} className="active:scale-90 transition-transform p-1">
-                   <Droplet size={28} fill={isFilled ? "#06B6D4" : "transparent"} stroke={isFilled ? "#06B6D4" : "#3f3f46"} strokeWidth={1.5} className="transition-colors duration-300"/>
-                 </button>
-               );
+               const isFilled = currentData.water >= (i + 1) * (dynamicGoals.water/8);
+               return <button key={i} onClick={handleAddWater} className="active:scale-90 p-1"><Droplet size={28} fill={isFilled ? "#06B6D4" : "transparent"} stroke={isFilled ? "#06B6D4" : "#3f3f46"} /></button>
              })}
           </div>
         </section>
-      </main>
+      </motion.main>
+
       {/* ==================================================== */}
-      {/* MODAL 1 : RECHERCHE INTELLIGENTE DANS UN REPAS         */}
+      {/* MODAL 1 : FICHE MÉTABOLIQUE (IA)                       */}
       {/* ==================================================== */}
       <AnimatePresence>
-        {activeMealModal && (
-          <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col">
-            <div className="p-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
-              <h2 className="text-lg font-black uppercase tracking-tighter">Ajouter : {activeMealModal}</h2>
-              <button onClick={() => { setActiveMealModal(null); setSearchQuery(""); }} className="p-2 bg-zinc-800 rounded-full active:scale-90"><X size={20}/></button>
+        {showProfileModal && (
+          <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col">
+            <div className="p-5 border-b border-zinc-800 flex justify-between items-center">
+              <h2 className="text-lg font-black uppercase flex items-center gap-2"><BrainCircuit size={20} className="text-cyan-500"/> Fiche Métabolique</h2>
+              <button onClick={() => setShowProfileModal(false)} className="p-2 bg-zinc-800 rounded-full"><X size={20}/></button>
             </div>
-
-            <div className="p-4 flex-1 flex flex-col overflow-hidden">
-              <div className="flex items-center gap-3 bg-zinc-900 p-4 rounded-2xl border border-zinc-800 mb-6 shrink-0 shadow-inner">
-                <Search size={20} className="text-zinc-500" />
-                <input type="text" placeholder="Rechercher un aliment..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="bg-transparent text-sm font-bold text-white outline-none w-full placeholder:text-zinc-600" autoFocus />
+            <div className="p-5 overflow-y-auto space-y-6 flex-1">
+              
+              {/* Classification IA */}
+              <div className="bg-gradient-to-br from-cyan-900/40 to-blue-900/20 p-5 rounded-[24px] border border-cyan-500/30">
+                <span className="text-[10px] uppercase font-black tracking-widest text-cyan-500">Classification Random Forest</span>
+                <p className="text-2xl font-black mt-1 text-white">{simulateRandomForest(profile).type}</p>
+                <p className="text-xs text-cyan-200 mt-2 border-l-2 border-cyan-500 pl-2">{simulateRandomForest(profile).focus}</p>
               </div>
 
-              <div className="flex-1 overflow-y-auto space-y-3 pb-6">
-                {searchQuery ? (
-                  searchResults.length > 0 ? searchResults.map((food, idx) => (
-                    <div key={food.id || idx} className="bg-[#151517] p-4 rounded-[20px] border border-zinc-800 flex justify-between items-center shadow-lg">
-                      <div className="flex-1 pr-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-bold text-sm text-white truncate">{food.name}</p>
-                          {food.verified ? (
-                            <CheckCircle2 size={14} className="text-blue-500 shrink-0" title="Base Vérifiée" />
-                          ) : (
-                            <Globe size={14} className="text-orange-500 shrink-0" title="Ajouté par la Communauté" />
-                          )}
-                        </div>
-                        <p className="text-[10px] text-zinc-500 font-bold tracking-widest uppercase">
-                          {food.cals} Kcal • <span className="text-yellow-500">{food.carbs}g G</span> • <span className="text-blue-500">{food.prot}g P</span> • <span className="text-red-500">{food.fat}g L</span>
-                        </p>
-                        <p className="text-[9px] text-zinc-600 mt-1 italic">Portion : 100g / 1 unité</p>
-                      </div>
-                      <button onClick={() => handleAddFoodToMeal(food)} className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-[0_0_15px_rgba(10,132,255,0.3)] active:scale-90 transition-transform shrink-0">
-                        <Plus size={20} />
-                      </button>
-                    </div>
-                  )) : (
-                    <div className="text-center py-10">
-                      <Search size={40} className="text-zinc-800 mx-auto mb-4" />
-                      <p className="text-zinc-500 text-sm font-bold">Aucun aliment trouvé dans le Cloud.</p>
-                      <button onClick={() => { setShowContributeModal(true); setActiveMealModal(null); setSearchQuery(""); }} className="mt-4 px-6 py-3 bg-zinc-900 rounded-full text-xs font-black uppercase text-blue-500 border border-zinc-800">Ajouter à la communauté</button>
-                    </div>
-                  )
-                ) : (
-                  <div className="text-center py-10 text-zinc-600 text-xs font-bold uppercase tracking-widest">
-                    Tapez pour chercher dans la base globale
-                  </div>
-                )}
+              {/* Statistiques Mifflin */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800"><Flame size={20} className="text-red-500 mb-2"/><p className="text-[10px] text-zinc-500 uppercase font-bold">Maintien (TDEE)</p><p className="text-xl font-black">{metabolicStats.tdee} kcal</p></div>
+                <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800"><Activity size={20} className="text-blue-500 mb-2"/><p className="text-[10px] text-zinc-500 uppercase font-bold">Métabolisme Base</p><p className="text-xl font-black">{metabolicStats.bmr} kcal</p></div>
               </div>
+
+              {/* Prédiction Régression Linéaire */}
+              <div className="bg-zinc-900 p-5 rounded-[24px] border border-zinc-800 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] uppercase font-black tracking-widest text-zinc-500 flex items-center gap-1"><TrendingDown size={12}/> Prédiction à 30 Jours</span>
+                  <p className="text-xl font-black text-white mt-1">{simulateLinearRegression(profile.weight, [], 500).prediction30Days} kg</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] text-zinc-500 uppercase">Tendance</span>
+                  <p className="text-sm font-bold text-green-500">Baisse Constante</p>
+                </div>
+              </div>
+
+              {/* Graphique d'évolution simulé */}
+              <div className="h-48 pt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={[{d: 'J-15', w: profile.weight+1.5}, {d: 'J-7', w: profile.weight+0.8}, {d: 'Auj', w: profile.weight}]}>
+                    <Tooltip contentStyle={{ background: '#111', border: 'none', borderRadius: '12px' }} />
+                    <Line type="monotone" dataKey="w" stroke="#06B6D4" strokeWidth={4} dot={{r: 5}} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* ==================================================== */}
-      {/* MODAL 2 : CROWDSOURCING (AJOUTER À FIREBASE)           */}
+      {/* MODAL 2 : RECHERCHE (Aliments)                         */}
       {/* ==================================================== */}
       <AnimatePresence>
-        {showContributeModal && (
-          <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col">
+        {activeMealModal && (
+          <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="fixed inset-0 z-[120] bg-black/95 backdrop-blur-xl flex flex-col">
             <div className="p-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-black uppercase tracking-tighter">Base Cloud</h2>
-                <CloudLightning size={16} className="text-orange-500" />
-              </div>
-              <button onClick={() => setShowContributeModal(false)} className="p-2 bg-zinc-800 rounded-full active:scale-90"><X size={20}/></button>
+              <h2 className="text-lg font-black uppercase">Recherche</h2>
+              <button onClick={() => setActiveMealModal(null)} className="p-2 bg-zinc-800 rounded-full"><X size={20}/></button>
             </div>
-
-            <div className="p-5 overflow-y-auto space-y-6">
-              <div className="bg-orange-500/10 border border-orange-500/20 p-4 rounded-[20px] flex gap-3 items-start">
-                <Globe size={20} className="text-orange-500 shrink-0 mt-0.5" />
-                <p className="text-[11px] text-orange-200 leading-relaxed font-medium">Les aliments que vous ajoutez ici seront synchronisés en temps réel et disponibles pour <strong>tous les utilisateurs du monde</strong>. Soyez précis ! (Valeurs pour 100g).</p>
+            <div className="p-4 flex-1 flex flex-col">
+              <div className="flex items-center gap-3 bg-zinc-900 p-4 rounded-2xl mb-4"><Search size={20} className="text-zinc-500" /><input type="text" placeholder="Poulet, Flocons..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="bg-transparent font-bold text-white outline-none w-full" autoFocus /></div>
+              <div className="flex-1 overflow-y-auto space-y-2">
+                {globalDB.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 10).map(food => (
+                  <div key={food.id} className="bg-[#151517] p-4 rounded-2xl flex justify-between items-center border border-zinc-800">
+                    <div><p className="font-bold text-sm text-white flex gap-2">{food.name} {food.verified ? <CheckCircle2 size={14} className="text-blue-500"/> : <Globe size={14} className="text-orange-500"/>}</p><p className="text-[10px] text-zinc-500 font-bold uppercase mt-1">{food.cals} Kcal • {food.carbs}g G • {food.prot}g P</p></div>
+                    <button onClick={() => handleAddFoodToMeal(food)} className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center shadow-lg"><Plus size={20}/></button>
+                  </div>
+                ))}
               </div>
-
-              <div className="space-y-4">
-                <div className="flex flex-col bg-zinc-900 p-4 rounded-2xl border border-zinc-800 shadow-inner">
-                  <span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest mb-2">Nom de l'aliment</span>
-                  <input type="text" placeholder="Ex: Avocat (cru)" value={newFood.name} onChange={e => setNewFood({...newFood, name: e.target.value})} className="bg-transparent font-bold text-white text-lg outline-none w-full placeholder:text-zinc-700" />
-                </div>
-
-                <div className="flex flex-col bg-zinc-900 p-4 rounded-2xl border border-zinc-800 shadow-inner">
-                  <span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest mb-2">Calories (Kcal)</span>
-                  <input type="number" placeholder="0" value={newFood.cals} onChange={e => setNewFood({...newFood, cals: e.target.value})} className="bg-transparent font-black text-white text-xl outline-none w-full placeholder:text-zinc-700" />
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="flex flex-col bg-zinc-900 p-3 rounded-2xl border border-zinc-800">
-                    <span className="text-[9px] font-black uppercase text-yellow-500 tracking-widest mb-1">Glucides</span>
-                    <input type="number" placeholder="0g" value={newFood.carbs} onChange={e => setNewFood({...newFood, carbs: e.target.value})} className="bg-transparent font-bold text-white outline-none w-full" />
-                  </div>
-                  <div className="flex flex-col bg-zinc-900 p-3 rounded-2xl border border-zinc-800">
-                    <span className="text-[9px] font-black uppercase text-blue-500 tracking-widest mb-1">Protéines</span>
-                    <input type="number" placeholder="0g" value={newFood.prot} onChange={e => setNewFood({...newFood, prot: e.target.value})} className="bg-transparent font-bold text-white outline-none w-full" />
-                  </div>
-                  <div className="flex flex-col bg-zinc-900 p-3 rounded-2xl border border-zinc-800">
-                    <span className="text-[9px] font-black uppercase text-red-500 tracking-widest mb-1">Lipides</span>
-                    <input type="number" placeholder="0g" value={newFood.fat} onChange={e => setNewFood({...newFood, fat: e.target.value})} className="bg-transparent font-bold text-white outline-none w-full" />
-                  </div>
-                </div>
-              </div>
-
-              <button onClick={handleContributeFood} disabled={isPublishing} className={`w-full py-5 rounded-full font-black uppercase text-xs shadow-xl transition-all active:scale-95 flex justify-center items-center gap-2 ${newFood.name && newFood.cals ? 'bg-orange-500 text-black shadow-orange-900/50' : 'bg-zinc-800 text-zinc-500'}`}>
-                {isPublishing ? <RefreshCw size={16} className="animate-spin" /> : "Publier sur le Cloud"}
-              </button>
             </div>
           </motion.div>
         )}
