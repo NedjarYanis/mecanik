@@ -12,7 +12,8 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 // 1. CONFIGURATION CLOUD FIREBASE
 // ==========================================
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, getDocs, addDoc } from "firebase/firestore";
+import { getFirestore, collection, getDocs, addDoc, doc, setDoc, getDoc } from "firebase/firestore";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDgWfWXpAV6ZHHrlE4q1EC3mFeZAJOV5wc",
@@ -24,9 +25,10 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 const foodsCollection = collection(db, 'foods');
 
-// Base de données par défaut
+// Base de données par défaut (Si mode hors-ligne)
 const INITIAL_GLOBAL_DB = [
   { id: '1', name: 'Flocons d\'avoine', cals: 389, prot: 16.9, carbs: 66.3, fat: 6.9, verified: true },
   { id: '2', name: 'Poulet (Blanc)', cals: 165, prot: 31, carbs: 0, fat: 3.6, verified: true },
@@ -37,14 +39,13 @@ const INITIAL_GLOBAL_DB = [
 ];
 
 // ==========================================
-// 2. MOTEUR D'ANALYSE MÉTABOLIQUE (Sécurisé)
+// 2. MOTEUR D'ANALYSE MÉTABOLIQUE (IA Sécurisée)
 // ==========================================
 const calculateMifflin = (profile) => {
   if (!profile) return { bmr: 0, tdee: 2600 };
   const w = Number(profile.weight) || 75;
   const h = Number(profile.height) || 175;
   const a = Number(profile.age) || 25;
-  
   let bmr = (10 * w) + (6.25 * h) - (5 * a);
   bmr += profile.gender === 'M' ? 5 : -161;
   const multipliers = { 'Sédentaire': 1.2, 'Léger': 1.375, 'Modéré': 1.55, 'Intense': 1.725 };
@@ -77,10 +78,10 @@ const simulateRandomForest = (profile) => {
   const h = Number(profile.height) || 175;
   const bmi = w / Math.pow(h / 100, 2);
   
-  if (fat > 25 && bmi > 25) return { type: "Endomorphe Lourd", risk: "Élevé", focus: "Déficit calorique strict, Focus Lipides bas." };
+  if (fat > 25 && bmi > 25) return { type: "Endomorphe Lourd", risk: "Élevé", focus: "Déficit strict, Lipides bas." };
   if (fat <= 15 && bmi < 22) return { type: "Ectomorphe Rapide", risk: "Faible", focus: "Surplus calorique, Hyper-protéiné." };
   if (fat >= 15 && fat <= 25 && bmi >= 22 && bmi <= 25) return { type: "Mésomorphe Équilibré", risk: "Modéré", focus: "Recomposition corporelle." };
-  return { type: "Profil Atypique", risk: "À surveiller", focus: "Ajustement progressif des macros." };
+  return { type: "Profil Atypique", risk: "À surveiller", focus: "Ajustement progressif." };
 };
 
 const simulateLinearRegression = (profile, tdee) => {
@@ -94,7 +95,7 @@ const simulateLinearRegression = (profile, tdee) => {
 };
 
 // ==========================================
-// COMPOSANTS VISUELS
+// COMPOSANTS VISUELS (Jauges)
 // ==========================================
 const CircularGauge = ({ value, max, color, size = 64, strokeWidth = 6, icon: Icon }) => {
   const radius = (size - strokeWidth) / 2;
@@ -113,7 +114,7 @@ const CircularGauge = ({ value, max, color, size = 64, strokeWidth = 6, icon: Ic
 };
 
 // ==========================================
-// ONBOARDING WIZARD (Première Connexion)
+// ONBOARDING WIZARD
 // ==========================================
 function OnboardingWizard({ onComplete }) {
   const [step, setStep] = useState(1);
@@ -125,12 +126,8 @@ function OnboardingWizard({ onComplete }) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[200] bg-black text-white flex flex-col p-6 overflow-y-auto">
       <div className="flex-1 flex flex-col justify-center max-w-sm mx-auto w-full space-y-8">
-        <div className="text-center">
-          <BrainCircuit size={48} className="text-blue-500 mx-auto mb-4 animate-pulse" />
-          <h1 className="text-3xl font-black uppercase tracking-tighter">Étalonnage<br/>Métabolique</h1>
-          <p className="text-zinc-400 text-sm mt-2">L'IA de MÉCANIK a besoin de vos biométries.</p>
-        </div>
-
+        <div className="text-center"><BrainCircuit size={48} className="text-blue-500 mx-auto mb-4 animate-pulse" /><h1 className="text-3xl font-black uppercase tracking-tighter">Étalonnage<br/>Métabolique</h1><p className="text-zinc-400 text-sm mt-2">L'IA de MÉCANIK a besoin de vos biométries.</p></div>
+        
         {step === 1 && (
           <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="space-y-4">
             <h2 className="text-xs font-black uppercase tracking-widest text-blue-500">1. Données de Base</h2>
@@ -178,10 +175,6 @@ function OnboardingWizard({ onComplete }) {
                 <p className="text-[10px] text-zinc-400 font-bold">Surplus contrôlé de +10%</p>
               </div>
             </div>
-            <div className="bg-zinc-900/80 border border-zinc-800 p-4 rounded-2xl flex gap-3 items-start mt-4">
-              <Info size={20} className="text-zinc-500 shrink-0" />
-              <p className="text-[10px] text-zinc-400 leading-relaxed font-medium"><strong>Scientifique :</strong> Surplus plafonné pour éviter le "Dirty Bulk" et déficit limité pour prévenir le catabolisme.</p>
-            </div>
             <div className="flex gap-2 mt-6">
                <button onClick={() => setStep(2)} className="p-4 bg-zinc-800 rounded-2xl"><ChevronLeft size={20}/></button>
                <button onClick={() => onComplete(profile)} className="flex-1 py-4 bg-emerald-600 text-black rounded-2xl font-black uppercase text-xs shadow-[0_0_20px_rgba(16,185,129,0.4)]">Générer mon profil IA</button>
@@ -193,17 +186,23 @@ function OnboardingWizard({ onComplete }) {
   );
 }
 // ==========================================
-// COMPOSANT PRINCIPAL NUTRITION
+// COMPOSANT PRINCIPAL NUTRITION (HYBRIDE)
 // ==========================================
 export default function Nutrition({ onBack }) {
-  // 1. ÉTATS : Profil Utilisateur (Protection Anti-Crash Renforcée)
+  // 1. AUTHENTIFICATION FIREBASE
+  const [currentUser, setCurrentUser] = useState(null);
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, user => setCurrentUser(user));
+    return unsubscribe;
+  }, []);
+
+  // 2. ÉTATS CHAUDS (LOCAL) : Profil et Journal
   const [profile, setProfile] = useState(() => {
     try {
       const saved = localStorage.getItem('mecanik_user_profile');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && parsed.weight) {
-          // Force tout en format chiffre pour éviter les crashs React
           parsed.weight = Number(parsed.weight);
           parsed.height = Number(parsed.height);
           parsed.age = Number(parsed.age);
@@ -213,23 +212,12 @@ export default function Nutrition({ onBack }) {
         }
       }
     } catch(e) {}
-    return null; // Si aucun profil, retourne null (déclenche l'Onboarding)
+    return null;
   });
-  
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
 
-  // Fonction de Réinitialisation du Profil
-  const resetProfile = () => {
-    localStorage.removeItem('mecanik_user_profile');
-    setProfile(null);
-    setShowProfileModal(false);
-    setIsEditingProfile(false);
-  };
-
-  // 2. ÉTATS : Journal Temporel
   const getTodayStr = () => new Date().toISOString().split('T')[0];
   const [currentDateStr, setCurrentDateStr] = useState(getTodayStr());
+  
   const [journal, setJournal] = useState(() => {
     const saved = localStorage.getItem('mecanik_nutrition_journal_v4');
     if (saved) return JSON.parse(saved);
@@ -241,15 +229,46 @@ export default function Nutrition({ onBack }) {
     };
   });
 
-  const currentData = journal[currentDateStr] || {
-    meals: { breakfast: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, lunch: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, dinner: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, snacks: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 } },
-    activity: 0, water: 0
-  };
-
+  // Sauvegardes Locales (Zéro Latence)
   useEffect(() => { if (profile) localStorage.setItem('mecanik_user_profile', JSON.stringify(profile)); }, [profile]);
   useEffect(() => { localStorage.setItem('mecanik_nutrition_journal_v4', JSON.stringify(journal)); }, [journal]);
 
-  // 3. ÉTATS : Cloud & Recherche
+  // 3. ARCHITECTURE FROID (CLOUD SYNC)
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // -> Lecture Initiale depuis Firebase
+  useEffect(() => {
+    if (currentUser) {
+      getDoc(doc(db, "users", currentUser.uid)).then(docSnap => {
+        if (docSnap.exists()) {
+          const cloudData = docSnap.data();
+          if (cloudData.profile) setProfile(cloudData.profile);
+          if (cloudData.nutritionJournal) setJournal(cloudData.nutritionJournal);
+        }
+      }).catch(err => console.error("Erreur chargement cloud", err));
+    }
+  }, [currentUser]);
+
+  // -> Push Manuel vers Firebase
+  const syncToCloud = async () => {
+    if (!currentUser) return alert("Veuillez vous connecter pour sauvegarder dans le Cloud.");
+    setIsSyncing(true);
+    try {
+      await setDoc(doc(db, "users", currentUser.uid), {
+        profile,
+        nutritionJournal: journal,
+        lastNutritionSync: new Date().toISOString()
+      }, { merge: true });
+    } catch (e) {
+      console.error("Erreur de synchro:", e);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // 4. ÉTATS : UI & Recherche
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [globalDB, setGlobalFoodDB] = useState([]);
   const [activeMealModal, setActiveMealModal] = useState(null); 
   const [searchQuery, setSearchQuery] = useState("");
@@ -263,15 +282,17 @@ export default function Nutrition({ onBack }) {
         const snapshot = await getDocs(foodsCollection);
         const foodsFromFirebase = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setGlobalFoodDB(foodsFromFirebase.length === 0 ? INITIAL_GLOBAL_DB : [...INITIAL_GLOBAL_DB, ...foodsFromFirebase]);
-      } catch (error) { 
-        console.error("Firebase error", error);
-        setGlobalFoodDB(INITIAL_GLOBAL_DB);
-      }
+      } catch (error) { setGlobalFoodDB(INITIAL_GLOBAL_DB); }
     };
     fetchFoodsFromCloud();
   }, []);
 
-  // 4. CALCULS GLOBAUX & DYNAMIQUES
+  // 5. CALCULS DU JOUR ACTUEL
+  const currentData = journal[currentDateStr] || {
+    meals: { breakfast: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, lunch: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, dinner: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, snacks: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 } },
+    activity: 0, water: 0
+  };
+
   const totalConsumed = Object.values(currentData.meals).reduce((acc, meal) => acc + meal.cals, 0);
   const totalCarbs = Object.values(currentData.meals).reduce((acc, meal) => acc + meal.carbs, 0);
   const totalProt = Object.values(currentData.meals).reduce((acc, meal) => acc + meal.prot, 0);
@@ -282,7 +303,7 @@ export default function Nutrition({ onBack }) {
   const waterGoal = profile ? Math.round(Number(profile.weight || 75) * 35) : 2500;
   const remainingCals = targetGoals.targetCalories - totalConsumed + currentData.activity;
 
-  // 5. ACTIONS NUTRITION & CLOUD
+  // ACTIONS
   const updateCurrentJournal = (newData) => setJournal(prev => ({ ...prev, [currentDateStr]: { ...currentData, ...newData } }));
   const handleAddWater = () => updateCurrentJournal({ water: Math.min(currentData.water + 250, waterGoal + 1000) });
   const handleRemoveWater = () => updateCurrentJournal({ water: Math.max(currentData.water - 250, 0) });
@@ -311,44 +332,33 @@ export default function Nutrition({ onBack }) {
     const d = new Date(currentDateStr); d.setDate(d.getDate() + offset); setCurrentDateStr(d.toISOString().split('T')[0]);
   };
 
-  // --- RENDU ---
-  // Affiche l'Onboarding si le profil n'existe pas
+  const resetProfile = () => {
+    localStorage.removeItem('mecanik_user_profile');
+    setProfile(null); setShowProfileModal(false); setIsEditingProfile(false);
+  };
+
   if (!profile) return <OnboardingWizard onComplete={(p) => setProfile(p)} />;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col h-full w-full bg-black text-white relative overflow-hidden">
       
-      {/* HEADER AVEC BOUTONS ACCÈS RAPIDE */}
+      {/* HEADER AVEC NAVIGATION */}
       <header className="px-5 pt-10 pb-4 bg-black/90 backdrop-blur-xl z-40 border-b border-zinc-900 flex-shrink-0">
         <div className="flex justify-between items-center mb-4">
           <button onClick={onBack} className="p-2.5 bg-zinc-900 rounded-full text-zinc-400 active:scale-95"><ChevronLeft size={18}/></button>
-          <div className="flex flex-col items-center">
-            <h1 className="text-xl font-black tracking-tight uppercase">Nutrition</h1>
-          </div>
+          <h1 className="text-xl font-black tracking-tight uppercase">Nutrition</h1>
           <div className="flex gap-2">
-            {/* BOUTON CROWDSOURCING (FIREBASE) */}
-            <button onClick={() => setShowContributeModal(true)} className="p-2.5 bg-orange-600/10 text-orange-500 rounded-full border border-orange-500/20 active:scale-95">
-              <DatabaseZap size={18} />
-            </button>
-            {/* BOUTON FICHE IA (USER) */}
-            <button onClick={() => setShowProfileModal(true)} className="p-2.5 bg-cyan-600/10 text-cyan-500 rounded-full border border-cyan-500/20 active:scale-95 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
-              <User size={18} />
-            </button>
+            <button onClick={() => setShowContributeModal(true)} className="p-2.5 bg-orange-600/10 text-orange-500 rounded-full border border-orange-500/20 active:scale-95"><DatabaseZap size={18} /></button>
+            <button onClick={() => setShowProfileModal(true)} className="p-2.5 bg-cyan-600/10 text-cyan-500 rounded-full border border-cyan-500/20 active:scale-95 shadow-[0_0_15px_rgba(6,182,212,0.2)]"><User size={18} /></button>
           </div>
         </div>
-
-        {/* NAVIGATION TEMPORELLE */}
         <div className="flex justify-between items-center bg-zinc-900/50 p-2 rounded-full border border-zinc-800">
           <button onClick={() => changeDate(-1)} className="p-1 text-zinc-400 hover:text-white"><ChevronLeft size={18}/></button>
-          <span className="text-xs font-black uppercase tracking-widest text-blue-500 flex items-center gap-2">
-            <CalendarIcon size={12}/> 
-            {currentDateStr === getTodayStr() ? "Aujourd'hui" : new Date(currentDateStr).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
-          </span>
+          <span className="text-xs font-black uppercase tracking-widest text-blue-500 flex items-center gap-2"><CalendarIcon size={12}/> {currentDateStr === getTodayStr() ? "Aujourd'hui" : new Date(currentDateStr).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
           <button onClick={() => changeDate(1)} className="p-1 text-zinc-400 hover:text-white"><ChevronRight size={18}/></button>
         </div>
       </header>
-
-      {/* ZONE SWIPEABLE (Le journal du jour) */}
+      {/* ZONE SWIPEABLE (Journal) */}
       <motion.main drag="x" dragConstraints={{ left: 0, right: 0 }} onDragEnd={(e, info) => { if (info.offset.x > 100) changeDate(-1); if (info.offset.x < -100) changeDate(1); }} key={currentDateStr} initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ type: "spring", bounce: 0.4 }} className="flex-1 overflow-y-auto px-4 pt-6 pb-32 space-y-6">
         
         {/* TABLEAU DE BORD */}
@@ -393,10 +403,18 @@ export default function Nutrition({ onBack }) {
              })}
           </div>
         </section>
+
+        {/* BOUTON CLOUD SYNC */}
+        <div className="mt-8 mb-4">
+          <button onClick={syncToCloud} disabled={isSyncing} className={`w-full py-5 rounded-[24px] font-black uppercase text-xs flex items-center justify-center gap-2 shadow-xl transition-all active:scale-95 ${isSyncing ? 'bg-zinc-800 text-zinc-500' : 'bg-green-600/20 text-green-500 border border-green-500/30 hover:bg-green-600 hover:text-white'}`}>
+            {isSyncing ? <RefreshCw size={18} className="animate-spin" /> : <CloudLightning size={18} />}
+            {isSyncing ? 'Synchronisation Cloud...' : 'Sauvegarder dans le Cloud'}
+          </button>
+        </div>
       </motion.main>
 
       {/* ==================================================== */}
-      {/* MODAL 1 : FICHE MÉTABOLIQUE & ÉDITION (IA)             */}
+      {/* MODALS : FICHE IA, RECHERCHE, CROWDSOURCING            */}
       {/* ==================================================== */}
       <AnimatePresence>
         {showProfileModal && (
@@ -412,7 +430,6 @@ export default function Nutrition({ onBack }) {
             <div className="p-5 overflow-y-auto space-y-6 flex-1">
               {isEditingProfile ? (
                 <div className="space-y-4">
-                  <div className="bg-blue-900/20 p-4 rounded-2xl border border-blue-500/30 flex gap-3"><Info size={20} className="text-blue-500 shrink-0"/><p className="text-[10px] text-blue-200">Les modifications ci-dessous recalculent instantanément vos objectifs caloriques et algorithmes.</p></div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-zinc-900 p-4 rounded-2xl"><span className="text-[10px] uppercase text-zinc-500 font-bold">Poids (kg)</span><input type="number" value={profile.weight} onChange={e=>setProfile({...profile, weight: Number(e.target.value)})} className="bg-transparent w-full font-black text-xl outline-none" /></div>
                     <div className="bg-zinc-900 p-4 rounded-2xl"><span className="text-[10px] uppercase text-zinc-500 font-bold">Gras (%)</span><input type="number" value={profile.bodyFat} onChange={e=>setProfile({...profile, bodyFat: Number(e.target.value)})} className="bg-transparent w-full font-black text-xl outline-none" /></div>
@@ -425,11 +442,9 @@ export default function Nutrition({ onBack }) {
                       <option value="bulk">Prise de Masse (+10%)</option>
                     </select>
                   </div>
-                  
-                  {/* BOUTONS D'ÉDITION ET RESET */}
                   <div className="flex gap-2 pt-4 border-t border-zinc-800 mt-6">
-                    <button onClick={() => setIsEditingProfile(false)} className="flex-1 py-4 bg-white text-black rounded-xl font-black uppercase text-xs shadow-lg active:scale-95">Terminer l'édition</button>
-                    <button onClick={resetProfile} className="py-4 px-6 bg-red-900/40 text-red-500 border border-red-500/30 rounded-xl font-black uppercase text-xs active:scale-95">Reset Profil</button>
+                    <button onClick={() => setIsEditingProfile(false)} className="flex-1 py-4 bg-white text-black rounded-xl font-black uppercase text-xs shadow-lg">Terminer l'édition</button>
+                    <button onClick={resetProfile} className="py-4 px-6 bg-red-900/40 text-red-500 border border-red-500/30 rounded-xl font-black uppercase text-xs">Reset Profil</button>
                   </div>
                 </div>
               ) : (
@@ -442,12 +457,10 @@ export default function Nutrition({ onBack }) {
                     <p className="text-2xl font-black mt-1 text-white">{simulateRandomForest(profile).type}</p>
                     <p className="text-xs text-cyan-200 mt-2 border-l-2 border-cyan-500 pl-2">{simulateRandomForest(profile).focus}</p>
                   </div>
-
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800"><Flame size={20} className="text-red-500 mb-2"/><p className="text-[10px] text-zinc-500 uppercase font-bold">Cible Journalière</p><p className="text-xl font-black">{targetGoals.targetCalories} kcal</p></div>
                     <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800"><Activity size={20} className="text-blue-500 mb-2"/><p className="text-[10px] text-zinc-500 uppercase font-bold">Maintien (TDEE)</p><p className="text-xl font-black">{metabolicStats.tdee} kcal</p></div>
                   </div>
-
                   <div className="bg-zinc-900 p-5 rounded-[24px] border border-zinc-800 flex items-center justify-between">
                     <div>
                       <span className="text-[10px] uppercase font-black tracking-widest text-zinc-500 flex items-center gap-1"><TrendingDown size={12}/> Prédiction à 30 Jours</span>
@@ -455,9 +468,7 @@ export default function Nutrition({ onBack }) {
                     </div>
                     <div className="text-right">
                       <span className="text-[10px] text-zinc-500 uppercase">Tendance</span>
-                      <p className={`text-sm font-bold ${simulateLinearRegression(profile, metabolicStats.tdee).trend === 'Baisse' ? 'text-emerald-500' : 'text-red-500'}`}>
-                        {simulateLinearRegression(profile, metabolicStats.tdee).trend}
-                      </p>
+                      <p className={`text-sm font-bold ${simulateLinearRegression(profile, metabolicStats.tdee).trend === 'Baisse' ? 'text-emerald-500' : 'text-red-500'}`}>{simulateLinearRegression(profile, metabolicStats.tdee).trend}</p>
                     </div>
                   </div>
                 </>
@@ -467,9 +478,6 @@ export default function Nutrition({ onBack }) {
         )}
       </AnimatePresence>
 
-      {/* ==================================================== */}
-      {/* MODAL 2 : RECHERCHE (Aliments)                         */}
-      {/* ==================================================== */}
       <AnimatePresence>
         {activeMealModal && (
           <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="fixed inset-0 z-[120] bg-black/95 backdrop-blur-xl flex flex-col">
@@ -492,9 +500,6 @@ export default function Nutrition({ onBack }) {
         )}
       </AnimatePresence>
 
-      {/* ==================================================== */}
-      {/* MODAL 3 : CROWDSOURCING (AJOUTER À FIREBASE)           */}
-      {/* ==================================================== */}
       <AnimatePresence>
         {showContributeModal && (
           <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col">
@@ -503,10 +508,7 @@ export default function Nutrition({ onBack }) {
               <button onClick={() => setShowContributeModal(false)} className="p-2 bg-zinc-800 rounded-full active:scale-90"><X size={20}/></button>
             </div>
             <div className="p-5 overflow-y-auto space-y-6">
-              <div className="bg-orange-500/10 border border-orange-500/20 p-4 rounded-[20px] flex gap-3 items-start">
-                <Globe size={20} className="text-orange-500 shrink-0 mt-0.5" />
-                <p className="text-[11px] text-orange-200 leading-relaxed font-medium">Les aliments que vous ajoutez ici seront synchronisés en temps réel et disponibles pour <strong>tous les utilisateurs du monde</strong>.</p>
-              </div>
+              <div className="bg-orange-500/10 border border-orange-500/20 p-4 rounded-[20px] flex gap-3 items-start"><Globe size={20} className="text-orange-500 shrink-0 mt-0.5" /><p className="text-[11px] text-orange-200 leading-relaxed font-medium">Les aliments que vous ajoutez ici seront synchronisés en temps réel et disponibles pour <strong>tous les utilisateurs du monde</strong>.</p></div>
               <div className="space-y-4">
                 <div className="flex flex-col bg-zinc-900 p-4 rounded-2xl border border-zinc-800 shadow-inner"><span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest mb-2">Nom de l'aliment</span><input type="text" placeholder="Ex: Avocat (cru)" value={newFood.name} onChange={e => setNewFood({...newFood, name: e.target.value})} className="bg-transparent font-bold text-white text-lg outline-none w-full placeholder:text-zinc-700" /></div>
                 <div className="flex flex-col bg-zinc-900 p-4 rounded-2xl border border-zinc-800 shadow-inner"><span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest mb-2">Calories (Kcal)</span><input type="number" placeholder="0" value={newFood.cals} onChange={e => setNewFood({...newFood, cals: e.target.value})} className="bg-transparent font-black text-white text-xl outline-none w-full placeholder:text-zinc-700" /></div>
