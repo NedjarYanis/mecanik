@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ChevronLeft, ChevronRight, Flame, Plus, Droplet, 
@@ -7,8 +7,6 @@ import {
   User, Calendar as CalendarIcon, TrendingDown, BrainCircuit, Info, Settings, TrendingUp,
   History, Heart, Bookmark, ScanBarcode, Zap, ZapOff
 } from 'lucide-react';
-
-// IMPORT DE L'OPTIMISATEUR DE FORMATS
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'; 
 
 // ==========================================
@@ -83,25 +81,28 @@ const CircularGauge = React.memo(({ value, max, color, size = 64, strokeWidth = 
 });
 
 // ==========================================
-// 3. SCANNER LIVE (ULTRA-OPTIMISÉ)
+// 3. SCANNER LIVE BLINDÉ (Correction React 18)
 // ==========================================
 const LiveBarcodeScanner = ({ onScanComplete, onClose }) => {
   const [torchOn, setTorchOn] = useState(false);
-  const [scannerInstance, setScannerInstance] = useState(null);
+  const scannerRef = useRef(null);
+  const isStartingRef = useRef(false);
 
   useEffect(() => {
-    const html5QrCode = new Html5Qrcode("live-reader");
-    setScannerInstance(html5QrCode);
-    let isScanning = true;
+    let isComponentMounted = true;
+    scannerRef.current = new Html5Qrcode("live-reader");
 
     const startScanner = async () => {
+      // Bloque le double-lancement du Strict Mode de React
+      if (isStartingRef.current) return;
+      isStartingRef.current = true;
+
       try {
-        // OPTIMISATION MAJEURE : On restreint l'algo aux codes alimentaires
         const config = { 
-          fps: 30, // Analyse hyper-rapide pour contrer les tremblements
-          qrbox: { width: 300, height: 120 }, // Rectangle fin pour forcer l'autofocus
+          fps: 15, 
+          qrbox: { width: 280, height: 120 }, 
           aspectRatio: 1.0, 
-          disableFlip: true, // Gagne du temps processeur
+          disableFlip: false, 
           formatsToSupport: [
             Html5QrcodeSupportedFormats.EAN_13,
             Html5QrcodeSupportedFormats.EAN_8,
@@ -111,49 +112,55 @@ const LiveBarcodeScanner = ({ onScanComplete, onClose }) => {
         };
         
         const onScanSuccess = (decodedText) => {
-          if (!isScanning) return;
-          isScanning = false;
-          html5QrCode.stop().then(() => onScanComplete(decodedText)).catch(() => onScanComplete(decodedText));
+          if (scannerRef.current && scannerRef.current.isScanning) {
+            scannerRef.current.stop().then(() => {
+              if (isComponentMounted) onScanComplete(decodedText);
+            }).catch(() => {
+              if (isComponentMounted) onScanComplete(decodedText);
+            });
+          }
         };
 
+        // Tentative 1
         try {
-          // Demande une haute résolution avec autofocus continu
-          await html5QrCode.start(
-            { facingMode: "environment", width: { ideal: 1920 }, advanced: [{ focusMode: "continuous" }] }, 
-            config, onScanSuccess, () => {}
-          );
+          await scannerRef.current.start({ facingMode: "environment", width: { ideal: 1920 } }, config, onScanSuccess, () => {});
         } catch (err1) {
-          // Mode survie : On prend la caméra brute sans filtres si le tel bloque
+          if (!isComponentMounted) return;
+          // Tentative 2 (Fallback)
           const cameras = await Html5Qrcode.getCameras();
           if (cameras && cameras.length > 0) {
-            await html5QrCode.start(cameras[cameras.length - 1].id, config, onScanSuccess, () => {});
+            await scannerRef.current.start(cameras[cameras.length - 1].id, config, onScanSuccess, () => {});
           } else {
-            throw new Error("Aucune caméra détectée.");
+            throw new Error("Aucune caméra");
           }
         }
       } catch (finalError) {
-        console.error("Camera Error:", finalError);
-        alert("La caméra est bloquée. Allez dans Réglages > Safari/Chrome > Caméra > Autoriser.");
-        onClose();
+        if (isComponentMounted) {
+          alert("Erreur Caméra. Vérifiez les permissions.");
+          onClose();
+        }
+      } finally {
+        isStartingRef.current = false;
       }
     };
 
     startScanner();
 
     return () => { 
-      isScanning = false; 
-      if (html5QrCode.isScanning) html5QrCode.stop().catch(console.error); 
+      isComponentMounted = false;
+      if (scannerRef.current && scannerRef.current.isScanning) {
+        scannerRef.current.stop().catch(e => console.error("Cleanup error", e)); 
+      }
     };
   }, [onScanComplete, onClose]);
 
-  // FONCTION POUR LA LAMPE TORCHE
   const toggleTorch = async () => {
-    if (scannerInstance && scannerInstance.getState() === 2) { // 2 = SCANNING
+    if (scannerRef.current && scannerRef.current.getState() === 2) {
       try {
-        await scannerInstance.applyVideoConstraints({ advanced: [{ torch: !torchOn }] });
+        await scannerRef.current.applyVideoConstraints({ advanced: [{ torch: !torchOn }] });
         setTorchOn(!torchOn);
       } catch (error) {
-        alert("Flash non supporté par ce navigateur.");
+        alert("Flash non supporté.");
       }
     }
   };
@@ -166,15 +173,12 @@ const LiveBarcodeScanner = ({ onScanComplete, onClose }) => {
           {torchOn ? <Zap size={20} /> : <ZapOff size={20} />}
         </button>
       </div>
-
       <div className="w-full max-w-sm rounded-[32px] bg-black border-4 border-emerald-500 shadow-[0_0_40px_rgba(16,185,129,0.4)] relative overflow-hidden">
         <div id="live-reader" className="w-full min-h-[300px] flex items-center justify-center bg-zinc-900 overflow-hidden rounded-[28px] [&>video]:object-cover [&>video]:w-full [&>video]:h-full"></div>
         <motion.div animate={{ y: [0, 300, 0] }} transition={{ repeat: Infinity, duration: 1.2, ease: "linear" }} className="absolute top-0 left-0 w-full h-1 bg-emerald-500 shadow-[0_0_20px_#10b981] pointer-events-none" />
       </div>
-      
       <p className="text-xs text-zinc-400 mt-6 text-center font-bold uppercase tracking-widest leading-relaxed">
-        <span className="text-emerald-500">Moteur EAN Haute Vitesse.</span><br/>
-        Allumez le flash si l'emballage reflète.
+        <span className="text-emerald-500">Moteur EAN Rapide.</span><br/>Allumez le flash si nécessaire.
       </p>
       <button onClick={onClose} className="mt-8 px-10 py-4 bg-zinc-900 rounded-full font-black uppercase text-xs text-white border border-zinc-800 active:scale-95 shadow-lg">Annuler</button>
     </motion.div>

@@ -1,8 +1,14 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
+import basicSsl from '@vitejs/plugin-basic-ssl'
+
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
-  base: '/mecanik/', // <-- Indispensable
+  plugins: [
+    react(),
+    basicSsl() // <-- Active le HTTPS pour débloquer la caméra sur mobile
+  ],
+  server: {
+    host: true // <-- Permet de se connecter via l'IP depuis ton téléphone
+  }
 })
