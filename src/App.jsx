@@ -13,6 +13,9 @@ import { Html5QrcodeScanner } from 'html5-qrcode';
 
 import Nutrition from './Nutrition';
 
+// ==========================================
+// IMPORTS DES IMAGES (ASSETS)
+// ==========================================
 import imgPresse from './assets/presse-a-cuisses-inclinee.gif';
 import imgHackSquat from './assets/Sled-Hack-Squat.gif';
 import imgLegExtension from './assets/leg-extension.gif';
@@ -149,10 +152,10 @@ function DataProvider({ children }) {
 }
 
 // ==========================================
-// CONFIGURATION API SPOTIFY (CRYPTÉ POUR ÉVITER LES BUGS)
+// CONFIGURATION API SPOTIFY
 // ==========================================
-const SPOTIFY_AUTH_URL = atob("aHR0cHM6Ly9hY2NvdW50cy5zcG90aWZ5LmNvbQ=="); // https://accounts.spotify.com
-const SPOTIFY_API_URL = atob("aHR0cHM6Ly9hcGkuc3BvdGlmeS5jb20vdjE="); // https://api.spotify.com/v1
+const SPOTIFY_AUTH_URL = atob("aHR0cHM6Ly9hY2NvdW50cy5zcG90aWZ5LmNvbQ=="); 
+const SPOTIFY_API_URL = atob("aHR0cHM6Ly9hcGkuc3BvdGlmeS5jb20vdjE="); 
 const SPOTIFY_CLIENT_ID = "4673eade76a7419c9bad9eaf6ca902fe";
 const REDIRECT_URI = window.location.origin + window.location.pathname; 
 const SCOPES = "user-read-currently-playing user-modify-playback-state user-read-playback-state";
@@ -189,7 +192,7 @@ function AuthScreen() {
       <motion.div initial={{opacity: 0, y: 20}} animate={{opacity: 1, y: 0}} className="w-full max-w-sm bg-[#151517] p-8 rounded-[32px] border border-zinc-800 shadow-2xl relative z-10">
         <div className="flex justify-center mb-6"><div className="w-16 h-16 bg-blue-600/10 rounded-full flex items-center justify-center border border-blue-500/20"><Dumbbell size={32} className="text-blue-500" /></div></div>
         <h2 className="text-2xl font-black text-center uppercase tracking-tighter mb-8">{isLogin ? 'Connexion' : 'Rejoindre MÉCANIK'}</h2>
-        {error && <p className="text-[10px] text-red-500 bg-red-500/10 p-3 rounded-xl mb-4 text-center font-bold break-words">{error}</p>}
+        {error && <div className="text-[10px] text-red-500 bg-red-500/10 p-3 rounded-xl mb-4 text-center font-bold break-words">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-4">
           <input type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} className="w-full bg-zinc-900 p-4 rounded-2xl border border-zinc-800 outline-none focus:border-blue-500 font-bold text-white placeholder:text-zinc-600" required />
           <input type="password" placeholder="Mot de passe" value={password} onChange={e=>setPassword(e.target.value)} className="w-full bg-zinc-900 p-4 rounded-2xl border border-zinc-800 outline-none focus:border-blue-500 font-bold text-white placeholder:text-zinc-600" required />
@@ -224,7 +227,10 @@ function DashboardTab({ onNavigate, spotifyToken, loginSpotify, setShowSpotifyWi
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} className="h-full w-full bg-black p-6 overflow-y-auto pb-32 relative">
       <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 rounded-full blur-[100px] pointer-events-none" />
       <header className="pt-10 mb-8 flex justify-between items-start relative z-10">
-        <div className="flex-1 overflow-hidden pr-4"><h1 className="text-3xl font-black tracking-tighter uppercase mb-1">MÉCANIK</h1><p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest truncate">ID : {currentUser?.email}</p></div>
+        <div className="flex-1 overflow-hidden pr-4">
+          <h1 className="text-3xl font-black tracking-tighter uppercase mb-1">MÉCANIK</h1>
+          <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest truncate">ID : {currentUser?.email}</p>
+        </div>
         <div className="flex gap-2 shrink-0">
           <button onClick={logout} className="bg-red-900/20 p-3 rounded-full text-red-500 border border-red-500/20 active:scale-95"><LogOut size={20}/></button>
         </div>
@@ -232,7 +238,7 @@ function DashboardTab({ onNavigate, spotifyToken, loginSpotify, setShowSpotifyWi
 
       <div className="space-y-4 relative z-10">
         
-        {/* LA NOUVELLE CARTE GÉANTE SPOTIFY (Impossible à rater) */}
+        {/* BOUTON SPOTIFY GÉANT */}
         {!spotifyToken ? (
           <div onClick={loginSpotify} className="bg-[#1DB954]/10 border border-[#1DB954]/30 rounded-[32px] p-6 shadow-2xl cursor-pointer active:scale-95 transition-transform flex items-center gap-4 relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none"><Music size={80} /></div>
@@ -328,9 +334,7 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpo
           <h1 className="text-xl font-black tracking-tight uppercase">Entraînement</h1>
           <div className="flex gap-2">
             {!spotifyToken ? (
-              <button onClick={loginSpotify} className="bg-[#1DB954]/10 px-3 py-2 rounded-full text-[#1DB954] border border-[#1DB954]/20 active:scale-95 flex items-center gap-2">
-                <Music size={14}/> <span className="text-[10px] font-bold uppercase">Lier Spotify</span>
-              </button>
+              <button onClick={loginSpotify} className="p-2.5 bg-[#1DB954]/10 rounded-full text-[#1DB954] active:scale-95 border border-[#1DB954]/20"><Music size={18}/></button>
             ) : (
               <button onClick={() => setShowSpotifyWidget(true)} className="p-2.5 bg-zinc-900 rounded-full text-[#1DB954] active:scale-95 border border-zinc-800"><Music size={18}/></button>
             )}
@@ -519,19 +523,10 @@ function FloatingSpotifyWidget({ token, track, onClose, refreshTrack, setSpotify
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, 
         body: body ? JSON.stringify(body) : null 
       }); 
-      // AUTO-GUÉRISON : Si le jeton est refusé (Fantôme), on le supprime !
-      if (res.status === 401) {
-        window.localStorage.removeItem("spotify_token");
-        setSpotifyToken("");
-        onClose();
-        return;
-      }
+      if (res.status === 401) { window.localStorage.removeItem("spotify_token"); setSpotifyToken(""); onClose(); return; }
       setTimeout(refreshTrack, 600); 
     } catch (e) {
-      // AUTO-GUÉRISON
-      window.localStorage.removeItem("spotify_token");
-      setSpotifyToken("");
-      onClose();
+      window.localStorage.removeItem("spotify_token"); setSpotifyToken(""); onClose();
     } 
   };
   
@@ -651,7 +646,6 @@ function AppRouter() {
         setSpotifyTrack(null); 
       }
     } catch (e) {
-      // AUTO-GUÉRISON (Fantôme détruit)
       setSpotifyToken(""); window.localStorage.removeItem("spotify_token"); setShowSpotifyWidget(false);
     }
   };
