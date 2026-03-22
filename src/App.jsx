@@ -13,9 +13,6 @@ import { Html5QrcodeScanner } from 'html5-qrcode';
 
 import Nutrition from './Nutrition';
 
-// ==========================================
-// IMPORTS DES IMAGES (ASSETS)
-// ==========================================
 import imgPresse from './assets/presse-a-cuisses-inclinee.gif';
 import imgHackSquat from './assets/Sled-Hack-Squat.gif';
 import imgLegExtension from './assets/leg-extension.gif';
@@ -52,7 +49,7 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 // ==========================================
-// 2. CONTEXTE AUTHENTIFICATION (GOOGLE OAUTH)
+// 2. CONTEXTE AUTHENTIFICATION (SÉCURITÉ & GOOGLE OAUTH)
 // ==========================================
 const AuthContext = createContext();
 const useAuth = () => useContext(AuthContext);
@@ -66,17 +63,18 @@ function AuthProvider({ children }) {
     return unsubscribe;
   }, []);
 
-  const login = async (email, password) => { localStorage.clear(); return signInWithEmailAndPassword(auth, email, password); };
-  const signup = async (email, password) => { localStorage.clear(); return createUserWithEmailAndPassword(auth, email, password); };
-  const loginWithGoogle = async () => { 
-    localStorage.clear(); 
-    const provider = new GoogleAuthProvider(); 
-    return signInWithPopup(auth, provider); 
+  // CORRECTION : On ne vide que les données de l'app, pour ne pas casser Spotify !
+  const clearAppCache = () => {
+    ['mecanik_program_v6', 'mecanik_history_v6', 'mecanik_profile_v6', 'mecanik_journal_v6'].forEach(k => localStorage.removeItem(k));
   };
+
+  const login = async (email, password) => { clearAppCache(); return signInWithEmailAndPassword(auth, email, password); };
+  const signup = async (email, password) => { clearAppCache(); return createUserWithEmailAndPassword(auth, email, password); };
+  const loginWithGoogle = async () => { clearAppCache(); const provider = new GoogleAuthProvider(); return signInWithPopup(auth, provider); };
   
   const logout = async () => {
     await signOut(auth);
-    localStorage.clear();
+    clearAppCache();
     window.location.reload(); 
   };
 
@@ -84,7 +82,7 @@ function AuthProvider({ children }) {
 }
 
 // ==========================================
-// 3. CONTEXTE DES DONNÉES (CHAUD + AUTO-SAVE)
+// 3. CONTEXTE DES DONNÉES (CHAUD + AUTO-SAVE FROID)
 // ==========================================
 const defaultProgramData = {
   1: { type: 'lift', dayName: "Lundi", focus: "Membres Inférieurs", desc: "Surstimulation globale.", exercises: [ { id: '1A', name: "Presse à Cuisses", sets: 4, reps: "12-15", tempo: "3-0-1-1", rest: 180, image: imgPresse }, { id: '1B', name: "Hack Squat", sets: 3, reps: "10-12", tempo: "3-1-1-0", rest: 150, image: imgHackSquat }, { id: '1C', name: "Leg Extension", sets: 4, reps: "15-20", tempo: "2-0-1-2", rest: 90, image: imgLegExtension }, { id: '1D', name: "Adducteurs", sets: 3, reps: "15-20", tempo: "2-0-1-1", rest: 90, image: imgAdducteur }, { id: '1E', name: "Mollets", sets: 4, reps: "12-15", tempo: "3-2-1-2", rest: 90, image: imgMollets } ] },
@@ -149,24 +147,26 @@ function DataProvider({ children }) {
       try { await setDoc(doc(db, "users", currentUser.uid), { ...stateRef.current, autoSyncDate: new Date().toISOString() }, { merge: true }); } 
       catch (e) { console.error("AutoSave Error:", e); }
       setIsSyncing(false);
-    }, 120000);
+    }, 120000); 
     return () => clearInterval(timer);
   }, [currentUser]);
 
   return <DataContext.Provider value={{ program, setProgram, history, setHistory, profile, setProfile, journal, setJournal, syncToCloud, isSyncing }}>{children}</DataContext.Provider>;
 }
 
-// ==========================================
-// CONFIGURATION API SPOTIFY
-// ==========================================
+// ADRESSES OFFICIELLES SPOTIFY (Corrigées)
+const SPOTIFY_AUTH_URL = "https://accounts.spotify.com";
+const SPOTIFY_API_URL = "https://api.spotify.com/v1";
+
 const SPOTIFY_CLIENT_ID = "4673eade76a7419c9bad9eaf6ca902fe";
 const REDIRECT_URI = window.location.origin + window.location.pathname; 
 const SCOPES = "user-read-currently-playing user-modify-playback-state user-read-playback-state";
+
 const generateRandomString = (length) => { const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; const values = crypto.getRandomValues(new Uint8Array(length)); return values.reduce((acc, x) => acc + possible[x % possible.length], ""); };
 const sha256 = async (plain) => { const encoder = new TextEncoder(); const data = encoder.encode(plain); return window.crypto.subtle.digest('SHA-256', data); };
 const base64encode = (input) => btoa(String.fromCharCode(...new Uint8Array(input))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 // ==========================================
-// 4. ÉCRAN D'AUTHENTIFICATION (AVEC AFFICHAGE D'ERREURS)
+// 4. ÉCRAN D'AUTHENTIFICATION (AVEC GOOGLE)
 // ==========================================
 function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
@@ -180,19 +180,13 @@ function AuthScreen() {
     try {
       if (isLogin) await login(email, password);
       else await signup(email, password);
-    } catch (err) { 
-      setError("Erreur : " + err.message); 
-    }
+    } catch (err) { setError("Erreur d'authentification. Vérifiez vos identifiants (6 car. min)."); }
   };
 
   const handleGoogle = async () => {
     setError('');
-    try { 
-      await loginWithGoogle(); 
-    } catch (err) { 
-      console.error("Erreur complète Google :", err);
-      setError("Google a bloqué la connexion : " + err.message); 
-    }
+    try { await loginWithGoogle(); } 
+    catch (err) { setError("Google a bloqué la connexion. Vérifiez Firebase."); }
   };
 
   return (
@@ -201,9 +195,7 @@ function AuthScreen() {
       <motion.div initial={{opacity: 0, y: 20}} animate={{opacity: 1, y: 0}} className="w-full max-w-sm bg-[#151517] p-8 rounded-[32px] border border-zinc-800 shadow-2xl relative z-10">
         <div className="flex justify-center mb-6"><div className="w-16 h-16 bg-blue-600/10 rounded-full flex items-center justify-center border border-blue-500/20"><Dumbbell size={32} className="text-blue-500" /></div></div>
         <h2 className="text-2xl font-black text-center uppercase tracking-tighter mb-8">{isLogin ? 'Connexion' : 'Rejoindre MÉCANIK'}</h2>
-        
-        {/* AFFICHAGE DES ERREURS PRÉCISES */}
-        {error && <div className="text-[10px] text-red-500 bg-red-500/10 p-3 rounded-xl mb-4 text-center font-bold break-words">{error}</div>}
+        {error && <p className="text-[10px] text-red-500 bg-red-500/10 p-3 rounded-xl mb-4 text-center font-bold">{error}</p>}
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <input type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} className="w-full bg-zinc-900 p-4 rounded-2xl border border-zinc-800 outline-none focus:border-blue-500 font-bold text-white placeholder:text-zinc-600" required />
@@ -240,19 +232,10 @@ function DashboardTab({ onNavigate, spotifyToken, loginSpotify, setShowSpotifyWi
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} className="h-full w-full bg-black p-6 overflow-y-auto pb-32 relative">
       <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 rounded-full blur-[100px] pointer-events-none" />
       <header className="pt-10 mb-8 flex justify-between items-start relative z-10">
-        <div className="flex-1 overflow-hidden pr-4">
-          <h1 className="text-3xl font-black tracking-tighter uppercase mb-1">MÉCANIK</h1>
-          <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest truncate">ID : {currentUser?.email}</p>
-        </div>
-        
-        {/* BOUTONS D'ENTÊTE (DÉCONNEXION & SPOTIFY) */}
+        <div className="flex-1 overflow-hidden pr-4"><h1 className="text-3xl font-black tracking-tighter uppercase mb-1">MÉCANIK</h1><p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest truncate">ID : {currentUser?.email}</p></div>
         <div className="flex gap-2 shrink-0">
-          {!spotifyToken ? ( 
-            <button onClick={loginSpotify} className="bg-[#1DB954]/10 p-3 rounded-full text-[#1DB954] border border-[#1DB954]/20 active:scale-95" title="Connecter Spotify"><LogIn size={20}/></button> 
-          ) : ( 
-            <button onClick={() => setShowSpotifyWidget(true)} className="bg-zinc-900 p-3 rounded-full text-[#1DB954] border border-zinc-800 active:scale-95 shadow-[0_0_15px_rgba(29,185,84,0.3)]" title="Ouvrir Spotify"><Music size={20} className="animate-pulse" /></button> 
-          )}
-          <button onClick={logout} className="bg-red-900/20 p-3 rounded-full text-red-500 border border-red-500/20 active:scale-95" title="Déconnexion"><LogOut size={20}/></button>
+          {!spotifyToken ? ( <button onClick={loginSpotify} className="bg-[#1DB954]/10 p-3 rounded-full text-[#1DB954] border border-[#1DB954]/20 active:scale-95"><LogIn size={20}/></button> ) : ( <button onClick={() => setShowSpotifyWidget(true)} className="bg-zinc-900 p-3 rounded-full text-[#1DB954] border border-zinc-800 active:scale-95 shadow-[0_0_15px_rgba(29,185,84,0.3)]"><Music size={20} className="animate-pulse" /></button> )}
+          <button onClick={logout} className="bg-red-900/20 p-3 rounded-full text-red-500 border border-red-500/20 active:scale-95"><LogOut size={20}/></button>
         </div>
       </header>
 
@@ -288,7 +271,7 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget }) {
     else {
       if (restTime === 0 && timerRef.current) {
         window.navigator.vibrate?.([200, 100, 200]);
-        if (spotifyToken && spotifyTrack?.isPlaying) { fetch("https://api.spotify.com/v1/me/player/pause", { method: "PUT", headers: { Authorization: `Bearer ${spotifyToken}` } }); }
+        if (spotifyToken && spotifyTrack?.isPlaying) { fetch(`${SPOTIFY_API_URL}/me/player/pause`, { method: "PUT", headers: { Authorization: `Bearer ${spotifyToken}` } }); }
       }
       clearInterval(timerRef.current);
     }
@@ -327,9 +310,7 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget }) {
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-xl font-black tracking-tight uppercase">Entraînement</h1>
           <div className="flex gap-2">
-            {spotifyToken && (
-              <button onClick={() => setShowSpotifyWidget(true)} className="p-2.5 bg-zinc-900 rounded-full text-[#1DB954] active:scale-95 border border-zinc-800"><Music size={18}/></button>
-            )}
+            {spotifyToken && <button onClick={() => setShowSpotifyWidget(true)} className="p-2.5 bg-zinc-900 rounded-full text-[#1DB954] active:scale-95 border border-zinc-800"><Music size={18}/></button>}
             <button onClick={startCamera} className="p-2.5 bg-zinc-900 rounded-full text-zinc-400 active:scale-95 border border-zinc-800"><Scan size={18}/></button>
           </div>
         </div>
@@ -364,11 +345,6 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget }) {
 
       <AnimatePresence>
         {isEditingDay && <EditDayModal dayId={activeDay} dayData={currentDay} catalog={CATALOGUE_EXERCICES} onClose={() => setIsEditingDay(false)} onSave={(newExercises) => handleSaveDay(activeDay, newExercises)} />}
-      </AnimatePresence>
-      <AnimatePresence>
-        {isScanning && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-[100] bg-black/90 backdrop-blur-xl p-6 flex flex-col items-center justify-center"><h2 className="text-white mb-6 font-black uppercase tracking-widest text-lg">Scan Machine</h2><div className="w-full max-w-sm rounded-[32px] overflow-hidden bg-black border-4 border-blue-600 shadow-[0_0_30px_rgba(10,132,255,0.3)] relative"><div id="reader" className="w-full"></div></div><button onClick={() => setIsScanning(false)} className="mt-8 px-10 py-4 bg-zinc-900 rounded-full font-black uppercase text-xs text-white border border-zinc-800 active:scale-95">Fermer</button></motion.div>
-        )}
       </AnimatePresence>
       <AnimatePresence>
         {restTime > 0 && (
@@ -508,8 +484,22 @@ function FloatingSpotifyWidget({ token, track, onClose, refreshTrack }) {
   useEffect(() => { setLocalProgress(track?.progress || 0); }, [track?.progress]);
   useEffect(() => { let int; if (track?.isPlaying) { int = setInterval(() => setLocalProgress(p => p + 1000), 1000); } return () => clearInterval(int); }, [track?.isPlaying]);
 
-  const apiCall = async (endpoint, method = "POST", body = null) => { try { await fetch(`https://api.spotify.com/v1/me/player/${endpoint}`, { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : null }); setTimeout(refreshTrack, 600); } catch (e) {} };
-  const getDevices = async () => { const res = await fetch("https://api.spotify.com/v1/me/player/devices", { headers: { Authorization: `Bearer ${token}` } }); const data = await res.json(); setDevices(data.devices || []); setShowDevices(!showDevices); };
+  const apiCall = async (endpoint, method = "POST", body = null) => { 
+    try { 
+      await fetch(`${SPOTIFY_API_URL}/me/player/${endpoint}`, { 
+        method, 
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, 
+        body: body ? JSON.stringify(body) : null 
+      }); 
+      setTimeout(refreshTrack, 600); 
+    } catch (e) {} 
+  };
+  
+  const getDevices = async () => { 
+    const res = await fetch(`${SPOTIFY_API_URL}/me/player/devices`, { headers: { Authorization: `Bearer ${token}` } }); 
+    const data = await res.json(); setDevices(data.devices || []); setShowDevices(!showDevices); 
+  };
+  
   const handleSeek = (e) => { const newMs = parseInt(e.target.value); setLocalProgress(newMs); apiCall(`seek?position_ms=${newMs}`, "PUT"); };
   const formatTime = (ms) => { const total = Math.floor(ms / 1000); return `${Math.floor(total / 60)}:${(total % 60).toString().padStart(2, '0')}`; };
 
@@ -572,7 +562,9 @@ function AppRouter() {
   const [currentTab, setCurrentTab] = useState('home');
   const [spotifyToken, setSpotifyToken] = useState("");
   const [spotifyTrack, setSpotifyTrack] = useState(null);
-  const [showSpotifyWidget, setShowSpotifyWidget] = useState(false);
+  
+  // AUTO-SHOW LE WIDGET SI DÉJÀ CONNECTÉ À SPOTIFY
+  const [showSpotifyWidget, setShowSpotifyWidget] = useState(() => !!window.localStorage.getItem("spotify_token"));
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -580,11 +572,17 @@ function AppRouter() {
     let token = window.localStorage.getItem("spotify_token");
     if (code && !token) {
       const codeVerifier = window.localStorage.getItem('spotify_code_verifier');
-      fetch("https://accounts.spotify.com/api/token", {
+      fetch(`${SPOTIFY_AUTH_URL}/api/token`, {
         method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ client_id: SPOTIFY_CLIENT_ID, grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI, code_verifier: codeVerifier })
       }).then(res => res.json()).then(data => {
-        if (data.access_token) { window.localStorage.setItem("spotify_token", data.access_token); setSpotifyToken(data.access_token); window.history.replaceState({}, document.title, window.location.pathname); setCurrentTab('workout'); }
+        if (data.access_token) { 
+          window.localStorage.setItem("spotify_token", data.access_token); 
+          setSpotifyToken(data.access_token); 
+          setShowSpotifyWidget(true); // Ouverture Auto
+          window.history.replaceState({}, document.title, window.location.pathname); 
+          setCurrentTab('workout'); 
+        }
       });
     } else { setSpotifyToken(token); }
   }, []);
@@ -593,13 +591,13 @@ function AppRouter() {
     const codeVerifier = generateRandomString(64); window.localStorage.setItem('spotify_code_verifier', codeVerifier);
     const hashed = await sha256(codeVerifier); const codeChallenge = base64encode(hashed);
     const params = new URLSearchParams({ response_type: 'code', client_id: SPOTIFY_CLIENT_ID, scope: SCOPES, code_challenge_method: 'S256', code_challenge: codeChallenge, redirect_uri: REDIRECT_URI });
-    window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
+    window.location.href = `${SPOTIFY_AUTH_URL}/authorize?${params.toString()}`;
   };
 
   const fetchCurrentlyPlaying = async () => {
     if (!spotifyToken) return;
     try {
-      const response = await fetch("https://api.spotify.com/v1/me/player", { headers: { Authorization: `Bearer ${spotifyToken}` } });
+      const response = await fetch(`${SPOTIFY_API_URL}/me/player`, { headers: { Authorization: `Bearer ${spotifyToken}` } });
       if (response.status === 401) { setSpotifyToken(""); window.localStorage.removeItem("spotify_token"); return; }
       if (response.status === 200) { const data = await response.json(); if(data && data.item) { setSpotifyTrack({ title: data.item.name, artist: data.item.artists[0].name, isPlaying: data.is_playing, progress: data.progress_ms, duration: data.item.duration_ms, image: data.item.album.images[0]?.url, deviceId: data.device?.id }); } } else { setSpotifyTrack(null); }
     } catch (e) {}
@@ -607,7 +605,9 @@ function AppRouter() {
 
   useEffect(() => { fetchCurrentlyPlaying(); const interval = setInterval(fetchCurrentlyPlaying, 5000); return () => clearInterval(interval); }, [spotifyToken]);
 
-  // Si pas connecté à Firebase -> Écran d'Authentification
+  // Force l'affichage si le jeton est reçu
+  useEffect(() => { if (spotifyToken) setShowSpotifyWidget(true); }, [spotifyToken]);
+
   if (!currentUser) return <AuthScreen />;
 
   return (
