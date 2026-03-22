@@ -4,7 +4,7 @@ import {
   BedDouble, Info, Activity, X, TrendingUp, Star, 
   Scan, Music, SkipForward, SkipBack, Pause, RefreshCw, 
   LogIn, LogOut, Minus, MonitorSpeaker, FastForward, Rewind, 
-  Edit3, Plus, Trash2, ChevronLeft, Utensils, Dumbbell, 
+  Edit3, Plus, Trash2, ChevronLeft, ChevronRight, Utensils, Dumbbell, 
   LayoutDashboard, Calendar, ArrowRight, CloudLightning, AlertTriangle,
   Repeat, Settings2, Search, Download, Trophy, BrainCircuit
 } from 'lucide-react';
@@ -12,7 +12,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 
 import Nutrition from './Nutrition';
-import Social from './Social'; // SPRINT 4 : IMPORT DU CLASSEMENT
+import Social from './Social'; 
 
 // IMPORTS DES IMAGES
 import imgPresse from './assets/presse-a-cuisses-inclinee.gif';
@@ -213,7 +213,6 @@ function DashboardTab({ onNavigate, spotifyToken, loginSpotify, setShowSpotifyWi
     setShowReadiness(false);
   };
 
-  // SPRINT 4 : AUTO-AJUSTEMENT HEBDOMADAIRE (IA)
   const isSunday = new Date().getDay() === 0;
   const [showWeeklyReview, setShowWeeklyReview] = useState(isSunday && profile?.lastReviewDate !== todayStr);
 
@@ -239,7 +238,6 @@ function DashboardTab({ onNavigate, spotifyToken, loginSpotify, setShowSpotifyWi
     }
   };
 
-  // SPRINT 4 : EXPORTATION DES DONNÉES
   const exportData = () => {
     const dataStr = JSON.stringify({ profile, history, journal }, null, 2);
     const blob = new Blob([dataStr], { type: "application/json" });
@@ -272,7 +270,6 @@ function DashboardTab({ onNavigate, spotifyToken, loginSpotify, setShowSpotifyWi
         )}
       </AnimatePresence>
 
-      {/* SPRINT 4 : MODAL BILAN HEBDOMADAIRE IA */}
       <AnimatePresence>
         {showWeeklyReview && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[210] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-6">
@@ -280,7 +277,6 @@ function DashboardTab({ onNavigate, spotifyToken, loginSpotify, setShowSpotifyWi
               <BrainCircuit size={48} className="text-blue-500 mx-auto mb-4" />
               <h2 className="text-2xl font-black uppercase tracking-tighter mb-2 text-white">Bilan IA de la Semaine</h2>
               <p className="text-sm text-blue-200 font-medium mb-8 leading-relaxed">Il est l'heure de faire le point. Vos performances ont été analysées. Si votre poids stagne, l'IA recommande un ajustement.</p>
-              
               <div className="space-y-3">
                   <button onClick={() => handleReviewDecision('cut')} className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs shadow-[0_0_20px_rgba(37,99,235,0.4)] active:scale-95">Diminuer Calories (-15%)</button>
                   <button onClick={() => handleReviewDecision('keep')} className="w-full py-4 bg-zinc-900 text-zinc-400 border border-zinc-700 rounded-2xl font-black uppercase text-xs active:scale-95">Maintenir la stratégie</button>
@@ -293,7 +289,6 @@ function DashboardTab({ onNavigate, spotifyToken, loginSpotify, setShowSpotifyWi
       <header className="pt-10 mb-8 flex justify-between items-start">
         <div className="flex-1 overflow-hidden pr-4"><h1 className="text-3xl font-black tracking-tighter uppercase mb-1">MÉCANIK</h1><p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest truncate">ID : {currentUser?.email}</p></div>
         <div className="flex gap-2 shrink-0">
-            {/* SPRINT 4 : BOUTON EXPORT */}
             <button onClick={exportData} className="bg-blue-900/20 p-3 rounded-full text-blue-500 border border-blue-500/20 active:scale-95"><Download size={20}/></button>
             <button onClick={logout} className="bg-red-900/20 p-3 rounded-full text-red-500 border border-red-500/20 active:scale-95"><LogOut size={20}/></button>
         </div>
@@ -339,7 +334,21 @@ function DashboardTab({ onNavigate, spotifyToken, loginSpotify, setShowSpotifyWi
 
 function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpotify }) {
   const { program, setProgram, history, setHistory, syncToCloud, isSyncing, journal } = useData(); 
-  const [activeDay, setActiveDay] = useState(new Date().getDay() || 7);
+  
+  const getTodayStr = () => new Date().toISOString().split('T')[0];
+  const [currentDateStr, setCurrentDateStr] = useState(getTodayStr());
+
+  const activeDay = React.useMemo(() => {
+    const d = new Date(currentDateStr).getDay();
+    return d === 0 ? 7 : d;
+  }, [currentDateStr]);
+
+  const changeDate = (offset) => { 
+    const d = new Date(currentDateStr); 
+    d.setDate(d.getDate() + offset); 
+    setCurrentDateStr(d.toISOString().split('T')[0]); 
+  };
+
   const [restTime, setRestTime] = useState(0);
   const timerRef = useRef(null);
 
@@ -348,8 +357,7 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpo
   const [swapId, setSwapId] = useState(null); 
   const [catalogSearch, setCatalogSearch] = useState('');
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  const readiness = journal[todayStr]?.readiness || 10;
+  const readiness = journal[currentDateStr]?.readiness || 10;
   const isTired = readiness <= 4; 
 
   useEffect(() => {
@@ -359,8 +367,9 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpo
   }, [restTime]);
 
   const logWeight = (id, weight) => {
-    const date = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
-    setHistory(prev => ({ ...prev, [id]: [...(prev[id] || []).filter(h => h.date !== date), { date, weight: parseFloat(weight) }].slice(-30) })); 
+    const dateObj = new Date(currentDateStr);
+    const dateFormatted = dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+    setHistory(prev => ({ ...prev, [id]: [...(prev[id] || []).filter(h => h.date !== dateFormatted), { date: dateFormatted, weight: parseFloat(weight) }].slice(-30) })); 
   };
 
   const currentDay = program[activeDay];
@@ -390,7 +399,7 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpo
   const filteredCatalog = CATALOGUE_EXERCICES.filter(e => e.name.toLowerCase().includes(catalogSearch.toLowerCase()));
 
   return (
-    <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="flex flex-col h-full w-full bg-black relative">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col h-full w-full bg-black relative overflow-hidden">
       <header className="px-5 pt-10 pb-4 bg-black/90 backdrop-blur-xl z-40 border-b border-zinc-900 flex-shrink-0">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-xl font-black tracking-tight uppercase">Entraînement</h1>
@@ -398,12 +407,27 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpo
             {!spotifyToken ? ( <button onClick={loginSpotify} className="p-2.5 bg-[#1DB954]/10 rounded-full text-[#1DB954] border border-[#1DB954]/20"><Music size={18}/></button> ) : ( <button onClick={() => setShowSpotifyWidget(true)} className="p-2.5 bg-zinc-900 rounded-full text-[#1DB954] border border-zinc-800"><Music size={18}/></button> )}
           </div>
         </div>
-        <div className="flex justify-between gap-1 overflow-x-auto scrollbar-hide pb-1">
-          {[1,2,3,4,5,6,7].map(d => ( <button key={d} onClick={() => setActiveDay(d)} className={`flex-shrink-0 w-11 h-11 rounded-full font-bold text-xs flex items-center justify-center transition-all ${activeDay === d ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(10,132,255,0.4)]' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800'}`}>{['LUN','MAR','MER','JEU','VEN','SAM','DIM'][d-1]}</button> ))}
+        
+        <div className="flex justify-between items-center bg-zinc-900/50 p-2 rounded-full border border-zinc-800">
+          <button onClick={() => changeDate(-1)} className="p-1 text-zinc-400 hover:text-white"><ChevronLeft size={18}/></button>
+          <span className="text-xs font-black uppercase tracking-widest text-blue-500 flex items-center gap-2">
+            <Calendar size={12}/> 
+            {currentDateStr === getTodayStr() ? "Aujourd'hui" : new Date(currentDateStr).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
+          </span>
+          <button onClick={() => changeDate(1)} className="p-1 text-zinc-400 hover:text-white"><ChevronRight size={18}/></button>
         </div>
       </header>
       
-      <div className="flex-1 overflow-y-auto px-4 pt-6 pb-32 space-y-6">
+      <motion.main 
+        drag="x" 
+        dragConstraints={{ left: 0, right: 0 }} 
+        onDragEnd={(e, info) => { if (info.offset.x > 100) changeDate(-1); if (info.offset.x < -100) changeDate(1); }} 
+        key={currentDateStr} 
+        initial={{ opacity: 0, x: 50 }} 
+        animate={{ opacity: 1, x: 0 }} 
+        transition={{ type: "spring", bounce: 0.4 }} 
+        className="flex-1 overflow-y-auto px-4 pt-6 pb-32 space-y-6"
+      >
         <div className="mb-6 flex justify-between items-start border-l-2 border-blue-600 pl-3">
           <div className="flex-1 pr-4">
             {isEditingDay ? (
@@ -411,7 +435,7 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpo
             ) : (
                 <h2 className="text-[26px] font-black leading-tight text-white uppercase tracking-tighter">{currentDay.focus}</h2>
             )}
-            <p className="text-[#8E8E93] text-[12px] mt-1">{currentDay.desc}</p>
+            <p className="text-[#8E8E93] text-[12px] mt-1 font-bold uppercase tracking-widest">{['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'][activeDay-1]} • {currentDay.desc}</p>
           </div>
           <button onClick={() => setIsEditingDay(!isEditingDay)} className={`p-2.5 rounded-full shadow-lg transition-colors ${isEditingDay ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400 active:scale-90'}`}>
             {isEditingDay ? <Check size={20}/> : <Settings2 size={20}/>}
@@ -454,7 +478,7 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpo
             {isSyncing ? <RefreshCw size={18} className="animate-spin" /> : <CloudLightning size={18} />} Synchronisation Cloud...
           </button>
         </div>
-      </div>
+      </motion.main>
 
       <AnimatePresence>
         {restTime > 0 && (
@@ -655,9 +679,6 @@ function FloatingSpotifyWidget({ token, track, onClose, refreshTrack, setSpotify
   );
 }
 
-// ==========================================
-// 7. CHEF D'ORCHESTRE GLOBAL (ROUTER)
-// ==========================================
 function AppRouter() {
   const { currentUser } = useAuth();
   const dataContextValues = useData(); 
@@ -714,13 +735,11 @@ function AppRouter() {
           {currentTab === 'home' && <DashboardTab key="home" onNavigate={setCurrentTab} spotifyToken={spotifyToken} loginSpotify={loginSpotify} setShowSpotifyWidget={setShowSpotifyWidget} />}
           {currentTab === 'workout' && <WorkoutTab key="workout" spotifyToken={spotifyToken} spotifyTrack={spotifyTrack} setShowSpotifyWidget={setShowSpotifyWidget} loginSpotify={loginSpotify} />}
           {currentTab === 'nutrition' && <Nutrition key="nutrition" onBack={() => setCurrentTab('home')} dataContext={dataContextValues} />}
-          {/* SPRINT 4 : ONGLET SOCIAL / CLASSEMENT */}
           {currentTab === 'social' && <Social key="social" onBack={() => setCurrentTab('home')} currentUser={currentUser} db={db} />}
         </AnimatePresence>
       </div>
       {showSpotifyWidget && spotifyToken && <FloatingSpotifyWidget token={spotifyToken} track={spotifyTrack} onClose={() => setShowSpotifyWidget(false)} refreshTrack={fetchCurrentlyPlaying} setSpotifyToken={setSpotifyToken} />}
       
-      {/* SPRINT 4 : NOUVELLE BARRE DE NAVIGATION (4 Boutons) */}
       <div className="fixed bottom-0 left-0 right-0 p-4 z-[90] pointer-events-none">
          <div className="max-w-md mx-auto bg-black/80 backdrop-blur-xl border border-zinc-800 rounded-[32px] flex justify-between items-center p-2 shadow-[0_20px_50px_rgba(0,0,0,0.8)] pointer-events-auto">
             <button onClick={() => setCurrentTab('home')} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-[24px] transition-all ${currentTab === 'home' ? 'text-white bg-zinc-900 shadow-inner' : 'text-zinc-500 hover:text-zinc-300'}`}><LayoutDashboard size={20} className="mb-1" /><span className="text-[9px] font-bold uppercase tracking-widest">Accueil</span></button>
