@@ -26,7 +26,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const foodsCollection = collection(db, 'foods');
 
-// Base de données par défaut (Si mode hors-ligne)
+// Base de données par défaut
 const INITIAL_GLOBAL_DB = [
   { id: '1', name: 'Flocons d\'avoine', cals: 389, prot: 16.9, carbs: 66.3, fat: 6.9, verified: true },
   { id: '2', name: 'Poulet (Blanc)', cals: 165, prot: 31, carbs: 0, fat: 3.6, verified: true },
@@ -37,11 +37,15 @@ const INITIAL_GLOBAL_DB = [
 ];
 
 // ==========================================
-// 2. MOTEUR D'ANALYSE MÉTABOLIQUE (IA & MATHS)
+// 2. MOTEUR D'ANALYSE MÉTABOLIQUE (Sécurisé)
 // ==========================================
 const calculateMifflin = (profile) => {
   if (!profile) return { bmr: 0, tdee: 2600 };
-  let bmr = (10 * (profile.weight || 75)) + (6.25 * (profile.height || 175)) - (5 * (profile.age || 25));
+  const w = Number(profile.weight) || 75;
+  const h = Number(profile.height) || 175;
+  const a = Number(profile.age) || 25;
+  
+  let bmr = (10 * w) + (6.25 * h) - (5 * a);
   bmr += profile.gender === 'M' ? 5 : -161;
   const multipliers = { 'Sédentaire': 1.2, 'Léger': 1.375, 'Modéré': 1.55, 'Intense': 1.725 };
   const tdee = bmr * (multipliers[profile.activityLevel || 'Modéré'] || 1.55);
@@ -57,7 +61,8 @@ const calculateTargetGoals = (profile, tdee) => {
   if (goal === 'bulk') multiplier = 1.10; 
   targetCalories = Math.round(tdee * multiplier);
 
-  const protein = Math.round((profile?.weight || 75) * 2.2); 
+  const w = Number(profile?.weight) || 75;
+  const protein = Math.round(w * 2.2); 
   const fat = Math.round((targetCalories * 0.25) / 9); 
   const remainingCals = targetCalories - (protein * 4) - (fat * 9);
   const carbs = Math.max(0, Math.round(remainingCals / 4)); 
@@ -67,8 +72,10 @@ const calculateTargetGoals = (profile, tdee) => {
 
 const simulateRandomForest = (profile) => {
   if (!profile) return { type: "Inconnu", risk: "?", focus: "Veuillez remplir votre profil." };
-  const fat = profile.bodyFat || 15;
-  const bmi = (profile.weight || 75) / Math.pow((profile.height || 175) / 100, 2);
+  const fat = Number(profile.bodyFat) || 15;
+  const w = Number(profile.weight) || 75;
+  const h = Number(profile.height) || 175;
+  const bmi = w / Math.pow(h / 100, 2);
   
   if (fat > 25 && bmi > 25) return { type: "Endomorphe Lourd", risk: "Élevé", focus: "Déficit calorique strict, Focus Lipides bas." };
   if (fat <= 15 && bmi < 22) return { type: "Ectomorphe Rapide", risk: "Faible", focus: "Surplus calorique, Hyper-protéiné." };
@@ -81,7 +88,8 @@ const simulateLinearRegression = (profile, tdee) => {
   const target = calculateTargetGoals(profile, tdee).targetCalories;
   const dailyDiff = target - tdee; 
   const weeklyChange = (dailyDiff * 7) / 7000; 
-  const prediction30Days = ((profile.weight || 75) + (weeklyChange * 4.2)).toFixed(1);
+  const w = Number(profile.weight) || 75;
+  const prediction30Days = (w + (weeklyChange * 4.2)).toFixed(1);
   return { prediction30Days, trend: dailyDiff < 0 ? 'Baisse' : dailyDiff > 0 ? 'Hausse' : 'Stagnation' };
 };
 
@@ -188,23 +196,36 @@ function OnboardingWizard({ onComplete }) {
 // COMPOSANT PRINCIPAL NUTRITION
 // ==========================================
 export default function Nutrition({ onBack }) {
-  // 1. ÉTATS : Profil Utilisateur (Protection Anti-Crash)
+  // 1. ÉTATS : Profil Utilisateur (Protection Anti-Crash Renforcée)
   const [profile, setProfile] = useState(() => {
     try {
       const saved = localStorage.getItem('mecanik_user_profile');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && parsed.weight) {
-          if(!parsed.goal) parsed.goal = 'maintain'; // Corrige l'ancien profil automatiquement
+          // Force tout en format chiffre pour éviter les crashs React
+          parsed.weight = Number(parsed.weight);
+          parsed.height = Number(parsed.height);
+          parsed.age = Number(parsed.age);
+          parsed.bodyFat = Number(parsed.bodyFat) || 15;
+          if(!parsed.goal) parsed.goal = 'maintain';
           return parsed;
         }
       }
     } catch(e) {}
-    return null;
+    return null; // Si aucun profil, retourne null (déclenche l'Onboarding)
   });
   
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+
+  // Fonction de Réinitialisation du Profil
+  const resetProfile = () => {
+    localStorage.removeItem('mecanik_user_profile');
+    setProfile(null);
+    setShowProfileModal(false);
+    setIsEditingProfile(false);
+  };
 
   // 2. ÉTATS : Journal Temporel
   const getTodayStr = () => new Date().toISOString().split('T')[0];
@@ -244,7 +265,7 @@ export default function Nutrition({ onBack }) {
         setGlobalFoodDB(foodsFromFirebase.length === 0 ? INITIAL_GLOBAL_DB : [...INITIAL_GLOBAL_DB, ...foodsFromFirebase]);
       } catch (error) { 
         console.error("Firebase error", error);
-        setGlobalFoodDB(INITIAL_GLOBAL_DB); // Fallback si Firebase déconne
+        setGlobalFoodDB(INITIAL_GLOBAL_DB);
       }
     };
     fetchFoodsFromCloud();
@@ -258,7 +279,7 @@ export default function Nutrition({ onBack }) {
   
   const metabolicStats = profile ? calculateMifflin(profile) : { bmr: 0, tdee: 2600 };
   const targetGoals = profile ? calculateTargetGoals(profile, metabolicStats.tdee) : { targetCalories: 2600, protein: 160, carbs: 300, fat: 80 };
-  const waterGoal = profile ? Math.round(profile.weight * 35) : 2500;
+  const waterGoal = profile ? Math.round(Number(profile.weight || 75) * 35) : 2500;
   const remainingCals = targetGoals.targetCalories - totalConsumed + currentData.activity;
 
   // 5. ACTIONS NUTRITION & CLOUD
@@ -291,6 +312,7 @@ export default function Nutrition({ onBack }) {
   };
 
   // --- RENDU ---
+  // Affiche l'Onboarding si le profil n'existe pas
   if (!profile) return <OnboardingWizard onComplete={(p) => setProfile(p)} />;
 
   return (
@@ -403,7 +425,12 @@ export default function Nutrition({ onBack }) {
                       <option value="bulk">Prise de Masse (+10%)</option>
                     </select>
                   </div>
-                  <button onClick={() => setIsEditingProfile(false)} className="w-full py-4 bg-white text-black rounded-full font-black uppercase text-xs">Terminer l'édition</button>
+                  
+                  {/* BOUTONS D'ÉDITION ET RESET */}
+                  <div className="flex gap-2 pt-4 border-t border-zinc-800 mt-6">
+                    <button onClick={() => setIsEditingProfile(false)} className="flex-1 py-4 bg-white text-black rounded-xl font-black uppercase text-xs shadow-lg active:scale-95">Terminer l'édition</button>
+                    <button onClick={resetProfile} className="py-4 px-6 bg-red-900/40 text-red-500 border border-red-500/30 rounded-xl font-black uppercase text-xs active:scale-95">Reset Profil</button>
+                  </div>
                 </div>
               ) : (
                 <>
