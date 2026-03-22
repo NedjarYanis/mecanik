@@ -37,7 +37,7 @@ import imgCurlBiceps from './assets/Curl_Biceps.png';
 // ==========================================
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, getDoc } from "firebase/firestore";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "firebase/auth";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDgWfWXpAV6ZHHrlE4q1EC3mFeZAJOV5wc",
@@ -52,7 +52,7 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 // ==========================================
-// 2. CONTEXTE D'AUTHENTIFICATION (STATE MANAGEMENT)
+// 2. CONTEXTE AUTHENTIFICATION (SÉCURITÉ & GOOGLE OAUTH)
 // ==========================================
 const AuthContext = createContext();
 const useAuth = () => useContext(AuthContext);
@@ -66,18 +66,25 @@ function AuthProvider({ children }) {
     return unsubscribe;
   }, []);
 
-  const login = (email, password) => signInWithEmailAndPassword(auth, email, password);
-  const signup = (email, password) => createUserWithEmailAndPassword(auth, email, password);
-  const logout = () => signOut(auth);
+  const login = async (email, password) => { localStorage.clear(); return signInWithEmailAndPassword(auth, email, password); };
+  const signup = async (email, password) => { localStorage.clear(); return createUserWithEmailAndPassword(auth, email, password); };
+  const loginWithGoogle = async () => { localStorage.clear(); const provider = new GoogleAuthProvider(); return signInWithPopup(auth, provider); };
+  
+  // DÉCONNEXION = NETTOYAGE TOTAL (Data Leak Prevention)
+  const logout = async () => {
+    await signOut(auth);
+    localStorage.clear();
+    window.location.reload(); 
+  };
 
-  return <AuthContext.Provider value={{ currentUser, login, signup, logout }}>{!loading && children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ currentUser, login, signup, loginWithGoogle, logout }}>{!loading && children}</AuthContext.Provider>;
 }
 
 // ==========================================
-// 3. CONTEXTE DES DONNÉES : LE CHAUD ET LE FROID
+// 3. CONTEXTE DES DONNÉES (CHAUD + AUTO-SAVE FROID)
 // ==========================================
 const defaultProgramData = {
-  1: { type: 'lift', dayName: "Lundi", focus: "Membres Inférieurs", desc: "Surstimulation globale. Vider le glycogène.", exercises: [ { id: '1A', name: "Presse à Cuisses", sets: 4, reps: "12-15", tempo: "3-0-1-1", rest: 180, image: imgPresse }, { id: '1B', name: "Hack Squat", sets: 3, reps: "10-12", tempo: "3-1-1-0", rest: 150, image: imgHackSquat }, { id: '1C', name: "Leg Extension", sets: 4, reps: "15-20", tempo: "2-0-1-2", rest: 90, image: imgLegExtension }, { id: '1D', name: "Adducteurs", sets: 3, reps: "15-20", tempo: "2-0-1-1", rest: 90, image: imgAdducteur }, { id: '1E', name: "Mollets", sets: 4, reps: "12-15", tempo: "3-2-1-2", rest: 90, image: imgMollets } ] },
+  1: { type: 'lift', dayName: "Lundi", focus: "Membres Inférieurs", desc: "Surstimulation globale.", exercises: [ { id: '1A', name: "Presse à Cuisses", sets: 4, reps: "12-15", tempo: "3-0-1-1", rest: 180, image: imgPresse }, { id: '1B', name: "Hack Squat", sets: 3, reps: "10-12", tempo: "3-1-1-0", rest: 150, image: imgHackSquat }, { id: '1C', name: "Leg Extension", sets: 4, reps: "15-20", tempo: "2-0-1-2", rest: 90, image: imgLegExtension }, { id: '1D', name: "Adducteurs", sets: 3, reps: "15-20", tempo: "2-0-1-1", rest: 90, image: imgAdducteur }, { id: '1E', name: "Mollets", sets: 4, reps: "12-15", tempo: "3-2-1-2", rest: 90, image: imgMollets } ] },
   2: { type: 'mixed', dayName: "Mardi", focus: "Poussée Supérieure", desc: "Sécurité mécanique.", exercises: [ { id: '2A', name: "DC Smith Machine", sets: 4, reps: "6-8", tempo: "3-0-1-0", rest: 180, image: imgDCSmith }, { id: '2B', name: "Chest Press", sets: 3, reps: "10-12", tempo: "3-0-1-1", rest: 120, image: imgChestPress }, { id: '2C', name: "Shoulder Press", sets: 3, reps: "10-12", tempo: "3-0-1-0", rest: 120, image: imgShoulderPress }, { id: '2D', name: "Triceps Pushdown", sets: 4, reps: "12-15", tempo: "2-0-1-1", rest: 90, image: imgTriceps }, { id: '2E', name: "Élévations Latérales", sets: 3, reps: "15-20", tempo: "2-0-1-0", rest: 90, image: imgLateralRaise } ], cardio: { name: "Vélo Assis", duration: "30 min", bpm: "119-129", focus: "FATmax post-séance." } },
   3: { type: 'cardio', dayName: "Mercredi", focus: "Régénération", desc: "Consommer la graisse viscérale.", cardio: { name: "Elliptique", duration: "45-60 min", bpm: "119-129", focus: "Ne JAMAIS courir." } },
   4: { type: 'mixed', dayName: "Jeudi", focus: "Tirage Supérieur", desc: "Épaisseur Dorsale.", exercises: [ { id: '4A', name: "Lat Pulldown", sets: 4, reps: "10-12", tempo: "3-0-1-1", rest: 120, image: imgLatPulldown }, { id: '4B', name: "Seated Row", sets: 4, reps: "10-12", tempo: "3-0-1-1", rest: 120, image: imgSeatedRow }, { id: '4C', name: "Pull-over poulie", sets: 3, reps: "15", tempo: "2-0-1-0", rest: 90, image: imgPullover }, { id: '4D', name: "Curl Marteau", sets: 4, reps: "8-10", tempo: "3-0-1-1", rest: 90, image: imgHammerCurl }, { id: '4E', name: "Curl Biceps Machine", sets: 3, reps: "12-15", tempo: "2-0-1-1", rest: 90, image: imgCurlBiceps } ], cardio: { name: "Marche Inclinée", duration: "30 min", bpm: "119-129", focus: "Inclinaison 8-12%." } },
@@ -94,17 +101,22 @@ const useData = () => useContext(DataContext);
 
 function DataProvider({ children }) {
   const { currentUser } = useAuth();
+  const getTodayStr = () => new Date().toISOString().split('T')[0];
   
-  // LE CHAUD (Mémoire locale immédiate)
+  // LE CHAUD (Mémoire locale)
   const [program, setProgram] = useState(() => JSON.parse(localStorage.getItem('mecanik_program_v6')) || defaultProgramData);
   const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem('mecanik_history_v6')) || {});
+  const [profile, setProfile] = useState(() => JSON.parse(localStorage.getItem('mecanik_profile_v6')) || null);
+  const [journal, setJournal] = useState(() => JSON.parse(localStorage.getItem('mecanik_journal_v6')) || { [getTodayStr()]: { meals: { breakfast: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, lunch: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, dinner: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, snacks: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 } }, activity: 0, water: 0 } });
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Sauvegarde locale automatique (Zéro latence)
+  // Sauvegardes locales automatiques (Zéro Latence)
   useEffect(() => { localStorage.setItem('mecanik_program_v6', JSON.stringify(program)); }, [program]);
   useEffect(() => { localStorage.setItem('mecanik_history_v6', JSON.stringify(history)); }, [history]);
+  useEffect(() => { if (profile) localStorage.setItem('mecanik_profile_v6', JSON.stringify(profile)); }, [profile]);
+  useEffect(() => { localStorage.setItem('mecanik_journal_v6', JSON.stringify(journal)); }, [journal]);
 
-  // LE FROID : Chargement initial depuis Firebase
+  // LE FROID : Chargement Initial Dynamique
   useEffect(() => {
     if (currentUser) {
       getDoc(doc(db, "users", currentUser.uid)).then(docSnap => {
@@ -112,22 +124,40 @@ function DataProvider({ children }) {
           const cloudData = docSnap.data();
           if (cloudData.program) setProgram(cloudData.program);
           if (cloudData.history) setHistory(cloudData.history);
+          if (cloudData.profile) setProfile(cloudData.profile);
+          if (cloudData.journal) setJournal(cloudData.journal);
         }
       });
     }
   }, [currentUser]);
 
-  // LE FROID : Push manuel vers Firebase (Action Utilisateur)
+  // LE FROID : Fonction Push
   const syncToCloud = async () => {
     if (!currentUser) return;
     setIsSyncing(true);
-    try {
-      await setDoc(doc(db, "users", currentUser.uid), { program, history, lastSync: new Date().toISOString() }, { merge: true });
-    } catch (e) { console.error("Erreur de synchronisation:", e); }
+    try { await setDoc(doc(db, "users", currentUser.uid), { program, history, profile, journal, lastSync: new Date().toISOString() }, { merge: true }); } 
+    catch (e) { console.error("Erreur de synchronisation:", e); }
     setIsSyncing(false);
   };
 
-  return <DataContext.Provider value={{ program, setProgram, history, setHistory, syncToCloud, isSyncing }}>{children}</DataContext.Provider>;
+  // ==========================================
+  // AUTO-SAVE (TOUTES LES 2 MINUTES)
+  // ==========================================
+  const stateRef = useRef({ program, history, profile, journal });
+  useEffect(() => { stateRef.current = { program, history, profile, journal }; }, [program, history, profile, journal]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const timer = setInterval(async () => {
+      setIsSyncing(true);
+      try { await setDoc(doc(db, "users", currentUser.uid), { ...stateRef.current, autoSyncDate: new Date().toISOString() }, { merge: true }); } 
+      catch (e) { console.error("AutoSave Error:", e); }
+      setIsSyncing(false);
+    }, 120000); // 120000 ms = 2 minutes
+    return () => clearInterval(timer);
+  }, [currentUser]);
+
+  return <DataContext.Provider value={{ program, setProgram, history, setHistory, profile, setProfile, journal, setJournal, syncToCloud, isSyncing }}>{children}</DataContext.Provider>;
 }
 
 // ==========================================
@@ -140,21 +170,27 @@ const generateRandomString = (length) => { const possible = 'ABCDEFGHIJKLMNOPQRS
 const sha256 = async (plain) => { const encoder = new TextEncoder(); const data = encoder.encode(plain); return window.crypto.subtle.digest('SHA-256', data); };
 const base64encode = (input) => btoa(String.fromCharCode(...new Uint8Array(input))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 // ==========================================
-// 4. ÉCRAN D'AUTHENTIFICATION (LOGIN/SIGNUP)
+// 4. ÉCRAN D'AUTHENTIFICATION (AVEC GOOGLE)
 // ==========================================
 function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { login, signup } = useAuth();
+  const { login, signup, loginWithGoogle } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault(); setError('');
     try {
       if (isLogin) await login(email, password);
       else await signup(email, password);
-    } catch (err) { setError("Erreur d'authentification. Vérifiez vos identifiants (mot de passe 6 car. min)."); }
+    } catch (err) { setError("Erreur d'authentification. Vérifiez vos identifiants (6 car. min)."); }
+  };
+
+  const handleGoogle = async () => {
+    setError('');
+    try { await loginWithGoogle(); } 
+    catch (err) { setError("Erreur de connexion avec Google."); }
   };
 
   return (
@@ -164,12 +200,20 @@ function AuthScreen() {
         <div className="flex justify-center mb-6"><div className="w-16 h-16 bg-blue-600/10 rounded-full flex items-center justify-center border border-blue-500/20"><Dumbbell size={32} className="text-blue-500" /></div></div>
         <h2 className="text-2xl font-black text-center uppercase tracking-tighter mb-8">{isLogin ? 'Connexion' : 'Rejoindre MÉCANIK'}</h2>
         {error && <p className="text-[10px] text-red-500 bg-red-500/10 p-3 rounded-xl mb-4 text-center font-bold">{error}</p>}
+        
         <form onSubmit={handleSubmit} className="space-y-4">
           <input type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} className="w-full bg-zinc-900 p-4 rounded-2xl border border-zinc-800 outline-none focus:border-blue-500 font-bold text-white placeholder:text-zinc-600" required />
           <input type="password" placeholder="Mot de passe" value={password} onChange={e=>setPassword(e.target.value)} className="w-full bg-zinc-900 p-4 rounded-2xl border border-zinc-800 outline-none focus:border-blue-500 font-bold text-white placeholder:text-zinc-600" required />
           <button type="submit" className="w-full py-4 bg-blue-600 rounded-full font-black uppercase text-xs shadow-[0_0_20px_rgba(10,132,255,0.4)] text-white flex justify-center items-center gap-2">{isLogin ? 'Entrer' : 'Créer mon compte'} <ArrowRight size={16}/></button>
         </form>
-        <button onClick={() => setIsLogin(!isLogin)} className="w-full mt-6 text-[10px] text-zinc-500 uppercase font-bold tracking-widest hover:text-white transition-colors">{isLogin ? "Je n'ai pas de compte" : "J'ai déjà un compte"}</button>
+
+        <div className="mt-6 border-t border-zinc-800 pt-6">
+          <button onClick={handleGoogle} className="w-full py-4 bg-white rounded-full font-black uppercase text-xs text-black flex justify-center items-center gap-2 active:scale-95 shadow-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/></svg>
+            Google
+          </button>
+        </div>
+        <button onClick={() => setIsLogin(!isLogin)} className="w-full mt-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest hover:text-white transition-colors">{isLogin ? "Je n'ai pas de compte" : "J'ai déjà un compte"}</button>
       </motion.div>
     </div>
   );
@@ -180,23 +224,20 @@ function AuthScreen() {
 // ==========================================
 function DashboardTab({ onNavigate, spotifyToken, loginSpotify, setShowSpotifyWidget }) {
   const { logout, currentUser } = useAuth();
-  const { program } = useData();
+  const { program, journal } = useData();
   const today = new Date().getDay() || 7; 
   const todaysWorkout = program[today];
   
   let nutritionCals = 0;
-  try {
-    const journal = JSON.parse(localStorage.getItem('mecanik_nutrition_journal_v4'));
-    const todayStr = new Date().toISOString().split('T')[0];
-    if (journal && journal[todayStr]) { nutritionCals = Object.values(journal[todayStr].meals).reduce((acc, meal) => acc + meal.cals, 0); }
-  } catch(e) {}
+  const todayStr = new Date().toISOString().split('T')[0];
+  if (journal && journal[todayStr]) { nutritionCals = Object.values(journal[todayStr].meals).reduce((acc, meal) => acc + meal.cals, 0); }
 
   return (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} className="h-full w-full bg-black p-6 overflow-y-auto pb-32 relative">
       <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 rounded-full blur-[100px] pointer-events-none" />
       <header className="pt-10 mb-8 flex justify-between items-start relative z-10">
-        <div><h1 className="text-3xl font-black tracking-tighter uppercase mb-1">MÉCANIK</h1><p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Connecté : {currentUser?.email}</p></div>
-        <div className="flex gap-2">
+        <div className="flex-1 overflow-hidden pr-4"><h1 className="text-3xl font-black tracking-tighter uppercase mb-1">MÉCANIK</h1><p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest truncate">ID : {currentUser?.email}</p></div>
+        <div className="flex gap-2 shrink-0">
           {!spotifyToken ? ( <button onClick={loginSpotify} className="bg-[#1DB954]/10 p-3 rounded-full text-[#1DB954] border border-[#1DB954]/20 active:scale-95"><LogIn size={20}/></button> ) : ( <button onClick={() => setShowSpotifyWidget(true)} className="bg-zinc-900 p-3 rounded-full text-[#1DB954] border border-zinc-800 active:scale-95"><Music size={20} className="animate-pulse" /></button> )}
           <button onClick={logout} className="bg-red-900/20 p-3 rounded-full text-red-500 border border-red-500/20 active:scale-95"><LogOut size={20}/></button>
         </div>
@@ -222,7 +263,7 @@ function DashboardTab({ onNavigate, spotifyToken, loginSpotify, setShowSpotifyWi
 }
 
 function WorkoutTab({ spotifyToken, spotifyTrack }) {
-  const { program, setProgram, history, setHistory, syncToCloud, isSyncing } = useData(); // LE CHAUD ET LE FROID
+  const { program, setProgram, history, setHistory, syncToCloud, isSyncing } = useData(); 
   const [activeDay, setActiveDay] = useState(new Date().getDay() || 7);
   const [restTime, setRestTime] = useState(0);
   const [isScanning, setIsScanning] = useState(false);
@@ -293,13 +334,12 @@ function WorkoutTab({ spotifyToken, spotifyTrack }) {
             {currentDay.cardio && <CardioCard data={currentDay.cardio} isFinisher={currentDay.type === 'mixed'} />}
             {currentDay.type === 'rest' && <RestCard data={currentDay} />}
 
-            {/* BOUTON DE SYNCHRONISATION CLOUD */}
             <div className="mt-12 mb-4">
               <button onClick={syncToCloud} disabled={isSyncing} className={`w-full py-5 rounded-[24px] font-black uppercase text-xs flex items-center justify-center gap-2 shadow-xl transition-all active:scale-95 ${isSyncing ? 'bg-zinc-800 text-zinc-500' : 'bg-blue-600/20 text-blue-500 border border-blue-500/30 hover:bg-blue-600 hover:text-white'}`}>
                 {isSyncing ? <RefreshCw size={18} className="animate-spin" /> : <CloudLightning size={18} />}
-                {isSyncing ? 'Synchronisation Cloud...' : 'Sauvegarder dans le Cloud'}
+                {isSyncing ? 'Synchronisation Cloud...' : 'Forcer la Sauvegarde Cloud'}
               </button>
-              <p className="text-center text-[9px] text-zinc-500 mt-3 font-bold uppercase tracking-widest leading-relaxed px-4">Vos données sont enregistrées en local. Poussez-les vers le cloud à la fin de la séance pour sécuriser votre historique.</p>
+              <p className="text-center text-[9px] text-zinc-500 mt-3 font-bold uppercase tracking-widest leading-relaxed px-4">Vos données sont synchronisées automatiquement toutes les 2 minutes.</p>
             </div>
           </motion.div>
         </AnimatePresence>
@@ -510,6 +550,8 @@ function FloatingSpotifyWidget({ token, track, onClose, refreshTrack }) {
 // ==========================================
 function AppRouter() {
   const { currentUser } = useAuth();
+  const dataContextValues = useData(); // On récupère toutes les données chaudes/froides ici
+  
   const [currentTab, setCurrentTab] = useState('home');
   const [spotifyToken, setSpotifyToken] = useState("");
   const [spotifyTrack, setSpotifyTrack] = useState(null);
@@ -523,7 +565,7 @@ function AppRouter() {
       const codeVerifier = window.localStorage.getItem('spotify_code_verifier');
       fetch("https://accounts.spotify.com/api/token", {
         method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ client_id: SPOTIFY_CLIENT_ID, grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI, code_verifier: codeVerifier })
+        body: newSearchParams({ client_id: SPOTIFY_CLIENT_ID, grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI, code_verifier: codeVerifier })
       }).then(res => res.json()).then(data => {
         if (data.access_token) { window.localStorage.setItem("spotify_token", data.access_token); setSpotifyToken(data.access_token); window.history.replaceState({}, document.title, window.location.pathname); setCurrentTab('workout'); }
       });
@@ -557,7 +599,9 @@ function AppRouter() {
         <AnimatePresence mode="wait">
           {currentTab === 'home' && <DashboardTab key="home" onNavigate={setCurrentTab} spotifyToken={spotifyToken} loginSpotify={loginSpotify} setShowSpotifyWidget={setShowSpotifyWidget} />}
           {currentTab === 'workout' && <WorkoutTab key="workout" spotifyToken={spotifyToken} spotifyTrack={spotifyTrack} />}
-          {currentTab === 'nutrition' && <Nutrition key="nutrition" onBack={() => setCurrentTab('home')} />}
+          
+          {/* On passe les contextes à Nutrition par props pour éviter les dépendances circulaires */}
+          {currentTab === 'nutrition' && <Nutrition key="nutrition" onBack={() => setCurrentTab('home')} dataContext={dataContextValues} />}
         </AnimatePresence>
       </div>
 

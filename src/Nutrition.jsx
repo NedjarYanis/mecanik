@@ -8,12 +8,8 @@ import {
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
-// ==========================================
-// 1. CONFIGURATION CLOUD FIREBASE
-// ==========================================
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, getDocs, addDoc, doc, setDoc, getDoc } from "firebase/firestore";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { getFirestore, collection, getDocs, addDoc } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDgWfWXpAV6ZHHrlE4q1EC3mFeZAJOV5wc",
@@ -25,10 +21,8 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const auth = getAuth(app);
 const foodsCollection = collection(db, 'foods');
 
-// Base de données par défaut (Si mode hors-ligne)
 const INITIAL_GLOBAL_DB = [
   { id: '1', name: 'Flocons d\'avoine', cals: 389, prot: 16.9, carbs: 66.3, fat: 6.9, verified: true },
   { id: '2', name: 'Poulet (Blanc)', cals: 165, prot: 31, carbs: 0, fat: 3.6, verified: true },
@@ -38,46 +32,30 @@ const INITIAL_GLOBAL_DB = [
   { id: '6', name: 'Whey Protein', cals: 115, prot: 24, carbs: 2, fat: 1.5, verified: true }
 ];
 
-// ==========================================
-// 2. MOTEUR D'ANALYSE MÉTABOLIQUE (IA Sécurisée)
-// ==========================================
 const calculateMifflin = (profile) => {
   if (!profile) return { bmr: 0, tdee: 2600 };
-  const w = Number(profile.weight) || 75;
-  const h = Number(profile.height) || 175;
-  const a = Number(profile.age) || 25;
-  let bmr = (10 * w) + (6.25 * h) - (5 * a);
-  bmr += profile.gender === 'M' ? 5 : -161;
+  const w = Number(profile.weight) || 75; const h = Number(profile.height) || 175; const a = Number(profile.age) || 25;
+  let bmr = (10 * w) + (6.25 * h) - (5 * a); bmr += profile.gender === 'M' ? 5 : -161;
   const multipliers = { 'Sédentaire': 1.2, 'Léger': 1.375, 'Modéré': 1.55, 'Intense': 1.725 };
   const tdee = bmr * (multipliers[profile.activityLevel || 'Modéré'] || 1.55);
   return { bmr: Math.round(bmr), tdee: Math.round(tdee) };
 };
 
 const calculateTargetGoals = (profile, tdee) => {
-  let targetCalories = tdee;
-  let multiplier = 1;
-  const goal = profile?.goal || 'maintain';
-  
-  if (goal === 'cut') multiplier = 0.85; 
-  if (goal === 'bulk') multiplier = 1.10; 
+  let targetCalories = tdee; let multiplier = 1; const goal = profile?.goal || 'maintain';
+  if (goal === 'cut') multiplier = 0.85; if (goal === 'bulk') multiplier = 1.10; 
   targetCalories = Math.round(tdee * multiplier);
-
   const w = Number(profile?.weight) || 75;
-  const protein = Math.round(w * 2.2); 
-  const fat = Math.round((targetCalories * 0.25) / 9); 
+  const protein = Math.round(w * 2.2); const fat = Math.round((targetCalories * 0.25) / 9); 
   const remainingCals = targetCalories - (protein * 4) - (fat * 9);
   const carbs = Math.max(0, Math.round(remainingCals / 4)); 
-
   return { targetCalories, protein, fat, carbs, multiplier };
 };
 
 const simulateRandomForest = (profile) => {
-  if (!profile) return { type: "Inconnu", risk: "?", focus: "Veuillez remplir votre profil." };
-  const fat = Number(profile.bodyFat) || 15;
-  const w = Number(profile.weight) || 75;
-  const h = Number(profile.height) || 175;
+  if (!profile) return { type: "Inconnu", risk: "?", focus: "Remplissez votre profil." };
+  const fat = Number(profile.bodyFat) || 15; const w = Number(profile.weight) || 75; const h = Number(profile.height) || 175;
   const bmi = w / Math.pow(h / 100, 2);
-  
   if (fat > 25 && bmi > 25) return { type: "Endomorphe Lourd", risk: "Élevé", focus: "Déficit strict, Lipides bas." };
   if (fat <= 15 && bmi < 22) return { type: "Ectomorphe Rapide", risk: "Faible", focus: "Surplus calorique, Hyper-protéiné." };
   if (fat >= 15 && fat <= 25 && bmi >= 22 && bmi <= 25) return { type: "Mésomorphe Équilibré", risk: "Modéré", focus: "Recomposition corporelle." };
@@ -87,47 +65,30 @@ const simulateRandomForest = (profile) => {
 const simulateLinearRegression = (profile, tdee) => {
   if (!profile) return { prediction30Days: 0, trend: 'Stagnation' };
   const target = calculateTargetGoals(profile, tdee).targetCalories;
-  const dailyDiff = target - tdee; 
-  const weeklyChange = (dailyDiff * 7) / 7000; 
-  const w = Number(profile.weight) || 75;
+  const dailyDiff = target - tdee; const weeklyChange = (dailyDiff * 7) / 7000; const w = Number(profile.weight) || 75;
   const prediction30Days = (w + (weeklyChange * 4.2)).toFixed(1);
   return { prediction30Days, trend: dailyDiff < 0 ? 'Baisse' : dailyDiff > 0 ? 'Hausse' : 'Stagnation' };
 };
 
-// ==========================================
-// COMPOSANTS VISUELS (Jauges)
-// ==========================================
 const CircularGauge = ({ value, max, color, size = 64, strokeWidth = 6, icon: Icon }) => {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const percent = Math.min(value / max, 1);
+  const radius = (size - strokeWidth) / 2; const circumference = 2 * Math.PI * radius; const percent = Math.min(value / max, 1);
   const strokeDashoffset = circumference - percent * circumference;
   return (
     <div className="flex flex-col items-center justify-center relative" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="transform -rotate-90 absolute">
-        <circle cx={size/2} cy={size/2} r={radius} stroke="currentColor" strokeWidth={strokeWidth} fill="transparent" className="text-zinc-900" />
-        <circle cx={size/2} cy={size/2} r={radius} stroke={color} strokeWidth={strokeWidth} fill="transparent" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} className="transition-all duration-1000 ease-out" />
-      </svg>
+      <svg width={size} height={size} className="transform -rotate-90 absolute"><circle cx={size/2} cy={size/2} r={radius} stroke="currentColor" strokeWidth={strokeWidth} fill="transparent" className="text-zinc-900" /><circle cx={size/2} cy={size/2} r={radius} stroke={color} strokeWidth={strokeWidth} fill="transparent" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} className="transition-all duration-1000 ease-out" /></svg>
       <div className="absolute flex flex-col items-center justify-center">{Icon && <Icon size={size * 0.3} color={color} />}</div>
     </div>
   );
 };
 
-// ==========================================
-// ONBOARDING WIZARD
-// ==========================================
 function OnboardingWizard({ onComplete }) {
   const [step, setStep] = useState(1);
-  const [profile, setProfile] = useState({
-    age: 25, gender: 'M', weight: 75, height: 175, activityLevel: 'Modéré',
-    bodyFat: 15, muscleMass: 40, boneMass: 3, hydration: 60, goal: 'maintain'
-  });
+  const [profile, setProfile] = useState({ age: 25, gender: 'M', weight: 75, height: 175, activityLevel: 'Modéré', bodyFat: 15, muscleMass: 40, boneMass: 3, hydration: 60, goal: 'maintain' });
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[200] bg-black text-white flex flex-col p-6 overflow-y-auto">
       <div className="flex-1 flex flex-col justify-center max-w-sm mx-auto w-full space-y-8">
-        <div className="text-center"><BrainCircuit size={48} className="text-blue-500 mx-auto mb-4 animate-pulse" /><h1 className="text-3xl font-black uppercase tracking-tighter">Étalonnage<br/>Métabolique</h1><p className="text-zinc-400 text-sm mt-2">L'IA de MÉCANIK a besoin de vos biométries.</p></div>
-        
+        <div className="text-center"><BrainCircuit size={48} className="text-blue-500 mx-auto mb-4 animate-pulse" /><h1 className="text-3xl font-black uppercase tracking-tighter">Étalonnage<br/>Métabolique</h1><p className="text-zinc-400 text-sm mt-2">L'IA a besoin de vos biométries.</p></div>
         {step === 1 && (
           <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="space-y-4">
             <h2 className="text-xs font-black uppercase tracking-widest text-blue-500">1. Données de Base</h2>
@@ -141,7 +102,6 @@ function OnboardingWizard({ onComplete }) {
             <button onClick={() => setStep(2)} className="w-full py-4 bg-blue-600 rounded-full font-black uppercase text-xs">Suivant</button>
           </motion.div>
         )}
-
         {step === 2 && (
           <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="space-y-4">
             <h2 className="text-xs font-black uppercase tracking-widest text-cyan-500">2. Composition (Options)</h2>
@@ -151,34 +111,18 @@ function OnboardingWizard({ onComplete }) {
               <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-700/50"><span className="text-[10px] uppercase text-zinc-500 font-bold">Os (kg)</span><input type="number" value={profile.boneMass} onChange={e=>setProfile({...profile, boneMass: Number(e.target.value)})} className="bg-transparent w-full font-black text-xl outline-none" /></div>
               <div className="bg-zinc-900 p-4 rounded-2xl border border-cyan-900/30"><span className="text-[10px] uppercase text-zinc-500 font-bold">Eau (%)</span><input type="number" value={profile.hydration} onChange={e=>setProfile({...profile, hydration: Number(e.target.value)})} className="bg-transparent w-full font-black text-xl outline-none text-cyan-400" /></div>
             </div>
-            <div className="flex gap-2">
-               <button onClick={() => setStep(1)} className="p-4 bg-zinc-800 rounded-2xl"><ChevronLeft size={20}/></button>
-               <button onClick={() => setStep(3)} className="flex-1 py-4 bg-cyan-600 text-black rounded-2xl font-black uppercase text-xs">Suivant</button>
-            </div>
+            <div className="flex gap-2"><button onClick={() => setStep(1)} className="p-4 bg-zinc-800 rounded-2xl"><ChevronLeft size={20}/></button><button onClick={() => setStep(3)} className="flex-1 py-4 bg-cyan-600 text-black rounded-2xl font-black uppercase text-xs">Suivant</button></div>
           </motion.div>
         )}
-
         {step === 3 && (
           <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="space-y-4">
             <h2 className="text-xs font-black uppercase tracking-widest text-emerald-500">3. Stratégie Nutritionnelle</h2>
             <div className="space-y-3">
-              <div onClick={() => setProfile({...profile, goal: 'cut'})} className={`p-4 rounded-2xl border cursor-pointer transition-all ${profile.goal === 'cut' ? 'bg-emerald-900/40 border-emerald-500' : 'bg-zinc-900 border-zinc-800'}`}>
-                <div className="flex justify-between items-center mb-1"><span className="font-black text-white">Sèche / Perte</span><TrendingDown size={18} className={profile.goal === 'cut' ? 'text-emerald-500' : 'text-zinc-500'}/></div>
-                <p className="text-[10px] text-zinc-400 font-bold">Déficit contrôlé de -15%</p>
-              </div>
-              <div onClick={() => setProfile({...profile, goal: 'maintain'})} className={`p-4 rounded-2xl border cursor-pointer transition-all ${profile.goal === 'maintain' ? 'bg-blue-900/40 border-blue-500' : 'bg-zinc-900 border-zinc-800'}`}>
-                <div className="flex justify-between items-center mb-1"><span className="font-black text-white">Maintien</span><Activity size={18} className={profile.goal === 'maintain' ? 'text-blue-500' : 'text-zinc-500'}/></div>
-                <p className="text-[10px] text-zinc-400 font-bold">Calories = Dépense Journalière</p>
-              </div>
-              <div onClick={() => setProfile({...profile, goal: 'bulk'})} className={`p-4 rounded-2xl border cursor-pointer transition-all ${profile.goal === 'bulk' ? 'bg-red-900/40 border-red-500' : 'bg-zinc-900 border-zinc-800'}`}>
-                <div className="flex justify-between items-center mb-1"><span className="font-black text-white">Lean Bulk</span><TrendingUp size={18} className={profile.goal === 'bulk' ? 'text-red-500' : 'text-zinc-500'}/></div>
-                <p className="text-[10px] text-zinc-400 font-bold">Surplus contrôlé de +10%</p>
-              </div>
+              <div onClick={() => setProfile({...profile, goal: 'cut'})} className={`p-4 rounded-2xl border cursor-pointer transition-all ${profile.goal === 'cut' ? 'bg-emerald-900/40 border-emerald-500' : 'bg-zinc-900 border-zinc-800'}`}><div className="flex justify-between items-center mb-1"><span className="font-black text-white">Sèche / Perte</span><TrendingDown size={18} className={profile.goal === 'cut' ? 'text-emerald-500' : 'text-zinc-500'}/></div><p className="text-[10px] text-zinc-400 font-bold">Déficit contrôlé de -15%</p></div>
+              <div onClick={() => setProfile({...profile, goal: 'maintain'})} className={`p-4 rounded-2xl border cursor-pointer transition-all ${profile.goal === 'maintain' ? 'bg-blue-900/40 border-blue-500' : 'bg-zinc-900 border-zinc-800'}`}><div className="flex justify-between items-center mb-1"><span className="font-black text-white">Maintien</span><Activity size={18} className={profile.goal === 'maintain' ? 'text-blue-500' : 'text-zinc-500'}/></div><p className="text-[10px] text-zinc-400 font-bold">Calories = Dépense Journalière</p></div>
+              <div onClick={() => setProfile({...profile, goal: 'bulk'})} className={`p-4 rounded-2xl border cursor-pointer transition-all ${profile.goal === 'bulk' ? 'bg-red-900/40 border-red-500' : 'bg-zinc-900 border-zinc-800'}`}><div className="flex justify-between items-center mb-1"><span className="font-black text-white">Lean Bulk</span><TrendingUp size={18} className={profile.goal === 'bulk' ? 'text-red-500' : 'text-zinc-500'}/></div><p className="text-[10px] text-zinc-400 font-bold">Surplus contrôlé de +10%</p></div>
             </div>
-            <div className="flex gap-2 mt-6">
-               <button onClick={() => setStep(2)} className="p-4 bg-zinc-800 rounded-2xl"><ChevronLeft size={20}/></button>
-               <button onClick={() => onComplete(profile)} className="flex-1 py-4 bg-emerald-600 text-black rounded-2xl font-black uppercase text-xs shadow-[0_0_20px_rgba(16,185,129,0.4)]">Générer mon profil IA</button>
-            </div>
+            <div className="flex gap-2 mt-6"><button onClick={() => setStep(2)} className="p-4 bg-zinc-800 rounded-2xl"><ChevronLeft size={20}/></button><button onClick={() => onComplete(profile)} className="flex-1 py-4 bg-emerald-600 text-black rounded-2xl font-black uppercase text-xs shadow-[0_0_20px_rgba(16,185,129,0.4)]">Générer mon profil IA</button></div>
           </motion.div>
         )}
       </div>
@@ -186,87 +130,15 @@ function OnboardingWizard({ onComplete }) {
   );
 }
 // ==========================================
-// COMPOSANT PRINCIPAL NUTRITION (HYBRIDE)
+// COMPOSANT PRINCIPAL NUTRITION 
+// Reçoit l'état depuis App.jsx (dataContext)
 // ==========================================
-export default function Nutrition({ onBack }) {
-  // 1. AUTHENTIFICATION FIREBASE
-  const [currentUser, setCurrentUser] = useState(null);
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, user => setCurrentUser(user));
-    return unsubscribe;
-  }, []);
-
-  // 2. ÉTATS CHAUDS (LOCAL) : Profil et Journal
-  const [profile, setProfile] = useState(() => {
-    try {
-      const saved = localStorage.getItem('mecanik_user_profile');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.weight) {
-          parsed.weight = Number(parsed.weight);
-          parsed.height = Number(parsed.height);
-          parsed.age = Number(parsed.age);
-          parsed.bodyFat = Number(parsed.bodyFat) || 15;
-          if(!parsed.goal) parsed.goal = 'maintain';
-          return parsed;
-        }
-      }
-    } catch(e) {}
-    return null;
-  });
+export default function Nutrition({ onBack, dataContext }) {
+  const { profile, setProfile, journal, setJournal, syncToCloud, isSyncing } = dataContext;
 
   const getTodayStr = () => new Date().toISOString().split('T')[0];
   const [currentDateStr, setCurrentDateStr] = useState(getTodayStr());
-  
-  const [journal, setJournal] = useState(() => {
-    const saved = localStorage.getItem('mecanik_nutrition_journal_v4');
-    if (saved) return JSON.parse(saved);
-    return {
-      [getTodayStr()]: {
-        meals: { breakfast: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, lunch: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, dinner: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, snacks: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 } },
-        activity: 0, water: 0
-      }
-    };
-  });
 
-  // Sauvegardes Locales (Zéro Latence)
-  useEffect(() => { if (profile) localStorage.setItem('mecanik_user_profile', JSON.stringify(profile)); }, [profile]);
-  useEffect(() => { localStorage.setItem('mecanik_nutrition_journal_v4', JSON.stringify(journal)); }, [journal]);
-
-  // 3. ARCHITECTURE FROID (CLOUD SYNC)
-  const [isSyncing, setIsSyncing] = useState(false);
-
-  // -> Lecture Initiale depuis Firebase
-  useEffect(() => {
-    if (currentUser) {
-      getDoc(doc(db, "users", currentUser.uid)).then(docSnap => {
-        if (docSnap.exists()) {
-          const cloudData = docSnap.data();
-          if (cloudData.profile) setProfile(cloudData.profile);
-          if (cloudData.nutritionJournal) setJournal(cloudData.nutritionJournal);
-        }
-      }).catch(err => console.error("Erreur chargement cloud", err));
-    }
-  }, [currentUser]);
-
-  // -> Push Manuel vers Firebase
-  const syncToCloud = async () => {
-    if (!currentUser) return alert("Veuillez vous connecter pour sauvegarder dans le Cloud.");
-    setIsSyncing(true);
-    try {
-      await setDoc(doc(db, "users", currentUser.uid), {
-        profile,
-        nutritionJournal: journal,
-        lastNutritionSync: new Date().toISOString()
-      }, { merge: true });
-    } catch (e) {
-      console.error("Erreur de synchro:", e);
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  // 4. ÉTATS : UI & Recherche
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [globalDB, setGlobalFoodDB] = useState([]);
@@ -287,7 +159,6 @@ export default function Nutrition({ onBack }) {
     fetchFoodsFromCloud();
   }, []);
 
-  // 5. CALCULS DU JOUR ACTUEL
   const currentData = journal[currentDateStr] || {
     meals: { breakfast: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, lunch: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, dinner: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, snacks: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 } },
     activity: 0, water: 0
@@ -303,7 +174,6 @@ export default function Nutrition({ onBack }) {
   const waterGoal = profile ? Math.round(Number(profile.weight || 75) * 35) : 2500;
   const remainingCals = targetGoals.targetCalories - totalConsumed + currentData.activity;
 
-  // ACTIONS
   const updateCurrentJournal = (newData) => setJournal(prev => ({ ...prev, [currentDateStr]: { ...currentData, ...newData } }));
   const handleAddWater = () => updateCurrentJournal({ water: Math.min(currentData.water + 250, waterGoal + 1000) });
   const handleRemoveWater = () => updateCurrentJournal({ water: Math.max(currentData.water - 250, 0) });
@@ -332,17 +202,11 @@ export default function Nutrition({ onBack }) {
     const d = new Date(currentDateStr); d.setDate(d.getDate() + offset); setCurrentDateStr(d.toISOString().split('T')[0]);
   };
 
-  const resetProfile = () => {
-    localStorage.removeItem('mecanik_user_profile');
-    setProfile(null); setShowProfileModal(false); setIsEditingProfile(false);
-  };
-
   if (!profile) return <OnboardingWizard onComplete={(p) => setProfile(p)} />;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col h-full w-full bg-black text-white relative overflow-hidden">
       
-      {/* HEADER AVEC NAVIGATION */}
       <header className="px-5 pt-10 pb-4 bg-black/90 backdrop-blur-xl z-40 border-b border-zinc-900 flex-shrink-0">
         <div className="flex justify-between items-center mb-4">
           <button onClick={onBack} className="p-2.5 bg-zinc-900 rounded-full text-zinc-400 active:scale-95"><ChevronLeft size={18}/></button>
@@ -358,10 +222,8 @@ export default function Nutrition({ onBack }) {
           <button onClick={() => changeDate(1)} className="p-1 text-zinc-400 hover:text-white"><ChevronRight size={18}/></button>
         </div>
       </header>
-      {/* ZONE SWIPEABLE (Journal) */}
+
       <motion.main drag="x" dragConstraints={{ left: 0, right: 0 }} onDragEnd={(e, info) => { if (info.offset.x > 100) changeDate(-1); if (info.offset.x < -100) changeDate(1); }} key={currentDateStr} initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ type: "spring", bounce: 0.4 }} className="flex-1 overflow-y-auto px-4 pt-6 pb-32 space-y-6">
-        
-        {/* TABLEAU DE BORD */}
         <section className="bg-[#151517] rounded-[32px] p-6 border border-[#222225] shadow-2xl pointer-events-none">
           <div className="flex justify-between items-center mb-8">
             <div className="flex flex-col items-center gap-2"><CircularGauge value={totalConsumed} max={targetGoals.targetCalories} color="#3B82F6" icon={Utensils} size={60} /><span className="text-[10px] font-black uppercase text-blue-500 mt-2">{Math.round(totalConsumed)}</span></div>
@@ -375,7 +237,6 @@ export default function Nutrition({ onBack }) {
           </div>
         </section>
 
-        {/* REPAS */}
         <section>
           <div className="space-y-3">
             {[ { id: 'breakfast', name: 'Petit-déj', icon: Coffee }, { id: 'lunch', name: 'Déjeuner', icon: Utensils }, { id: 'dinner', name: 'Dîner', icon: Moon }, { id: 'snacks', name: 'Snacks', icon: Cookie } ].map(meal => (
@@ -390,7 +251,6 @@ export default function Nutrition({ onBack }) {
           </div>
         </section>
 
-        {/* EAU */}
         <section className="bg-[#151517] border border-[#222225] rounded-[32px] p-6 relative overflow-hidden">
           <div className="flex justify-between items-start mb-6">
              <div><h3 className="font-bold text-lg mb-1">Hydratation</h3><p className="text-[11px] font-black text-cyan-500 uppercase">{currentData.water} / {waterGoal} ml</p></div>
@@ -403,19 +263,16 @@ export default function Nutrition({ onBack }) {
              })}
           </div>
         </section>
-
-        {/* BOUTON CLOUD SYNC */}
+        
         <div className="mt-8 mb-4">
           <button onClick={syncToCloud} disabled={isSyncing} className={`w-full py-5 rounded-[24px] font-black uppercase text-xs flex items-center justify-center gap-2 shadow-xl transition-all active:scale-95 ${isSyncing ? 'bg-zinc-800 text-zinc-500' : 'bg-green-600/20 text-green-500 border border-green-500/30 hover:bg-green-600 hover:text-white'}`}>
             {isSyncing ? <RefreshCw size={18} className="animate-spin" /> : <CloudLightning size={18} />}
-            {isSyncing ? 'Synchronisation Cloud...' : 'Sauvegarder dans le Cloud'}
+            {isSyncing ? 'Synchronisation Cloud...' : 'Forcer la Sauvegarde Cloud'}
           </button>
+          <p className="text-center text-[9px] text-zinc-500 mt-3 font-bold uppercase tracking-widest leading-relaxed px-4">Sauvegarde automatique activée (toutes les 2min).</p>
         </div>
       </motion.main>
 
-      {/* ==================================================== */}
-      {/* MODALS : FICHE IA, RECHERCHE, CROWDSOURCING            */}
-      {/* ==================================================== */}
       <AnimatePresence>
         {showProfileModal && (
           <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col">
@@ -442,10 +299,7 @@ export default function Nutrition({ onBack }) {
                       <option value="bulk">Prise de Masse (+10%)</option>
                     </select>
                   </div>
-                  <div className="flex gap-2 pt-4 border-t border-zinc-800 mt-6">
-                    <button onClick={() => setIsEditingProfile(false)} className="flex-1 py-4 bg-white text-black rounded-xl font-black uppercase text-xs shadow-lg">Terminer l'édition</button>
-                    <button onClick={resetProfile} className="py-4 px-6 bg-red-900/40 text-red-500 border border-red-500/30 rounded-xl font-black uppercase text-xs">Reset Profil</button>
-                  </div>
+                  <button onClick={() => setIsEditingProfile(false)} className="w-full py-4 bg-white text-black rounded-xl font-black uppercase text-xs shadow-lg mt-6">Terminer l'édition</button>
                 </div>
               ) : (
                 <>
@@ -508,14 +362,14 @@ export default function Nutrition({ onBack }) {
               <button onClick={() => setShowContributeModal(false)} className="p-2 bg-zinc-800 rounded-full active:scale-90"><X size={20}/></button>
             </div>
             <div className="p-5 overflow-y-auto space-y-6">
-              <div className="bg-orange-500/10 border border-orange-500/20 p-4 rounded-[20px] flex gap-3 items-start"><Globe size={20} className="text-orange-500 shrink-0 mt-0.5" /><p className="text-[11px] text-orange-200 leading-relaxed font-medium">Les aliments que vous ajoutez ici seront synchronisés en temps réel et disponibles pour <strong>tous les utilisateurs du monde</strong>.</p></div>
+              <div className="bg-orange-500/10 border border-orange-500/20 p-4 rounded-[20px] flex gap-3 items-start"><Globe size={20} className="text-orange-500 shrink-0 mt-0.5" /><p className="text-[11px] text-orange-200 leading-relaxed font-medium">Les aliments ajoutés ici seront synchronisés en temps réel et disponibles pour <strong>tous les utilisateurs</strong>.</p></div>
               <div className="space-y-4">
-                <div className="flex flex-col bg-zinc-900 p-4 rounded-2xl border border-zinc-800 shadow-inner"><span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest mb-2">Nom de l'aliment</span><input type="text" placeholder="Ex: Avocat (cru)" value={newFood.name} onChange={e => setNewFood({...newFood, name: e.target.value})} className="bg-transparent font-bold text-white text-lg outline-none w-full placeholder:text-zinc-700" /></div>
+                <div className="flex flex-col bg-zinc-900 p-4 rounded-2xl border border-zinc-800 shadow-inner"><span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest mb-2">Nom</span><input type="text" placeholder="Ex: Avocat (cru)" value={newFood.name} onChange={e => setNewFood({...newFood, name: e.target.value})} className="bg-transparent font-bold text-white text-lg outline-none w-full placeholder:text-zinc-700" /></div>
                 <div className="flex flex-col bg-zinc-900 p-4 rounded-2xl border border-zinc-800 shadow-inner"><span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest mb-2">Calories (Kcal)</span><input type="number" placeholder="0" value={newFood.cals} onChange={e => setNewFood({...newFood, cals: e.target.value})} className="bg-transparent font-black text-white text-xl outline-none w-full placeholder:text-zinc-700" /></div>
                 <div className="grid grid-cols-3 gap-3">
-                  <div className="flex flex-col bg-zinc-900 p-3 rounded-2xl border border-zinc-800"><span className="text-[9px] font-black uppercase text-yellow-500 tracking-widest mb-1">Glucides</span><input type="number" placeholder="0g" value={newFood.carbs} onChange={e => setNewFood({...newFood, carbs: e.target.value})} className="bg-transparent font-bold text-white outline-none w-full" /></div>
-                  <div className="flex flex-col bg-zinc-900 p-3 rounded-2xl border border-zinc-800"><span className="text-[9px] font-black uppercase text-blue-500 tracking-widest mb-1">Protéines</span><input type="number" placeholder="0g" value={newFood.prot} onChange={e => setNewFood({...newFood, prot: e.target.value})} className="bg-transparent font-bold text-white outline-none w-full" /></div>
-                  <div className="flex flex-col bg-zinc-900 p-3 rounded-2xl border border-zinc-800"><span className="text-[9px] font-black uppercase text-red-500 tracking-widest mb-1">Lipides</span><input type="number" placeholder="0g" value={newFood.fat} onChange={e => setNewFood({...newFood, fat: e.target.value})} className="bg-transparent font-bold text-white outline-none w-full" /></div>
+                  <div className="flex flex-col bg-zinc-900 p-3 rounded-2xl border border-zinc-800"><span className="text-[9px] font-black uppercase text-yellow-500 tracking-widest mb-1">Glucides</span><input type="number" placeholder="0" value={newFood.carbs} onChange={e => setNewFood({...newFood, carbs: e.target.value})} className="bg-transparent font-bold text-white outline-none w-full" /></div>
+                  <div className="flex flex-col bg-zinc-900 p-3 rounded-2xl border border-zinc-800"><span className="text-[9px] font-black uppercase text-blue-500 tracking-widest mb-1">Protéines</span><input type="number" placeholder="0" value={newFood.prot} onChange={e => setNewFood({...newFood, prot: e.target.value})} className="bg-transparent font-bold text-white outline-none w-full" /></div>
+                  <div className="flex flex-col bg-zinc-900 p-3 rounded-2xl border border-zinc-800"><span className="text-[9px] font-black uppercase text-red-500 tracking-widest mb-1">Lipides</span><input type="number" placeholder="0" value={newFood.fat} onChange={e => setNewFood({...newFood, fat: e.target.value})} className="bg-transparent font-bold text-white outline-none w-full" /></div>
                 </div>
               </div>
               <button onClick={handleContributeFood} disabled={isPublishing} className={`w-full py-5 rounded-full font-black uppercase text-xs shadow-xl transition-all active:scale-95 flex justify-center items-center gap-2 ${newFood.name && newFood.cals ? 'bg-orange-500 text-black shadow-orange-900/50' : 'bg-zinc-800 text-zinc-500'}`}>
