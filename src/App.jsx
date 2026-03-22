@@ -10,7 +10,7 @@ import {
 import { Html5Qrcode } from 'html5-qrcode'; 
 
 // ==========================================
-// 1. CONFIGURATION CLOUD FIREBASE (SÉCURISÉE ANTI-CRASH)
+// 1. CONFIGURATION CLOUD FIREBASE
 // ==========================================
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, collection, getDocs, addDoc } from "firebase/firestore";
@@ -24,7 +24,7 @@ const firebaseConfig = {
   appId: "1:669005036732:web:a998919f7b462fe19fe4b9"
 };
 
-// FIX ECRAN NOIR : On vérifie si Firebase est déjà lancé par App.jsx !
+// Sécurité : On vérifie si Firebase est déjà lancé par App.jsx
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const foodsCollection = collection(db, 'foods');
@@ -526,6 +526,5 @@ export default function Nutrition({ onBack, dataContext }) {
         )}
       </AnimatePresence>
     </motion.div>
-    //d
   );
 }
