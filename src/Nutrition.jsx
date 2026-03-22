@@ -81,7 +81,7 @@ const CircularGauge = React.memo(({ value, max, color, size = 64, strokeWidth = 
 });
 
 // ==========================================
-// 3. SCANNER LIVE BLINDÉ (Correction React 18)
+// 3. SCANNER LIVE BLINDÉ (Correction Ultime)
 // ==========================================
 const LiveBarcodeScanner = ({ onScanComplete, onClose }) => {
   const [torchOn, setTorchOn] = useState(false);
@@ -98,17 +98,11 @@ const LiveBarcodeScanner = ({ onScanComplete, onClose }) => {
       isStartingRef.current = true;
 
       try {
+        // Configuration LA PLUS SIMPLE possible pour éviter les crashs de contraintes
         const config = { 
-          fps: 15, 
-          qrbox: { width: 280, height: 120 }, 
-          aspectRatio: 1.0, 
-          disableFlip: false, 
-          formatsToSupport: [
-            Html5QrcodeSupportedFormats.EAN_13,
-            Html5QrcodeSupportedFormats.EAN_8,
-            Html5QrcodeSupportedFormats.UPC_A,
-            Html5QrcodeSupportedFormats.UPC_E
-          ]
+          fps: 10, 
+          qrbox: { width: 250, height: 150 }, 
+          aspectRatio: 1.0 
         };
         
         const onScanSuccess = (decodedText) => {
@@ -121,22 +115,19 @@ const LiveBarcodeScanner = ({ onScanComplete, onClose }) => {
           }
         };
 
-        // Tentative 1
-        try {
-          await scannerRef.current.start({ facingMode: "environment", width: { ideal: 1920 } }, config, onScanSuccess, () => {});
-        } catch (err1) {
-          if (!isComponentMounted) return;
-          // Tentative 2 (Fallback)
-          const cameras = await Html5Qrcode.getCameras();
-          if (cameras && cameras.length > 0) {
-            await scannerRef.current.start(cameras[cameras.length - 1].id, config, onScanSuccess, () => {});
-          } else {
-            throw new Error("Aucune caméra");
-          }
-        }
-      } catch (finalError) {
+        // On demande UNIQUEMENT la caméra arrière, sans forcer la HD (qui fait planter bcp de tels)
+        await scannerRef.current.start(
+          { facingMode: "environment" }, 
+          config, 
+          onScanSuccess, 
+          () => {} // Ignore les avertissements de frame vide
+        );
+
+      } catch (error) {
         if (isComponentMounted) {
-          alert("Erreur Caméra. Vérifiez les permissions.");
+          console.error("Camera Error:", error);
+          // ON AFFICHE LA VRAIE RAISON DU CRASH AU LIEU DU MESSAGE GÉNÉRIQUE
+          alert("Erreur système : " + (error?.message || error?.name || error));
           onClose();
         }
       } finally {
@@ -144,10 +135,15 @@ const LiveBarcodeScanner = ({ onScanComplete, onClose }) => {
       }
     };
 
-    startScanner();
+    // TRÈS IMPORTANT : Petit délai de sécurité (300ms) pour s'assurer que Framer Motion 
+    // a bien eu le temps de créer la balise <div id="live-reader"> dans le navigateur.
+    const timeoutId = setTimeout(() => {
+      if (isComponentMounted) startScanner();
+    }, 300);
 
     return () => { 
       isComponentMounted = false;
+      clearTimeout(timeoutId);
       if (scannerRef.current && scannerRef.current.isScanning) {
         scannerRef.current.stop().catch(e => console.error("Cleanup error", e)); 
       }
@@ -155,12 +151,12 @@ const LiveBarcodeScanner = ({ onScanComplete, onClose }) => {
   }, [onScanComplete, onClose]);
 
   const toggleTorch = async () => {
-    if (scannerRef.current && scannerRef.current.getState() === 2) {
+    if (scannerRef.current && scannerRef.current.getState() === 2) { // 2 = SCANNING
       try {
         await scannerRef.current.applyVideoConstraints({ advanced: [{ torch: !torchOn }] });
         setTorchOn(!torchOn);
       } catch (error) {
-        alert("Flash non supporté.");
+        alert("Flash non supporté par cet appareil.");
       }
     }
   };
@@ -178,7 +174,7 @@ const LiveBarcodeScanner = ({ onScanComplete, onClose }) => {
         <motion.div animate={{ y: [0, 300, 0] }} transition={{ repeat: Infinity, duration: 1.2, ease: "linear" }} className="absolute top-0 left-0 w-full h-1 bg-emerald-500 shadow-[0_0_20px_#10b981] pointer-events-none" />
       </div>
       <p className="text-xs text-zinc-400 mt-6 text-center font-bold uppercase tracking-widest leading-relaxed">
-        <span className="text-emerald-500">Moteur EAN Rapide.</span><br/>Allumez le flash si nécessaire.
+        <span className="text-emerald-500">Moteur Standard activé.</span><br/>Allumez le flash si nécessaire.
       </p>
       <button onClick={onClose} className="mt-8 px-10 py-4 bg-zinc-900 rounded-full font-black uppercase text-xs text-white border border-zinc-800 active:scale-95 shadow-lg">Annuler</button>
     </motion.div>
