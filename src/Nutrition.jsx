@@ -82,40 +82,59 @@ const CircularGauge = React.memo(({ value, max, color, size = 64, strokeWidth = 
 });
 
 // ==========================================
-// 3. SCANNER LIVE (ZÉRO CLIC & HAUTE PORTÉE DOUCE)
+// 3. SCANNER LIVE BLINDÉ (COMPATIBILITÉ 100%)
 // ==========================================
 const LiveBarcodeScanner = ({ onScanComplete, onClose }) => {
   useEffect(() => {
     const html5QrCode = new Html5Qrcode("live-reader");
     let isScanning = true;
 
-    html5QrCode.start(
-      { facingMode: "environment", width: { ideal: 1920 } }, 
-      { fps: 15, qrbox: { width: 280, height: 150 }, aspectRatio: 1.0, disableFlip: false },
-      (decodedText) => {
-        if (!isScanning) return;
-        isScanning = false;
-        html5QrCode.stop().then(() => onScanComplete(decodedText)).catch(() => onScanComplete(decodedText));
-      },
-      (error) => {}
-    ).catch(err => {
-      console.error("Camera Error:", err);
-      alert("Impossible d'accéder à la caméra. Vérifiez vos permissions.");
-      onClose();
-    });
+    const startScanner = async () => {
+      try {
+        const config = { fps: 10, qrbox: { width: 200, height: 150 }, aspectRatio: 1.0, disableFlip: false };
+        
+        const onScanSuccess = (decodedText) => {
+          if (!isScanning) return;
+          isScanning = false;
+          html5QrCode.stop().then(() => onScanComplete(decodedText)).catch(() => onScanComplete(decodedText));
+        };
 
-    return () => { isScanning = false; if (html5QrCode.isScanning) html5QrCode.stop().catch(console.error); };
+        try {
+          // TENTATIVE 1 : On demande la caméra arrière
+          await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, () => {});
+        } catch (err1) {
+          // TENTATIVE 2 : Si échec, on liste les caméras et on force la première (Fallback infaillible)
+          const cameras = await Html5Qrcode.getCameras();
+          if (cameras && cameras.length > 0) {
+            await html5QrCode.start(cameras[0].id, config, onScanSuccess, () => {});
+          } else {
+            throw new Error("Aucune caméra détectée.");
+          }
+        }
+      } catch (finalError) {
+        console.error("Camera Error:", finalError);
+        alert("La caméra est bloquée. Allez dans Réglages > Safari/Chrome > Caméra > Autoriser, et fermez les autres applications.");
+        onClose();
+      }
+    };
+
+    startScanner();
+
+    return () => { 
+      isScanning = false; 
+      if (html5QrCode.isScanning) html5QrCode.stop().catch(console.error); 
+    };
   }, [onScanComplete, onClose]);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-xl p-6 flex flex-col items-center justify-center">
       <h2 className="text-white mb-6 font-black uppercase tracking-widest text-lg text-center">Détection Automatique</h2>
-      <div className="w-full max-w-sm rounded-[32px] overflow-hidden bg-black border-4 border-emerald-500 shadow-[0_0_40px_rgba(16,185,129,0.4)] relative">
-        <div id="live-reader" className="w-full h-[300px] object-cover flex items-center justify-center bg-zinc-900"></div>
-        <motion.div animate={{ y: [0, 300, 0] }} transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }} className="absolute top-0 left-0 w-full h-1 bg-emerald-500 shadow-[0_0_20px_#10b981]" />
+      <div className="w-full max-w-sm rounded-[32px] bg-black border-4 border-emerald-500 shadow-[0_0_40px_rgba(16,185,129,0.4)] relative overflow-hidden">
+        <div id="live-reader" className="w-full min-h-[300px] flex items-center justify-center bg-zinc-900 overflow-hidden rounded-[28px] [&>video]:object-cover [&>video]:w-full [&>video]:h-full"></div>
+        <motion.div animate={{ y: [0, 300, 0] }} transition={{ repeat: Infinity, duration: 2, ease: "linear" }} className="absolute top-0 left-0 w-full h-1 bg-emerald-500 shadow-[0_0_20px_#10b981] pointer-events-none" />
       </div>
       <p className="text-xs text-zinc-400 mt-6 text-center font-bold uppercase tracking-widest leading-relaxed">
-        <span className="text-emerald-500">Scan intelligent activé.</span><br/>
+        <span className="text-emerald-500">Caméra activée.</span><br/>
         Maintenez l'aliment dans le cadre.
       </p>
       <button onClick={onClose} className="mt-8 px-10 py-4 bg-zinc-900 rounded-full font-black uppercase text-xs text-white border border-zinc-800 active:scale-95 shadow-lg">Annuler</button>
