@@ -8,7 +8,7 @@ import {
   History, Heart, Bookmark, ScanBarcode
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { Html5Qrcode } from 'html5-qrcode'; // IMPORT DU MOTEUR BRUT (SANS UI)
+import { Html5Qrcode } from 'html5-qrcode'; 
 
 // ==========================================
 // 1. CONFIGURATION CLOUD FIREBASE
@@ -83,31 +83,47 @@ const CircularGauge = React.memo(({ value, max, color, size = 64, strokeWidth = 
 });
 
 // ==========================================
-// 3. SCANNER LIVE (ZÉRO CLIC)
+// 3. SCANNER LIVE (HAUTE PRÉCISION & LONGUE PORTÉE)
 // ==========================================
 const LiveBarcodeScanner = ({ onScanComplete, onClose }) => {
   useEffect(() => {
     const html5QrCode = new Html5Qrcode("live-reader");
     let isScanning = true;
 
-    // Lance directement la caméra arrière en mode "Stream Continu"
+    // Configuration de la puce photo (Hardware Constraints)
+    const cameraConstraints = {
+      facingMode: "environment", // Caméra arrière uniquement
+      width: { ideal: 1920, min: 1280 }, // Force la HD/4K pour lire de très loin
+      height: { ideal: 1080, min: 720 },
+      advanced: [{ focusMode: "continuous" }] // Autofocus laser continu
+    };
+
+    // Configuration de l'algorithme d'analyse (Software Constraints)
+    const scannerConfig = {
+      fps: 30, // Analyse 30 images/sec au lieu de 10 (Réactivité instantanée)
+      qrbox: { width: 280, height: 150 }, // Fenêtre d'analyse large
+      aspectRatio: 1.0,
+      disableFlip: false // Laisse l'algo retourner l'image si le code est à l'envers ou plié
+    };
+
     html5QrCode.start(
-      { facingMode: "environment" }, 
-      { fps: 10, qrbox: { width: 250, height: 150 } },
+      cameraConstraints, 
+      scannerConfig,
       (decodedText) => {
         if (!isScanning) return;
         isScanning = false;
-        // Succès : On stoppe la caméra immédiatement et on renvoie le code
+        
+        // Arrêt immédiat de la caméra dès le premier scan réussi
         html5QrCode.stop().then(() => {
           onScanComplete(decodedText);
         }).catch(() => {
           onScanComplete(decodedText);
         });
       },
-      (error) => { /* On ignore les erreurs de frames vides pendant le live */ }
+      (error) => { /* Ignorer les erreurs silencieuses pendant le flux vidéo */ }
     ).catch(err => {
       console.error("Camera Error:", err);
-      alert("Impossible de lancer la caméra arrière. Autorisez l'accès.");
+      alert("Impossible de lancer la caméra haute résolution. Autorisez l'accès dans les paramètres du navigateur.");
       onClose();
     });
 
@@ -122,15 +138,19 @@ const LiveBarcodeScanner = ({ onScanComplete, onClose }) => {
       <h2 className="text-white mb-6 font-black uppercase tracking-widest text-lg text-center">Détection Automatique</h2>
       
       <div className="w-full max-w-sm rounded-[32px] overflow-hidden bg-black border-4 border-emerald-500 shadow-[0_0_40px_rgba(16,185,129,0.4)] relative">
-        <div id="live-reader" className="w-full h-[300px] object-cover flex items-center justify-center bg-zinc-900">
-           {/* La vidéo s'injectera ici */}
-        </div>
-        {/* Ligne de scan animée */}
-        <motion.div animate={{ y: [0, 300, 0] }} transition={{ repeat: Infinity, duration: 2, ease: "linear" }} className="absolute top-0 left-0 w-full h-1 bg-emerald-500 shadow-[0_0_15px_#10b981]" />
+        {/* Conteneur de la vidéo HD */}
+        <div id="live-reader" className="w-full h-[300px] object-cover flex items-center justify-center bg-zinc-900"></div>
+        
+        {/* Ligne laser animée (Vitesse accélérée pour matcher les 30 FPS) */}
+        <motion.div animate={{ y: [0, 300, 0] }} transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }} className="absolute top-0 left-0 w-full h-1 bg-emerald-500 shadow-[0_0_20px_#10b981]" />
       </div>
       
-      <p className="text-xs text-zinc-500 mt-6 text-center font-bold uppercase tracking-widest leading-relaxed">Pointez la caméra vers un code-barre.<br/>Le scan se fera tout seul.</p>
-      <button onClick={onClose} className="mt-8 px-10 py-4 bg-zinc-900 rounded-full font-black uppercase text-xs text-white border border-zinc-800 active:scale-95">Annuler</button>
+      <p className="text-xs text-zinc-400 mt-6 text-center font-bold uppercase tracking-widest leading-relaxed">
+        <span className="text-emerald-500">Optique HD activée.</span><br/>
+        Maintenez l'aliment à distance.
+      </p>
+      
+      <button onClick={onClose} className="mt-8 px-10 py-4 bg-zinc-900 rounded-full font-black uppercase text-xs text-white border border-zinc-800 active:scale-95 shadow-lg">Annuler</button>
     </motion.div>
   );
 };
@@ -169,12 +189,18 @@ function OnboardingWizard({ onComplete }) {
               <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-700/50"><span className="text-[10px] uppercase text-zinc-500 font-bold">Os (kg)</span><input type="number" value={profile.boneMass} onChange={e=>setProfile({...profile, boneMass: Number(e.target.value)})} className="bg-transparent w-full font-black text-xl outline-none" /></div>
               <div className="bg-zinc-900 p-4 rounded-2xl border border-cyan-900/30"><span className="text-[10px] uppercase text-zinc-500 font-bold">Eau (%)</span><input type="number" value={profile.hydration} onChange={e=>setProfile({...profile, hydration: Number(e.target.value)})} className="bg-transparent w-full font-black text-xl outline-none text-cyan-400" /></div>
             </div>
+            
             <div className="flex flex-col gap-3 mt-6">
               <div className="flex gap-2">
                 <button onClick={() => setStep(1)} className="p-4 bg-zinc-800 rounded-2xl"><ChevronLeft size={20}/></button>
                 <button onClick={() => setStep(3)} className="flex-1 py-4 bg-cyan-600 text-black rounded-2xl font-black uppercase text-xs shadow-[0_0_15px_rgba(6,182,212,0.4)]">Valider ces données</button>
               </div>
-              <button onClick={() => { setProfile({...profile, bodyFat: 15, muscleMass: 0, boneMass: 0, hydration: 60}); setStep(3); }} className="w-full py-4 bg-zinc-900 border border-zinc-800 text-zinc-400 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95">Je n'ai pas ces données (Passer)</button>
+              <button 
+                onClick={() => { setProfile({...profile, bodyFat: 15, muscleMass: 0, boneMass: 0, hydration: 60}); setStep(3); }} 
+                className="w-full py-4 bg-zinc-900 border border-zinc-800 text-zinc-400 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95"
+              >
+                Je n'ai pas ces données (Passer)
+              </button>
             </div>
           </motion.div>
         )}
@@ -216,7 +242,6 @@ export default function Nutrition({ onBack, dataContext }) {
   const [activeMealModal, setActiveMealModal] = useState(null); 
   const [searchQuery, setSearchQuery] = useState("");
   
-  // MODIFIÉ POUR SUPPORTER LES CODES BARRES DANS LA CRÉATION MANUELLE
   const [showContributeModal, setShowContributeModal] = useState(false);
   const [newFood, setNewFood] = useState({ name: "", brand: "", cals: "", prot: "", carbs: "", fat: "", barcode: "" });
   const [isPublishing, setIsPublishing] = useState(false);
@@ -312,12 +337,11 @@ export default function Nutrition({ onBack, dataContext }) {
           prot: Math.round(nut['proteins_100g'] || 0), carbs: Math.round(nut['carbohydrates_100g'] || 0), fat: Math.round(nut['fat_100g'] || 0),
           verified: true 
         };
-        // On l'ajoute à la DB Firebase locale et directement au repas !
         setGlobalFoodDB(prev => [scannedFood, ...prev]);
         handleAddFoodToMeal(scannedFood);
         alert(`✅ Code trouvé : ${scannedFood.name} ajouté à ton repas !`);
       } else { 
-        // 3. Introuvable sur internet : On ouvre le formulaire pour le créer manuellement
+        // 3. Introuvable sur internet : Création manuelle
         alert("Aliment introuvable. Veuillez créer sa fiche nutritionnelle.");
         setNewFood({ name: "", brand: "", cals: "", prot: "", carbs: "", fat: "", barcode: barcode });
         setShowContributeModal(true);
@@ -396,7 +420,7 @@ export default function Nutrition({ onBack, dataContext }) {
         </section>
       </motion.main>
 
-      {/* MODALS Fiche IA */}
+      {/* MODAL Fiche IA */}
       <AnimatePresence>
         {showProfileModal && (
           <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col">
@@ -446,7 +470,7 @@ export default function Nutrition({ onBack, dataContext }) {
         )}
       </AnimatePresence>
 
-      {/* MODAL DE RECHERCHE */}
+      {/* MODAL DE RECHERCHE AVEC ONGLETS */}
       <AnimatePresence>
         {activeMealModal && (
           <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="fixed inset-0 z-[120] bg-black/95 backdrop-blur-xl flex flex-col">
