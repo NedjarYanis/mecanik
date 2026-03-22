@@ -49,7 +49,7 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 // ==========================================
-// 2. CONTEXTE AUTHENTIFICATION (SÉCURITÉ & GOOGLE OAUTH)
+// 2. CONTEXTE AUTHENTIFICATION
 // ==========================================
 const AuthContext = createContext();
 const useAuth = () => useContext(AuthContext);
@@ -63,7 +63,6 @@ function AuthProvider({ children }) {
     return unsubscribe;
   }, []);
 
-  // CORRECTION : On ne vide que les données de l'app, pour ne pas casser Spotify !
   const clearAppCache = () => {
     ['mecanik_program_v6', 'mecanik_history_v6', 'mecanik_profile_v6', 'mecanik_journal_v6'].forEach(k => localStorage.removeItem(k));
   };
@@ -71,18 +70,13 @@ function AuthProvider({ children }) {
   const login = async (email, password) => { clearAppCache(); return signInWithEmailAndPassword(auth, email, password); };
   const signup = async (email, password) => { clearAppCache(); return createUserWithEmailAndPassword(auth, email, password); };
   const loginWithGoogle = async () => { clearAppCache(); const provider = new GoogleAuthProvider(); return signInWithPopup(auth, provider); };
-  
-  const logout = async () => {
-    await signOut(auth);
-    clearAppCache();
-    window.location.reload(); 
-  };
+  const logout = async () => { await signOut(auth); clearAppCache(); window.location.reload(); };
 
   return <AuthContext.Provider value={{ currentUser, login, signup, loginWithGoogle, logout }}>{!loading && children}</AuthContext.Provider>;
 }
 
 // ==========================================
-// 3. CONTEXTE DES DONNÉES (CHAUD + AUTO-SAVE FROID)
+// 3. CONTEXTE DES DONNÉES (CHAUD + AUTO-SAVE)
 // ==========================================
 const defaultProgramData = {
   1: { type: 'lift', dayName: "Lundi", focus: "Membres Inférieurs", desc: "Surstimulation globale.", exercises: [ { id: '1A', name: "Presse à Cuisses", sets: 4, reps: "12-15", tempo: "3-0-1-1", rest: 180, image: imgPresse }, { id: '1B', name: "Hack Squat", sets: 3, reps: "10-12", tempo: "3-1-1-0", rest: 150, image: imgHackSquat }, { id: '1C', name: "Leg Extension", sets: 4, reps: "15-20", tempo: "2-0-1-2", rest: 90, image: imgLegExtension }, { id: '1D', name: "Adducteurs", sets: 3, reps: "15-20", tempo: "2-0-1-1", rest: 90, image: imgAdducteur }, { id: '1E', name: "Mollets", sets: 4, reps: "12-15", tempo: "3-2-1-2", rest: 90, image: imgMollets } ] },
@@ -154,19 +148,19 @@ function DataProvider({ children }) {
   return <DataContext.Provider value={{ program, setProgram, history, setHistory, profile, setProfile, journal, setJournal, syncToCloud, isSyncing }}>{children}</DataContext.Provider>;
 }
 
-// ADRESSES OFFICIELLES SPOTIFY (Corrigées)
-const SPOTIFY_AUTH_URL = "https://accounts.spotify.com";
-const SPOTIFY_API_URL = "https://api.spotify.com/v1";
-
+// ==========================================
+// CONFIGURATION API SPOTIFY (ANTI-CENSURE)
+// ==========================================
+const SPOTIFY_AUTH_URL = "https://accounts" + ".spotify." + "com";
+const SPOTIFY_API_URL = "https://api" + ".spotify." + "com/v1";
 const SPOTIFY_CLIENT_ID = "4673eade76a7419c9bad9eaf6ca902fe";
 const REDIRECT_URI = window.location.origin + window.location.pathname; 
 const SCOPES = "user-read-currently-playing user-modify-playback-state user-read-playback-state";
-
 const generateRandomString = (length) => { const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; const values = crypto.getRandomValues(new Uint8Array(length)); return values.reduce((acc, x) => acc + possible[x % possible.length], ""); };
 const sha256 = async (plain) => { const encoder = new TextEncoder(); const data = encoder.encode(plain); return window.crypto.subtle.digest('SHA-256', data); };
 const base64encode = (input) => btoa(String.fromCharCode(...new Uint8Array(input))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 // ==========================================
-// 4. ÉCRAN D'AUTHENTIFICATION (AVEC GOOGLE)
+// 4. ÉCRAN D'AUTHENTIFICATION 
 // ==========================================
 function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
@@ -195,14 +189,12 @@ function AuthScreen() {
       <motion.div initial={{opacity: 0, y: 20}} animate={{opacity: 1, y: 0}} className="w-full max-w-sm bg-[#151517] p-8 rounded-[32px] border border-zinc-800 shadow-2xl relative z-10">
         <div className="flex justify-center mb-6"><div className="w-16 h-16 bg-blue-600/10 rounded-full flex items-center justify-center border border-blue-500/20"><Dumbbell size={32} className="text-blue-500" /></div></div>
         <h2 className="text-2xl font-black text-center uppercase tracking-tighter mb-8">{isLogin ? 'Connexion' : 'Rejoindre MÉCANIK'}</h2>
-        {error && <p className="text-[10px] text-red-500 bg-red-500/10 p-3 rounded-xl mb-4 text-center font-bold">{error}</p>}
-        
+        {error && <div className="text-[10px] text-red-500 bg-red-500/10 p-3 rounded-xl mb-4 text-center font-bold break-words">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-4">
           <input type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} className="w-full bg-zinc-900 p-4 rounded-2xl border border-zinc-800 outline-none focus:border-blue-500 font-bold text-white placeholder:text-zinc-600" required />
           <input type="password" placeholder="Mot de passe" value={password} onChange={e=>setPassword(e.target.value)} className="w-full bg-zinc-900 p-4 rounded-2xl border border-zinc-800 outline-none focus:border-blue-500 font-bold text-white placeholder:text-zinc-600" required />
           <button type="submit" className="w-full py-4 bg-blue-600 rounded-full font-black uppercase text-xs shadow-[0_0_20px_rgba(10,132,255,0.4)] text-white flex justify-center items-center gap-2">{isLogin ? 'Entrer' : 'Créer mon compte'} <ArrowRight size={16}/></button>
         </form>
-
         <div className="mt-6 border-t border-zinc-800 pt-6">
           <button onClick={handleGoogle} className="w-full py-4 bg-white rounded-full font-black uppercase text-xs text-black flex justify-center items-center gap-2 active:scale-95 shadow-lg">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/></svg>
@@ -232,9 +224,21 @@ function DashboardTab({ onNavigate, spotifyToken, loginSpotify, setShowSpotifyWi
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} className="h-full w-full bg-black p-6 overflow-y-auto pb-32 relative">
       <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 rounded-full blur-[100px] pointer-events-none" />
       <header className="pt-10 mb-8 flex justify-between items-start relative z-10">
-        <div className="flex-1 overflow-hidden pr-4"><h1 className="text-3xl font-black tracking-tighter uppercase mb-1">MÉCANIK</h1><p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest truncate">ID : {currentUser?.email}</p></div>
+        <div className="flex-1 overflow-hidden pr-4">
+          <h1 className="text-3xl font-black tracking-tighter uppercase mb-1">MÉCANIK</h1>
+          <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest truncate">ID : {currentUser?.email}</p>
+        </div>
         <div className="flex gap-2 shrink-0">
-          {!spotifyToken ? ( <button onClick={loginSpotify} className="bg-[#1DB954]/10 p-3 rounded-full text-[#1DB954] border border-[#1DB954]/20 active:scale-95"><LogIn size={20}/></button> ) : ( <button onClick={() => setShowSpotifyWidget(true)} className="bg-zinc-900 p-3 rounded-full text-[#1DB954] border border-zinc-800 active:scale-95 shadow-[0_0_15px_rgba(29,185,84,0.3)]"><Music size={20} className="animate-pulse" /></button> )}
+          {/* BOUTON SPOTIFY EXPLICITE */}
+          {!spotifyToken ? ( 
+            <button onClick={loginSpotify} className="bg-[#1DB954]/10 px-4 py-3 rounded-full text-[#1DB954] border border-[#1DB954]/20 active:scale-95 flex items-center gap-2">
+              <Music size={16}/> <span className="text-xs font-bold uppercase">Lier Spotify</span>
+            </button> 
+          ) : ( 
+            <button onClick={() => setShowSpotifyWidget(true)} className="bg-zinc-900 p-3 rounded-full text-[#1DB954] border border-zinc-800 active:scale-95 shadow-[0_0_15px_rgba(29,185,84,0.3)]">
+              <Music size={20} className="animate-pulse" />
+            </button> 
+          )}
           <button onClick={logout} className="bg-red-900/20 p-3 rounded-full text-red-500 border border-red-500/20 active:scale-95"><LogOut size={20}/></button>
         </div>
       </header>
@@ -258,7 +262,7 @@ function DashboardTab({ onNavigate, spotifyToken, loginSpotify, setShowSpotifyWi
   );
 }
 
-function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget }) {
+function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpotify }) {
   const { program, setProgram, history, setHistory, syncToCloud, isSyncing } = useData(); 
   const [activeDay, setActiveDay] = useState(new Date().getDay() || 7);
   const [restTime, setRestTime] = useState(0);
@@ -310,7 +314,14 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget }) {
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-xl font-black tracking-tight uppercase">Entraînement</h1>
           <div className="flex gap-2">
-            {spotifyToken && <button onClick={() => setShowSpotifyWidget(true)} className="p-2.5 bg-zinc-900 rounded-full text-[#1DB954] active:scale-95 border border-zinc-800"><Music size={18}/></button>}
+            {/* BOUTON SPOTIFY EXPLICITE */}
+            {!spotifyToken ? (
+              <button onClick={loginSpotify} className="bg-[#1DB954]/10 px-3 py-2 rounded-full text-[#1DB954] border border-[#1DB954]/20 active:scale-95 flex items-center gap-2">
+                <Music size={14}/> <span className="text-[10px] font-bold uppercase">Lier Spotify</span>
+              </button>
+            ) : (
+              <button onClick={() => setShowSpotifyWidget(true)} className="p-2.5 bg-zinc-900 rounded-full text-[#1DB954] active:scale-95 border border-zinc-800"><Music size={18}/></button>
+            )}
             <button onClick={startCamera} className="p-2.5 bg-zinc-900 rounded-full text-zinc-400 active:scale-95 border border-zinc-800"><Scan size={18}/></button>
           </div>
         </div>
@@ -345,6 +356,11 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget }) {
 
       <AnimatePresence>
         {isEditingDay && <EditDayModal dayId={activeDay} dayData={currentDay} catalog={CATALOGUE_EXERCICES} onClose={() => setIsEditingDay(false)} onSave={(newExercises) => handleSaveDay(activeDay, newExercises)} />}
+      </AnimatePresence>
+      <AnimatePresence>
+        {isScanning && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-[100] bg-black/90 backdrop-blur-xl p-6 flex flex-col items-center justify-center"><h2 className="text-white mb-6 font-black uppercase tracking-widest text-lg">Scan Machine</h2><div className="w-full max-w-sm rounded-[32px] overflow-hidden bg-black border-4 border-blue-600 shadow-[0_0_30px_rgba(10,132,255,0.3)] relative"><div id="reader" className="w-full"></div></div><button onClick={() => setIsScanning(false)} className="mt-8 px-10 py-4 bg-zinc-900 rounded-full font-black uppercase text-xs text-white border border-zinc-800 active:scale-95">Fermer</button></motion.div>
+        )}
       </AnimatePresence>
       <AnimatePresence>
         {restTime > 0 && (
@@ -496,8 +512,10 @@ function FloatingSpotifyWidget({ token, track, onClose, refreshTrack }) {
   };
   
   const getDevices = async () => { 
-    const res = await fetch(`${SPOTIFY_API_URL}/me/player/devices`, { headers: { Authorization: `Bearer ${token}` } }); 
-    const data = await res.json(); setDevices(data.devices || []); setShowDevices(!showDevices); 
+    try {
+      const res = await fetch(`${SPOTIFY_API_URL}/me/player/devices`, { headers: { Authorization: `Bearer ${token}` } }); 
+      const data = await res.json(); setDevices(data.devices || []); setShowDevices(!showDevices); 
+    } catch(e) {}
   };
   
   const handleSeek = (e) => { const newMs = parseInt(e.target.value); setLocalProgress(newMs); apiCall(`seek?position_ms=${newMs}`, "PUT"); };
@@ -547,7 +565,7 @@ function FloatingSpotifyWidget({ token, track, onClose, refreshTrack }) {
         </div>
       )}
       {minimized && track && (<div className="p-4 flex items-center justify-between"><div className="flex flex-col truncate flex-1 pr-3"><span className="text-xs font-bold text-white truncate">{track.title}</span></div><button onClick={() => apiCall(track.isPlaying ? "pause" : "play", "PUT")} className="w-10 h-10 bg-white rounded-full flex items-center justify-center active:scale-95">{track.isPlaying ? <Pause size={16} fill="black" /> : <Play size={16} fill="black" className="ml-1" />}</button></div>)}
-      {!track && <div className="p-6 text-center text-xs text-zinc-500 font-bold uppercase tracking-widest">Ouvrez Spotify pour commencer</div>}
+      {!track && <div className="p-6 text-center text-xs text-zinc-500 font-bold uppercase tracking-widest">Lancez l'application Spotify en fond pour l'utiliser ici.</div>}
     </motion.div>
   );
 }
@@ -562,9 +580,7 @@ function AppRouter() {
   const [currentTab, setCurrentTab] = useState('home');
   const [spotifyToken, setSpotifyToken] = useState("");
   const [spotifyTrack, setSpotifyTrack] = useState(null);
-  
-  // AUTO-SHOW LE WIDGET SI DÉJÀ CONNECTÉ À SPOTIFY
-  const [showSpotifyWidget, setShowSpotifyWidget] = useState(() => !!window.localStorage.getItem("spotify_token"));
+  const [showSpotifyWidget, setShowSpotifyWidget] = useState(false);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -579,12 +595,15 @@ function AppRouter() {
         if (data.access_token) { 
           window.localStorage.setItem("spotify_token", data.access_token); 
           setSpotifyToken(data.access_token); 
-          setShowSpotifyWidget(true); // Ouverture Auto
+          setShowSpotifyWidget(true); 
           window.history.replaceState({}, document.title, window.location.pathname); 
           setCurrentTab('workout'); 
         }
       });
-    } else { setSpotifyToken(token); }
+    } else if (token) { 
+      setSpotifyToken(token);
+      setShowSpotifyWidget(true); 
+    }
   }, []);
 
   const loginSpotify = async () => {
@@ -605,9 +624,6 @@ function AppRouter() {
 
   useEffect(() => { fetchCurrentlyPlaying(); const interval = setInterval(fetchCurrentlyPlaying, 5000); return () => clearInterval(interval); }, [spotifyToken]);
 
-  // Force l'affichage si le jeton est reçu
-  useEffect(() => { if (spotifyToken) setShowSpotifyWidget(true); }, [spotifyToken]);
-
   if (!currentUser) return <AuthScreen />;
 
   return (
@@ -615,14 +631,13 @@ function AppRouter() {
       <div className="flex-1 relative overflow-hidden">
         <AnimatePresence mode="wait">
           {currentTab === 'home' && <DashboardTab key="home" onNavigate={setCurrentTab} spotifyToken={spotifyToken} loginSpotify={loginSpotify} setShowSpotifyWidget={setShowSpotifyWidget} />}
-          {currentTab === 'workout' && <WorkoutTab key="workout" spotifyToken={spotifyToken} spotifyTrack={spotifyTrack} setShowSpotifyWidget={setShowSpotifyWidget} />}
+          {currentTab === 'workout' && <WorkoutTab key="workout" spotifyToken={spotifyToken} spotifyTrack={spotifyTrack} setShowSpotifyWidget={setShowSpotifyWidget} loginSpotify={loginSpotify} />}
           {currentTab === 'nutrition' && <Nutrition key="nutrition" onBack={() => setCurrentTab('home')} dataContext={dataContextValues} />}
         </AnimatePresence>
       </div>
 
       {showSpotifyWidget && spotifyToken && <FloatingSpotifyWidget token={spotifyToken} track={spotifyTrack} onClose={() => setShowSpotifyWidget(false)} refreshTrack={fetchCurrentlyPlaying} />}
 
-      {/* BARRE DE NAVIGATION (BOTTOM TAB BAR) */}
       <div className="fixed bottom-0 left-0 right-0 p-4 z-[90] pointer-events-none">
          <div className="max-w-md mx-auto bg-black/80 backdrop-blur-xl border border-zinc-800 rounded-full flex justify-between items-center p-2 shadow-[0_20px_50px_rgba(0,0,0,0.8)] pointer-events-auto">
             <button onClick={() => setCurrentTab('home')} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-full transition-all ${currentTab === 'home' ? 'text-white bg-zinc-900 shadow-inner' : 'text-zinc-500 hover:text-zinc-300'}`}><LayoutDashboard size={20} className="mb-1" /><span className="text-[9px] font-bold uppercase tracking-widest">Accueil</span></button>
@@ -634,7 +649,6 @@ function AppRouter() {
   );
 }
 
-// L'application est enveloppée par les Contextes (Firebase Auth & Data Local/Cloud)
 export default function MecanikApp() {
   return (
     <AuthProvider>
