@@ -26,6 +26,16 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const foodsCollection = collection(db, 'foods');
 
+// Base de données par défaut (Si mode hors-ligne)
+const INITIAL_GLOBAL_DB = [
+  { id: '1', name: 'Flocons d\'avoine', cals: 389, prot: 16.9, carbs: 66.3, fat: 6.9, verified: true },
+  { id: '2', name: 'Poulet (Blanc)', cals: 165, prot: 31, carbs: 0, fat: 3.6, verified: true },
+  { id: '3', name: 'Riz Basmati (Cuit)', cals: 130, prot: 2.7, carbs: 28, fat: 0.3, verified: true },
+  { id: '4', name: 'Oeuf entier', cals: 155, prot: 13, carbs: 1.1, fat: 11, verified: true },
+  { id: '5', name: 'Pâtes (Crues)', cals: 350, prot: 12, carbs: 72, fat: 1.5, verified: true },
+  { id: '6', name: 'Whey Protein', cals: 115, prot: 24, carbs: 2, fat: 1.5, verified: true }
+];
+
 // ==========================================
 // 2. MOTEUR D'ANALYSE MÉTABOLIQUE (IA & MATHS)
 // ==========================================
@@ -231,8 +241,11 @@ export default function Nutrition({ onBack }) {
       try {
         const snapshot = await getDocs(foodsCollection);
         const foodsFromFirebase = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setGlobalFoodDB(foodsFromFirebase.length === 0 ? [] : foodsFromFirebase);
-      } catch (error) { console.error(error); }
+        setGlobalFoodDB(foodsFromFirebase.length === 0 ? INITIAL_GLOBAL_DB : [...INITIAL_GLOBAL_DB, ...foodsFromFirebase]);
+      } catch (error) { 
+        console.error("Firebase error", error);
+        setGlobalFoodDB(INITIAL_GLOBAL_DB); // Fallback si Firebase déconne
+      }
     };
     fetchFoodsFromCloud();
   }, []);
