@@ -1,21 +1,19 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  ChevronLeft, ChevronRight, Flame, Plus, Beef, Wheat, Droplet, 
+  ChevronLeft, ChevronRight, Flame, Plus, Droplet, 
   Coffee, Utensils, Moon, Cookie, Activity, X, 
   Search, CheckCircle2, Globe, DatabaseZap, CloudLightning, RefreshCw,
   User, Calendar as CalendarIcon, TrendingDown, BrainCircuit, Info, Settings, TrendingUp,
   History, Heart, Bookmark, ScanBarcode
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Html5Qrcode } from 'html5-qrcode'; 
 
 // ==========================================
 // 1. CONFIGURATION CLOUD FIREBASE
 // ==========================================
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, collection, getDocs, addDoc } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDgWfWXpAV6ZHHrlE4q1EC3mFeZAJOV5wc",
@@ -25,9 +23,10 @@ const firebaseConfig = {
   messagingSenderId: "669005036732",
   appId: "1:669005036732:web:a998919f7b462fe19fe4b9"
 };
-const app = initializeApp(firebaseConfig);
+
+// Sécurité : On vérifie si Firebase est déjà lancé par App.jsx
+const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const auth = getAuth(app);
 const foodsCollection = collection(db, 'foods');
 
 // ==========================================
@@ -72,7 +71,7 @@ const simulateLinearRegression = (profile, tdee) => {
 };
 
 const CircularGauge = React.memo(({ value, max, color, size = 64, strokeWidth = 6, icon: Icon }) => {
-  const radius = (size - strokeWidth) / 2; const circumference = 2 * Math.PI * radius; const percent = Math.min(value / max, 1);
+  const radius = (size - strokeWidth) / 2; const circumference = 2 * Math.PI * radius; const percent = Math.min((value || 0) / (max || 1), 1);
   const strokeDashoffset = circumference - percent * circumference;
   return (
     <div className="flex flex-col items-center justify-center relative" style={{ width: size, height: size }}>
@@ -83,77 +82,47 @@ const CircularGauge = React.memo(({ value, max, color, size = 64, strokeWidth = 
 });
 
 // ==========================================
-// 3. SCANNER LIVE (HAUTE PRÉCISION & LONGUE PORTÉE)
+// 3. SCANNER LIVE (ZÉRO CLIC & HAUTE PORTÉE DOUCE)
 // ==========================================
 const LiveBarcodeScanner = ({ onScanComplete, onClose }) => {
   useEffect(() => {
     const html5QrCode = new Html5Qrcode("live-reader");
     let isScanning = true;
 
-    // Configuration de la puce photo (Hardware Constraints)
-    const cameraConstraints = {
-      facingMode: "environment", // Caméra arrière uniquement
-      width: { ideal: 1920, min: 1280 }, // Force la HD/4K pour lire de très loin
-      height: { ideal: 1080, min: 720 },
-      advanced: [{ focusMode: "continuous" }] // Autofocus laser continu
-    };
-
-    // Configuration de l'algorithme d'analyse (Software Constraints)
-    const scannerConfig = {
-      fps: 30, // Analyse 30 images/sec au lieu de 10 (Réactivité instantanée)
-      qrbox: { width: 280, height: 150 }, // Fenêtre d'analyse large
-      aspectRatio: 1.0,
-      disableFlip: false // Laisse l'algo retourner l'image si le code est à l'envers ou plié
-    };
-
     html5QrCode.start(
-      cameraConstraints, 
-      scannerConfig,
+      { facingMode: "environment", width: { ideal: 1920 } }, 
+      { fps: 15, qrbox: { width: 280, height: 150 }, aspectRatio: 1.0, disableFlip: false },
       (decodedText) => {
         if (!isScanning) return;
         isScanning = false;
-        
-        // Arrêt immédiat de la caméra dès le premier scan réussi
-        html5QrCode.stop().then(() => {
-          onScanComplete(decodedText);
-        }).catch(() => {
-          onScanComplete(decodedText);
-        });
+        html5QrCode.stop().then(() => onScanComplete(decodedText)).catch(() => onScanComplete(decodedText));
       },
-      (error) => { /* Ignorer les erreurs silencieuses pendant le flux vidéo */ }
+      (error) => {}
     ).catch(err => {
       console.error("Camera Error:", err);
-      alert("Impossible de lancer la caméra haute résolution. Autorisez l'accès dans les paramètres du navigateur.");
+      alert("Impossible d'accéder à la caméra. Vérifiez vos permissions.");
       onClose();
     });
 
-    return () => {
-      isScanning = false;
-      if (html5QrCode.isScanning) { html5QrCode.stop().catch(console.error); }
-    };
+    return () => { isScanning = false; if (html5QrCode.isScanning) html5QrCode.stop().catch(console.error); };
   }, [onScanComplete, onClose]);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-xl p-6 flex flex-col items-center justify-center">
       <h2 className="text-white mb-6 font-black uppercase tracking-widest text-lg text-center">Détection Automatique</h2>
-      
       <div className="w-full max-w-sm rounded-[32px] overflow-hidden bg-black border-4 border-emerald-500 shadow-[0_0_40px_rgba(16,185,129,0.4)] relative">
-        {/* Conteneur de la vidéo HD */}
         <div id="live-reader" className="w-full h-[300px] object-cover flex items-center justify-center bg-zinc-900"></div>
-        
-        {/* Ligne laser animée (Vitesse accélérée pour matcher les 30 FPS) */}
         <motion.div animate={{ y: [0, 300, 0] }} transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }} className="absolute top-0 left-0 w-full h-1 bg-emerald-500 shadow-[0_0_20px_#10b981]" />
       </div>
-      
       <p className="text-xs text-zinc-400 mt-6 text-center font-bold uppercase tracking-widest leading-relaxed">
-        <span className="text-emerald-500">Optique HD activée.</span><br/>
-        Maintenez l'aliment à distance.
+        <span className="text-emerald-500">Scan intelligent activé.</span><br/>
+        Maintenez l'aliment dans le cadre.
       </p>
-      
       <button onClick={onClose} className="mt-8 px-10 py-4 bg-zinc-900 rounded-full font-black uppercase text-xs text-white border border-zinc-800 active:scale-95 shadow-lg">Annuler</button>
     </motion.div>
   );
 };
+
 // ==========================================
 // 4. ONBOARDING WIZARD
 // ==========================================
@@ -165,7 +134,6 @@ function OnboardingWizard({ onComplete }) {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[200] bg-black text-white flex flex-col p-6 overflow-y-auto">
       <div className="flex-1 flex flex-col justify-center max-w-sm mx-auto w-full space-y-8">
         <div className="text-center"><BrainCircuit size={48} className="text-blue-500 mx-auto mb-4 animate-pulse" /><h1 className="text-3xl font-black uppercase tracking-tighter">Étalonnage<br/>Métabolique</h1><p className="text-zinc-400 text-sm mt-2">L'IA a besoin de vos biométries.</p></div>
-        
         {step === 1 && (
           <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="space-y-4">
             <h2 className="text-xs font-black uppercase tracking-widest text-blue-500">1. Données de Base</h2>
@@ -179,7 +147,6 @@ function OnboardingWizard({ onComplete }) {
             <button onClick={() => setStep(2)} className="w-full py-4 bg-blue-600 rounded-full font-black uppercase text-xs">Suivant</button>
           </motion.div>
         )}
-        
         {step === 2 && (
           <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="space-y-4">
             <h2 className="text-xs font-black uppercase tracking-widest text-cyan-500">2. Composition (Optionnel)</h2>
@@ -189,22 +156,12 @@ function OnboardingWizard({ onComplete }) {
               <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-700/50"><span className="text-[10px] uppercase text-zinc-500 font-bold">Os (kg)</span><input type="number" value={profile.boneMass} onChange={e=>setProfile({...profile, boneMass: Number(e.target.value)})} className="bg-transparent w-full font-black text-xl outline-none" /></div>
               <div className="bg-zinc-900 p-4 rounded-2xl border border-cyan-900/30"><span className="text-[10px] uppercase text-zinc-500 font-bold">Eau (%)</span><input type="number" value={profile.hydration} onChange={e=>setProfile({...profile, hydration: Number(e.target.value)})} className="bg-transparent w-full font-black text-xl outline-none text-cyan-400" /></div>
             </div>
-            
             <div className="flex flex-col gap-3 mt-6">
-              <div className="flex gap-2">
-                <button onClick={() => setStep(1)} className="p-4 bg-zinc-800 rounded-2xl"><ChevronLeft size={20}/></button>
-                <button onClick={() => setStep(3)} className="flex-1 py-4 bg-cyan-600 text-black rounded-2xl font-black uppercase text-xs shadow-[0_0_15px_rgba(6,182,212,0.4)]">Valider ces données</button>
-              </div>
-              <button 
-                onClick={() => { setProfile({...profile, bodyFat: 15, muscleMass: 0, boneMass: 0, hydration: 60}); setStep(3); }} 
-                className="w-full py-4 bg-zinc-900 border border-zinc-800 text-zinc-400 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95"
-              >
-                Je n'ai pas ces données (Passer)
-              </button>
+              <div className="flex gap-2"><button onClick={() => setStep(1)} className="p-4 bg-zinc-800 rounded-2xl"><ChevronLeft size={20}/></button><button onClick={() => setStep(3)} className="flex-1 py-4 bg-cyan-600 text-black rounded-2xl font-black uppercase text-xs shadow-[0_0_15px_rgba(6,182,212,0.4)]">Valider ces données</button></div>
+              <button onClick={() => { setProfile({...profile, bodyFat: 15, muscleMass: 0, boneMass: 0, hydration: 60}); setStep(3); }} className="w-full py-4 bg-zinc-900 border border-zinc-800 text-zinc-400 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95">Je n'ai pas ces données (Passer)</button>
             </div>
           </motion.div>
         )}
-        
         {step === 3 && (
           <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="space-y-4">
             <h2 className="text-xs font-black uppercase tracking-widest text-emerald-500">3. Stratégie Nutritionnelle</h2>
@@ -230,9 +187,9 @@ export default function Nutrition({ onBack, dataContext }) {
   const getTodayStr = () => new Date().toISOString().split('T')[0];
   const [currentDateStr, setCurrentDateStr] = useState(getTodayStr());
 
-  const [favorites, setFavorites] = useState(() => JSON.parse(localStorage.getItem('mecanik_favorites_v1')) || []);
-  const [recentFoods, setRecentFoods] = useState(() => JSON.parse(localStorage.getItem('mecanik_recents_v1')) || []);
-  const [myFoods, setMyFoods] = useState(() => JSON.parse(localStorage.getItem('mecanik_my_foods_v1')) || []);
+  const [favorites, setFavorites] = useState(() => { try { return JSON.parse(localStorage.getItem('mecanik_favorites_v1')) || []; } catch(e){ return []; }});
+  const [recentFoods, setRecentFoods] = useState(() => { try { return JSON.parse(localStorage.getItem('mecanik_recents_v1')) || []; } catch(e){ return []; }});
+  const [myFoods, setMyFoods] = useState(() => { try { return JSON.parse(localStorage.getItem('mecanik_my_foods_v1')) || []; } catch(e){ return []; }});
   const [activeSearchTab, setActiveSearchTab] = useState('recent'); 
   
   const [isScanningFood, setIsScanningFood] = useState(false);
@@ -261,18 +218,22 @@ export default function Nutrition({ onBack, dataContext }) {
     fetchFoodsFromCloud();
   }, []);
 
-  const currentData = useMemo(() => journal[currentDateStr] || {
-    meals: { breakfast: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, lunch: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, dinner: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, snacks: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 } },
-    activity: 0, water: 0
+  const currentData = useMemo(() => {
+    const j = journal[currentDateStr];
+    if (j && j.meals) return j;
+    return {
+      meals: { breakfast: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, lunch: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, dinner: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, snacks: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 } },
+      activity: 0, water: 0
+    };
   }, [journal, currentDateStr]);
 
   const { totalConsumed, totalCarbs, totalProt, totalFat } = useMemo(() => {
-    const meals = Object.values(currentData.meals);
+    const meals = Object.values(currentData?.meals || {});
     return {
-      totalConsumed: meals.reduce((acc, meal) => acc + meal.cals, 0),
-      totalCarbs: meals.reduce((acc, meal) => acc + meal.carbs, 0),
-      totalProt: meals.reduce((acc, meal) => acc + meal.prot, 0),
-      totalFat: meals.reduce((acc, meal) => acc + meal.fat, 0)
+      totalConsumed: meals.reduce((acc, meal) => acc + (meal?.cals || 0), 0),
+      totalCarbs: meals.reduce((acc, meal) => acc + (meal?.carbs || 0), 0),
+      totalProt: meals.reduce((acc, meal) => acc + (meal?.prot || 0), 0),
+      totalFat: meals.reduce((acc, meal) => acc + (meal?.fat || 0), 0)
     };
   }, [currentData]);
   
@@ -288,7 +249,7 @@ export default function Nutrition({ onBack, dataContext }) {
   const handleAddFoodToMeal = (food) => {
     const meal = currentData.meals[activeMealModal];
     updateCurrentJournal({
-      meals: { ...currentData.meals, [activeMealModal]: { items: [...meal.items, food], cals: meal.cals + food.cals, carbs: meal.carbs + food.carbs, prot: meal.prot + food.prot, fat: meal.fat + food.fat } }
+      meals: { ...currentData.meals, [activeMealModal]: { items: [...(meal.items||[]), food], cals: (meal.cals||0) + Number(food.cals||0), carbs: (meal.carbs||0) + Number(food.carbs||0), prot: (meal.prot||0) + Number(food.prot||0), fat: (meal.fat||0) + Number(food.fat||0) } }
     });
     setRecentFoods(prev => { const filtered = prev.filter(f => f.id !== food.id); return [food, ...filtered].slice(0, 20); });
     setSearchQuery("");
@@ -308,24 +269,17 @@ export default function Nutrition({ onBack, dataContext }) {
       const addedFood = { id: docRef.id, ...foodItem };
       setGlobalFoodDB([addedFood, ...globalDB]);
       setMyFoods([addedFood, ...myFoods]); 
+      if (newFood.barcode) handleAddFoodToMeal(addedFood);
       setNewFood({ name: "", brand: "", cals: "", prot: "", carbs: "", fat: "", barcode: "" });
       setShowContributeModal(false);
     } catch (error) { console.error(error); } finally { setIsPublishing(false); }
   };
 
-  // LOGIQUE INTELLIGENTE DU SCANNER (Base Locale -> OpenFoodFacts -> Création)
   const handleScanComplete = async (barcode) => {
     setIsScanningFood(false);
-
-    // 1. On cherche d'abord dans NOTRE base de données Firebase
     const existingInDb = globalDB.find(f => f.barcode === barcode || f.id === `off-${barcode}`);
-    if (existingInDb) {
-      handleAddFoodToMeal(existingInDb);
-      alert(`⚡ ${existingInDb.name} ajouté directement à ton repas !`);
-      return;
-    }
+    if (existingInDb) { handleAddFoodToMeal(existingInDb); alert(`⚡ ${existingInDb.name} ajouté !`); return; }
 
-    // 2. Si inconnu, on interroge la base mondiale OpenFoodFacts
     try {
       const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
       const data = await res.json();
@@ -334,15 +288,13 @@ export default function Nutrition({ onBack, dataContext }) {
         const scannedFood = {
           id: `off-${barcode}`, barcode: barcode, name: p.product_name || "Produit Scanné",
           cals: Math.round(nut['energy-kcal_100g'] || nut['energy-kcal_serving'] || 0),
-          prot: Math.round(nut['proteins_100g'] || 0), carbs: Math.round(nut['carbohydrates_100g'] || 0), fat: Math.round(nut['fat_100g'] || 0),
-          verified: true 
+          prot: Math.round(nut['proteins_100g'] || 0), carbs: Math.round(nut['carbohydrates_100g'] || 0), fat: Math.round(nut['fat_100g'] || 0), verified: true 
         };
         setGlobalFoodDB(prev => [scannedFood, ...prev]);
         handleAddFoodToMeal(scannedFood);
-        alert(`✅ Code trouvé : ${scannedFood.name} ajouté à ton repas !`);
+        alert(`✅ ${scannedFood.name} ajouté à ton repas !`);
       } else { 
-        // 3. Introuvable sur internet : Création manuelle
-        alert("Aliment introuvable. Veuillez créer sa fiche nutritionnelle.");
+        alert("Aliment introuvable. Veuillez le créer.");
         setNewFood({ name: "", brand: "", cals: "", prot: "", carbs: "", fat: "", barcode: barcode });
         setShowContributeModal(true);
       }
@@ -353,14 +305,12 @@ export default function Nutrition({ onBack, dataContext }) {
     }
   };
 
-  const changeDate = (offset) => {
-    const d = new Date(currentDateStr); d.setDate(d.getDate() + offset); setCurrentDateStr(d.toISOString().split('T')[0]);
-  };
+  const changeDate = (offset) => { const d = new Date(currentDateStr); d.setDate(d.getDate() + offset); setCurrentDateStr(d.toISOString().split('T')[0]); };
 
   if (!profile) return <OnboardingWizard onComplete={(p) => setProfile(p)} />;
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col h-full w-full bg-black text-white relative overflow-hidden">
-      
       <header className="px-5 pt-10 pb-4 bg-black/90 backdrop-blur-xl z-40 border-b border-zinc-900 flex-shrink-0">
         <div className="flex justify-between items-center mb-4">
           <button onClick={onBack} className="p-2.5 bg-zinc-900 rounded-full text-zinc-400 active:scale-95"><ChevronLeft size={18}/></button>
@@ -378,7 +328,6 @@ export default function Nutrition({ onBack, dataContext }) {
       </header>
 
       <motion.main drag="x" dragConstraints={{ left: 0, right: 0 }} onDragEnd={(e, info) => { if (info.offset.x > 100) changeDate(-1); if (info.offset.x < -100) changeDate(1); }} key={currentDateStr} initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ type: "spring", bounce: 0.4 }} className="flex-1 overflow-y-auto px-4 pt-6 pb-32 space-y-6">
-        
         <section className="bg-[#151517] rounded-[32px] p-6 border border-[#222225] shadow-2xl pointer-events-none">
           <div className="flex justify-between items-center mb-8">
             <div className="flex flex-col items-center gap-2"><CircularGauge value={totalConsumed} max={targetGoals.targetCalories} color="#3B82F6" icon={Utensils} size={60} /><span className="text-[10px] font-black uppercase text-blue-500 mt-2">{Math.round(totalConsumed)}</span></div>
@@ -386,9 +335,9 @@ export default function Nutrition({ onBack, dataContext }) {
             <div className="flex flex-col items-center gap-2"><CircularGauge value={currentData.activity} max={1000} color="#EF4444" icon={Flame} size={60} /><span className="text-[10px] font-black uppercase text-red-500 mt-2">{currentData.activity}</span></div>
           </div>
           <div className="grid grid-cols-3 gap-3 border-t border-zinc-800 pt-6">
-            <div className="flex flex-col items-center gap-2"><span className="text-[9px] font-black text-yellow-500 uppercase tracking-widest">Glucides</span><div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden"><div className="h-full bg-yellow-500 transition-all duration-500" style={{ width: `${Math.min((totalCarbs/targetGoals.carbs)*100, 100)}%` }}/></div><span className="text-xs font-bold">{Math.round(totalCarbs)} <span className="text-[9px] text-zinc-500">/ {targetGoals.carbs}g</span></span></div>
-            <div className="flex flex-col items-center gap-2"><span className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Protéines</span><div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden"><div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${Math.min((totalProt/targetGoals.protein)*100, 100)}%` }}/></div><span className="text-xs font-bold">{Math.round(totalProt)} <span className="text-[9px] text-zinc-500">/ {targetGoals.protein}g</span></span></div>
-            <div className="flex flex-col items-center gap-2"><span className="text-[9px] font-black text-red-500 uppercase tracking-widest">Lipides</span><div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden"><div className="h-full bg-red-500 transition-all duration-500" style={{ width: `${Math.min((totalFat/targetGoals.fat)*100, 100)}%` }}/></div><span className="text-xs font-bold">{Math.round(totalFat)} <span className="text-[9px] text-zinc-500">/ {targetGoals.fat}g</span></span></div>
+            <div className="flex flex-col items-center gap-2"><span className="text-[9px] font-black text-yellow-500 uppercase tracking-widest">Glucides</span><div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden"><div className="h-full bg-yellow-500 transition-all duration-500" style={{ width: `${Math.min((totalCarbs/(targetGoals.carbs||1))*100, 100)}%` }}/></div><span className="text-xs font-bold">{Math.round(totalCarbs)} <span className="text-[9px] text-zinc-500">/ {targetGoals.carbs}g</span></span></div>
+            <div className="flex flex-col items-center gap-2"><span className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Protéines</span><div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden"><div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${Math.min((totalProt/(targetGoals.protein||1))*100, 100)}%` }}/></div><span className="text-xs font-bold">{Math.round(totalProt)} <span className="text-[9px] text-zinc-500">/ {targetGoals.protein}g</span></span></div>
+            <div className="flex flex-col items-center gap-2"><span className="text-[9px] font-black text-red-500 uppercase tracking-widest">Lipides</span><div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden"><div className="h-full bg-red-500 transition-all duration-500" style={{ width: `${Math.min((totalFat/(targetGoals.fat||1))*100, 100)}%` }}/></div><span className="text-xs font-bold">{Math.round(totalFat)} <span className="text-[9px] text-zinc-500">/ {targetGoals.fat}g</span></span></div>
           </div>
         </section>
 
@@ -397,10 +346,10 @@ export default function Nutrition({ onBack, dataContext }) {
             {[ { id: 'breakfast', name: 'Petit-déjeuner', icon: Coffee }, { id: 'lunch', name: 'Déjeuner', icon: Utensils }, { id: 'dinner', name: 'Dîner', icon: Moon }, { id: 'snacks', name: 'Snacks', icon: Cookie } ].map(meal => (
               <div key={meal.id} onClick={() => setActiveMealModal(meal.id)} className="bg-[#151517] border border-[#222225] rounded-[24px] p-4 flex flex-col active:scale-95 transition-transform cursor-pointer">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4"><div className="w-12 h-12 bg-zinc-900 rounded-full flex items-center justify-center"><meal.icon size={20} className="text-zinc-400"/></div><div><p className="font-bold text-sm text-white">{meal.name}</p><p className="text-[11px] font-mono text-blue-500 font-bold">{Math.round(currentData.meals[meal.id].cals)} Kcal</p></div></div>
+                  <div className="flex items-center gap-4"><div className="w-12 h-12 bg-zinc-900 rounded-full flex items-center justify-center"><meal.icon size={20} className="text-zinc-400"/></div><div><p className="font-bold text-sm text-white">{meal.name}</p><p className="text-[11px] font-mono text-blue-500 font-bold">{Math.round(currentData.meals[meal.id]?.cals || 0)} Kcal</p></div></div>
                   <div className="w-8 h-8 bg-blue-600/20 rounded-full flex items-center justify-center text-blue-500"><Plus size={16}/></div>
                 </div>
-                {currentData.meals[meal.id].items.length > 0 && <p className="text-[10px] text-zinc-500 mt-3 truncate">{currentData.meals[meal.id].items.map(i => i.name).join(", ")}</p>}
+                {(currentData.meals[meal.id]?.items?.length > 0) && <p className="text-[10px] text-zinc-500 mt-3 truncate">{currentData.meals[meal.id].items.map(i => i.name).join(", ")}</p>}
               </div>
             ))}
           </div>
@@ -418,9 +367,15 @@ export default function Nutrition({ onBack, dataContext }) {
              })}
           </div>
         </section>
+        
+        <div className="mt-8 mb-4">
+          <button onClick={syncToCloud} disabled={isSyncing} className={`w-full py-5 rounded-[24px] font-black uppercase text-xs flex items-center justify-center gap-2 shadow-xl transition-all active:scale-95 ${isSyncing ? 'bg-zinc-800 text-zinc-500' : 'bg-green-600/20 text-green-500 border border-green-500/30 hover:bg-green-600 hover:text-white'}`}>
+            {isSyncing ? <RefreshCw size={18} className="animate-spin" /> : <CloudLightning size={18} />}
+            {isSyncing ? 'Synchronisation Cloud...' : 'Forcer la Sauvegarde Cloud'}
+          </button>
+        </div>
       </motion.main>
 
-      {/* MODAL Fiche IA */}
       <AnimatePresence>
         {showProfileModal && (
           <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col">
@@ -431,7 +386,6 @@ export default function Nutrition({ onBack, dataContext }) {
                 <button onClick={() => { setShowProfileModal(false); setIsEditingProfile(false); }} className="p-2 bg-zinc-800 rounded-full"><X size={20}/></button>
               </div>
             </div>
-            
             <div className="p-5 overflow-y-auto space-y-6 flex-1">
               {isEditingProfile ? (
                 <div className="space-y-4">
@@ -442,9 +396,9 @@ export default function Nutrition({ onBack, dataContext }) {
                   <div className="bg-zinc-900 p-4 rounded-2xl">
                     <span className="text-[10px] uppercase text-zinc-500 font-bold mb-2 block">Stratégie Nutritionnelle</span>
                     <select value={profile.goal} onChange={e=>setProfile({...profile, goal: e.target.value})} className="bg-transparent w-full font-black text-lg outline-none text-blue-400">
-                      <option value="cut">Sèche / Perte de Poids (-15%)</option>
+                      <option value="cut">Sèche / Perte (-15%)</option>
                       <option value="maintain">Maintien (Équilibre)</option>
-                      <option value="bulk">Prise de Masse (+10%)</option>
+                      <option value="bulk">Prise Masse (+10%)</option>
                     </select>
                   </div>
                   <button onClick={() => setIsEditingProfile(false)} className="w-full py-4 bg-white text-black rounded-xl font-black uppercase text-xs shadow-lg mt-6">Terminer l'édition</button>
@@ -453,15 +407,15 @@ export default function Nutrition({ onBack, dataContext }) {
                 <>
                   <div className="bg-gradient-to-br from-cyan-900/40 to-blue-900/20 p-5 rounded-[24px] border border-cyan-500/30">
                     <div className="flex justify-between items-start">
-                       <span className="text-[10px] uppercase font-black tracking-widest text-cyan-500">Profil Random Forest</span>
-                       <span className="text-[10px] bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded font-bold uppercase">{profile.goal === 'cut' ? 'Sèche' : profile.goal === 'bulk' ? 'Bulk' : 'Maintien'}</span>
+                       <span className="text-[10px] uppercase font-black tracking-widest text-cyan-500">Profil IA</span>
+                       <span className="text-[10px] bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded font-bold uppercase">{profile.goal}</span>
                     </div>
                     <p className="text-2xl font-black mt-1 text-white">{simulateRandomForest(profile).type}</p>
                     <p className="text-xs text-cyan-200 mt-2 border-l-2 border-cyan-500 pl-2">{simulateRandomForest(profile).focus}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800"><Flame size={20} className="text-red-500 mb-2"/><p className="text-[10px] text-zinc-500 uppercase font-bold">Cible Journalière</p><p className="text-xl font-black">{targetGoals.targetCalories} kcal</p></div>
-                    <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800"><Activity size={20} className="text-blue-500 mb-2"/><p className="text-[10px] text-zinc-500 uppercase font-bold">Maintien (TDEE)</p><p className="text-xl font-black">{metabolicStats.tdee} kcal</p></div>
+                    <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800"><Flame size={20} className="text-red-500 mb-2"/><p className="text-[10px] text-zinc-500 uppercase font-bold">Cible Jour</p><p className="text-xl font-black">{targetGoals.targetCalories} kcal</p></div>
+                    <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800"><Activity size={20} className="text-blue-500 mb-2"/><p className="text-[10px] text-zinc-500 uppercase font-bold">TDEE</p><p className="text-xl font-black">{metabolicStats.tdee} kcal</p></div>
                   </div>
                 </>
               )}
@@ -470,75 +424,49 @@ export default function Nutrition({ onBack, dataContext }) {
         )}
       </AnimatePresence>
 
-      {/* MODAL DE RECHERCHE AVEC ONGLETS */}
       <AnimatePresence>
         {activeMealModal && (
           <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="fixed inset-0 z-[120] bg-black/95 backdrop-blur-xl flex flex-col">
-            
             <div className="p-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
-              <h2 className="text-lg font-black uppercase">
-                {activeMealModal === 'breakfast' ? 'Petit-déjeuner' : activeMealModal === 'lunch' ? 'Déjeuner' : activeMealModal === 'dinner' ? 'Dîner' : 'Snacks'}
-              </h2>
+              <h2 className="text-lg font-black uppercase">Recherche</h2>
               <button onClick={() => { setActiveMealModal(null); setSearchQuery(''); setActiveSearchTab('recent'); }} className="p-2 bg-zinc-800 rounded-full active:scale-90 transition-transform"><X size={20}/></button>
             </div>
-
             <div className="p-4 flex-1 flex flex-col">
-              
               <div className="flex items-center gap-3 bg-zinc-900 p-4 rounded-2xl mb-4 border border-zinc-800 shadow-inner">
                 <Search size={20} className="text-zinc-500" />
-                <input type="text" placeholder="Aliment, repas ou marque" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="bg-transparent font-bold text-white outline-none w-full placeholder:text-zinc-600" autoFocus />
-                {/* BOUTON DU SCANNER */}
-                <button onClick={() => setIsScanningFood(true)} className="active:scale-90 transition-transform p-1 bg-emerald-500/10 rounded-lg">
-                  <ScanBarcode size={24} className="text-emerald-500 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
-                </button>
+                <input type="text" placeholder="Aliment, repas..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="bg-transparent font-bold text-white outline-none w-full placeholder:text-zinc-600" autoFocus />
+                <button onClick={() => setIsScanningFood(true)} className="active:scale-90 transition-transform p-1 bg-emerald-500/10 rounded-lg"><ScanBarcode size={24} className="text-emerald-500 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]" /></button>
               </div>
 
               {!searchQuery && (
-                <div className="bg-[#151517] p-4 rounded-2xl border border-[#222225] mb-4 shadow-xl">
-                  <div className="flex justify-between items-center mb-3 border-b border-zinc-800/50 pb-2">
-                    <span className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Aperçu Journalier</span>
-                    <span className="text-xs font-black text-blue-500">{Math.round(totalConsumed)} / {targetGoals.targetCalories} kcal</span>
+                <>
+                  <div className="bg-[#151517] p-4 rounded-2xl border border-[#222225] mb-4 shadow-xl">
+                    <div className="flex justify-between items-center mb-3 border-b border-zinc-800/50 pb-2"><span className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Aperçu Jour</span><span className="text-xs font-black text-blue-500">{Math.round(totalConsumed)} / {targetGoals.targetCalories} kcal</span></div>
+                    <div className="flex justify-between text-center px-2">
+                      <div><p className="text-[9px] uppercase text-zinc-500 font-bold mb-1">G</p><p className="text-xs font-black text-white">{Math.round(totalCarbs)}</p></div>
+                      <div><p className="text-[9px] uppercase text-zinc-500 font-bold mb-1">P</p><p className="text-xs font-black text-white">{Math.round(totalProt)}</p></div>
+                      <div><p className="text-[9px] uppercase text-zinc-500 font-bold mb-1">L</p><p className="text-xs font-black text-white">{Math.round(totalFat)}</p></div>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-center px-2">
-                    <div><p className="text-[9px] uppercase text-zinc-500 font-bold mb-1">Glucides</p><p className="text-xs font-black text-white">{Math.round(totalCarbs)} / {targetGoals.carbs}g</p></div>
-                    <div><p className="text-[9px] uppercase text-zinc-500 font-bold mb-1">Protéines</p><p className="text-xs font-black text-white">{Math.round(totalProt)} / {targetGoals.protein}g</p></div>
-                    <div><p className="text-[9px] uppercase text-zinc-500 font-bold mb-1">Graisses</p><p className="text-xs font-black text-white">{Math.round(totalFat)} / {targetGoals.fat}g</p></div>
+                  <div className="flex gap-2 mb-4 bg-[#151517] p-1.5 rounded-2xl border border-[#222225] shadow-inner">
+                    <button onClick={() => setActiveSearchTab('recent')} className={`flex-1 py-3 rounded-xl flex justify-center transition-all ${activeSearchTab === 'recent' ? 'bg-[#222225] text-white border border-zinc-800' : 'text-zinc-500'}`}><History size={18} /></button>
+                    <button onClick={() => setActiveSearchTab('favorites')} className={`flex-1 py-3 rounded-xl flex justify-center transition-all ${activeSearchTab === 'favorites' ? 'bg-[#222225] text-red-500 border border-zinc-800' : 'text-zinc-500'}`}><Heart size={18} fill={activeSearchTab === 'favorites' ? 'currentColor' : 'none'} /></button>
+                    <button onClick={() => setActiveSearchTab('my')} className={`flex-1 py-3 rounded-xl flex justify-center transition-all ${activeSearchTab === 'my' ? 'bg-[#222225] text-emerald-500 border border-zinc-800' : 'text-zinc-500'}`}><Bookmark size={18} fill={activeSearchTab === 'my' ? 'currentColor' : 'none'} /></button>
                   </div>
-                </div>
-              )}
-
-              {!searchQuery && (
-                <div className="flex gap-2 mb-4 bg-[#151517] p-1.5 rounded-2xl border border-[#222225] shadow-inner">
-                  <button onClick={() => setActiveSearchTab('recent')} className={`flex-1 py-3 rounded-xl flex justify-center items-center transition-all ${activeSearchTab === 'recent' ? 'bg-[#222225] text-white shadow-md border border-zinc-800' : 'text-zinc-500 hover:text-zinc-400'}`}><History size={18} /></button>
-                  <button onClick={() => setActiveSearchTab('favorites')} className={`flex-1 py-3 rounded-xl flex justify-center items-center transition-all ${activeSearchTab === 'favorites' ? 'bg-[#222225] text-red-500 shadow-md border border-zinc-800' : 'text-zinc-500 hover:text-red-400/50'}`}><Heart size={18} fill={activeSearchTab === 'favorites' ? 'currentColor' : 'none'} /></button>
-                  <button onClick={() => setActiveSearchTab('my')} className={`flex-1 py-3 rounded-xl flex justify-center items-center transition-all ${activeSearchTab === 'my' ? 'bg-[#222225] text-emerald-500 shadow-md border border-zinc-800' : 'text-zinc-500 hover:text-emerald-400/50'}`}><Bookmark size={18} fill={activeSearchTab === 'my' ? 'currentColor' : 'none'} /></button>
-                </div>
+                </>
               )}
 
               <div className="flex-1 overflow-y-auto space-y-2 pb-4">
                 {(() => {
                   let listToRender = [];
-                  
                   if (searchQuery) {
-                    listToRender = globalDB.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 20);
+                    listToRender = globalDB.filter(f => f?.name?.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 20);
                     if (listToRender.length === 0) return <p className="text-center text-zinc-500 font-bold text-xs mt-10 uppercase tracking-widest">Aucun résultat trouvé.</p>;
                   } else {
                     if (activeSearchTab === 'recent') listToRender = recentFoods;
                     else if (activeSearchTab === 'favorites') listToRender = favorites;
                     else if (activeSearchTab === 'my') listToRender = myFoods;
-
-                    if (listToRender.length === 0) {
-                      return (
-                        <div className="flex flex-col items-center justify-center pt-16 opacity-50 text-zinc-500">
-                          {activeSearchTab === 'recent' && <History size={40} className="mb-4" />}
-                          {activeSearchTab === 'favorites' && <Heart size={40} className="mb-4" />}
-                          {activeSearchTab === 'my' && <Bookmark size={40} className="mb-4" />}
-                          <p className="text-center text-xs font-bold uppercase tracking-widest">
-                            {activeSearchTab === 'recent' ? "Aucun historique" : activeSearchTab === 'favorites' ? "Aucun favoris" : "Aucun aliment créé"}
-                          </p>
-                        </div>
-                      );
-                    }
+                    if (listToRender.length === 0) return <p className="text-center text-zinc-500 font-bold text-xs mt-10 uppercase tracking-widest">Liste vide.</p>;
                   }
 
                   return listToRender.map((food, idx) => {
@@ -546,78 +474,57 @@ export default function Nutrition({ onBack, dataContext }) {
                     return (
                       <div key={`${food.id}-${idx}`} className="bg-[#151517] p-4 rounded-2xl flex justify-between items-center border border-zinc-800">
                         <div className="flex-1 pr-4">
-                          <p className="font-bold text-sm text-white flex items-center gap-2">
-                            {food.name} {food.verified ? <CheckCircle2 size={14} className="text-blue-500"/> : <Globe size={14} className="text-orange-500"/>}
-                          </p>
-                          <p className="text-[10px] text-zinc-500 font-bold uppercase mt-1">
-                            {food.cals} Kcal • {food.carbs}g G • {food.prot}g P
-                            {food.brand && ` • ${food.brand}`}
-                          </p>
+                          <p className="font-bold text-sm text-white flex items-center gap-2">{food.name} {food.verified && <CheckCircle2 size={14} className="text-blue-500"/>}</p>
+                          <p className="text-[10px] text-zinc-500 font-bold uppercase mt-1">{food.cals} Kcal • {food.carbs}g G • {food.prot}g P</p>
                         </div>
                         <div className="flex gap-2">
-                          <button onClick={() => toggleFavorite(food)} className={`p-2 rounded-full transition-colors active:scale-90 ${isFav ? 'text-red-500 bg-red-500/10' : 'text-zinc-600 bg-zinc-800 hover:text-red-400'}`}>
-                            <Heart size={16} fill={isFav ? "currentColor" : "none"} />
-                          </button>
-                          <button onClick={() => handleAddFoodToMeal(food)} className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-transform">
-                            <Plus size={20}/>
-                          </button>
+                          <button onClick={() => toggleFavorite(food)} className={`p-2 rounded-full active:scale-90 ${isFav ? 'text-red-500 bg-red-500/10' : 'text-zinc-600 bg-zinc-800'}`}><Heart size={16} fill={isFav ? "currentColor" : "none"} /></button>
+                          <button onClick={() => handleAddFoodToMeal(food)} className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center active:scale-90"><Plus size={20}/></button>
                         </div>
                       </div>
                     );
                   });
                 })()}
               </div>
-
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* COMPOSANT SCANNER ISOLÉ (LIVE STREAM) */}
       <AnimatePresence>
         {isScanningFood && <LiveBarcodeScanner onScanComplete={handleScanComplete} onClose={() => setIsScanningFood(false)} />}
       </AnimatePresence>
 
-      {/* MODAL D'AJOUT MANUEL (CONTRIBUTION) */}
       <AnimatePresence>
         {showContributeModal && (
           <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col">
             <div className="p-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
-              <div className="flex items-center gap-2"><h2 className="text-lg font-black uppercase tracking-tighter">Ajouter un aliment</h2></div>
+              <div className="flex items-center gap-2"><h2 className="text-lg font-black uppercase tracking-tighter">Ajout Manuel</h2></div>
               <button onClick={() => setShowContributeModal(false)} className="p-2 bg-zinc-800 rounded-full active:scale-90"><X size={20}/></button>
             </div>
-            
             <div className="p-5 overflow-y-auto space-y-6">
-              
-              {/* BADGE SI LE CODE BARRE EST LIÉ AUTOMATIQUEMENT */}
               {newFood.barcode && (
                 <div className="bg-emerald-500/10 border border-emerald-500/30 p-3 rounded-xl flex items-center gap-3">
                   <ScanBarcode size={20} className="text-emerald-500" />
                   <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">Code-barres lié : {newFood.barcode}</p>
                 </div>
               )}
-
-              <div className="bg-orange-500/10 border border-orange-500/20 p-4 rounded-[20px] flex gap-3 items-start"><Globe size={20} className="text-orange-500 shrink-0 mt-0.5" /><p className="text-[11px] text-orange-200 leading-relaxed font-medium">Les aliments ajoutés ici seront sauvegardés sur votre compte et partagés avec la communauté.</p></div>
-              
               <div className="space-y-4">
-                <div className="flex flex-col bg-zinc-900 p-4 rounded-2xl border border-zinc-800 shadow-inner"><span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest mb-2">Nom de l'aliment</span><input type="text" placeholder="Ex: Avocat (cru)" value={newFood.name} onChange={e => setNewFood({...newFood, name: e.target.value})} className="bg-transparent font-bold text-white text-lg outline-none w-full placeholder:text-zinc-700" /></div>
-                <div className="flex flex-col bg-zinc-900 p-4 rounded-2xl border border-zinc-800 shadow-inner"><span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest mb-2">Marque (Optionnel)</span><input type="text" placeholder="Ex: Carrefour" value={newFood.brand} onChange={e => setNewFood({...newFood, brand: e.target.value})} className="bg-transparent font-bold text-white text-lg outline-none w-full placeholder:text-zinc-700" /></div>
-                
-                <div className="flex flex-col bg-zinc-900 p-4 rounded-2xl border border-zinc-800 shadow-inner"><span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest mb-2">Calories pour 100g (Kcal)</span><input type="number" placeholder="0" value={newFood.cals} onChange={e => setNewFood({...newFood, cals: e.target.value})} className="bg-transparent font-black text-white text-xl outline-none w-full placeholder:text-zinc-700" /></div>
+                <div className="flex flex-col bg-zinc-900 p-4 rounded-2xl border border-zinc-800"><span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest mb-2">Nom</span><input type="text" value={newFood.name} onChange={e => setNewFood({...newFood, name: e.target.value})} className="bg-transparent font-bold text-white text-lg outline-none w-full" /></div>
+                <div className="flex flex-col bg-zinc-900 p-4 rounded-2xl border border-zinc-800"><span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest mb-2">Calories (Kcal)</span><input type="number" value={newFood.cals} onChange={e => setNewFood({...newFood, cals: e.target.value})} className="bg-transparent font-black text-white text-xl outline-none w-full" /></div>
                 <div className="grid grid-cols-3 gap-3">
-                  <div className="flex flex-col bg-zinc-900 p-3 rounded-2xl border border-zinc-800"><span className="text-[9px] font-black uppercase text-yellow-500 tracking-widest mb-1">Glucides (g)</span><input type="number" placeholder="0" value={newFood.carbs} onChange={e => setNewFood({...newFood, carbs: e.target.value})} className="bg-transparent font-bold text-white outline-none w-full" /></div>
-                  <div className="flex flex-col bg-zinc-900 p-3 rounded-2xl border border-zinc-800"><span className="text-[9px] font-black uppercase text-blue-500 tracking-widest mb-1">Protéines (g)</span><input type="number" placeholder="0" value={newFood.prot} onChange={e => setNewFood({...newFood, prot: e.target.value})} className="bg-transparent font-bold text-white outline-none w-full" /></div>
-                  <div className="flex flex-col bg-zinc-900 p-3 rounded-2xl border border-zinc-800"><span className="text-[9px] font-black uppercase text-red-500 tracking-widest mb-1">Lipides (g)</span><input type="number" placeholder="0" value={newFood.fat} onChange={e => setNewFood({...newFood, fat: e.target.value})} className="bg-transparent font-bold text-white outline-none w-full" /></div>
+                  <div className="flex flex-col bg-zinc-900 p-3 rounded-2xl border border-zinc-800"><span className="text-[9px] font-black uppercase text-yellow-500 mb-1">Glucides</span><input type="number" value={newFood.carbs} onChange={e => setNewFood({...newFood, carbs: e.target.value})} className="bg-transparent font-bold text-white outline-none w-full" /></div>
+                  <div className="flex flex-col bg-zinc-900 p-3 rounded-2xl border border-zinc-800"><span className="text-[9px] font-black uppercase text-blue-500 mb-1">Protéines</span><input type="number" value={newFood.prot} onChange={e => setNewFood({...newFood, prot: e.target.value})} className="bg-transparent font-bold text-white outline-none w-full" /></div>
+                  <div className="flex flex-col bg-zinc-900 p-3 rounded-2xl border border-zinc-800"><span className="text-[9px] font-black uppercase text-red-500 mb-1">Lipides</span><input type="number" value={newFood.fat} onChange={e => setNewFood({...newFood, fat: e.target.value})} className="bg-transparent font-bold text-white outline-none w-full" /></div>
                 </div>
               </div>
-              <button onClick={handleContributeFood} disabled={isPublishing} className={`w-full py-5 rounded-full font-black uppercase text-xs shadow-xl transition-all active:scale-95 flex justify-center items-center gap-2 ${newFood.name && newFood.cals ? 'bg-orange-500 text-black shadow-orange-900/50' : 'bg-zinc-800 text-zinc-500'}`}>
-                {isPublishing ? <RefreshCw size={16} className="animate-spin" /> : "Créer l'aliment"}
+              <button onClick={handleContributeFood} disabled={isPublishing} className={`w-full py-5 rounded-full font-black uppercase text-xs shadow-xl active:scale-95 ${newFood.name && newFood.cals ? 'bg-orange-500 text-black' : 'bg-zinc-800 text-zinc-500'}`}>
+                {isPublishing ? <RefreshCw size={16} className="animate-spin" /> : "Sauvegarder l'aliment"}
               </button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-
     </motion.div>
   );
 }
