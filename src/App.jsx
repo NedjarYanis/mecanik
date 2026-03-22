@@ -177,7 +177,7 @@ function OnboardingWizard({ onComplete }) {
 }
 
 // ==========================================
-// 5. COMPOSANT PRINCIPAL NUTRITION (BLINDÉ)
+// 5. COMPOSANT PRINCIPAL NUTRITION 
 // ==========================================
 export default function Nutrition({ onBack, dataContext }) {
   const { profile, setProfile, journal, setJournal, syncToCloud, isSyncing } = dataContext;
@@ -365,6 +365,13 @@ export default function Nutrition({ onBack, dataContext }) {
              })}
           </div>
         </section>
+        
+        <div className="mt-8 mb-4">
+          <button onClick={syncToCloud} disabled={isSyncing} className={`w-full py-5 rounded-[24px] font-black uppercase text-xs flex items-center justify-center gap-2 shadow-xl transition-all active:scale-95 ${isSyncing ? 'bg-zinc-800 text-zinc-500' : 'bg-green-600/20 text-green-500 border border-green-500/30 hover:bg-green-600 hover:text-white'}`}>
+            {isSyncing ? <RefreshCw size={18} className="animate-spin" /> : <CloudLightning size={18} />}
+            {isSyncing ? 'Synchronisation Cloud...' : 'Forcer la Sauvegarde Cloud'}
+          </button>
+        </div>
       </motion.main>
 
       <AnimatePresence>
