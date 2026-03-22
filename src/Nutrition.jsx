@@ -4,7 +4,7 @@ import {
   ChevronLeft, ChevronRight, Flame, Plus, Beef, Wheat, Droplet, 
   Coffee, Utensils, Moon, Cookie, Activity, X, 
   Search, CheckCircle2, Globe, DatabaseZap, CloudLightning, RefreshCw,
-  User, Calendar as CalendarIcon, TrendingDown, BrainCircuit
+  User, Calendar as CalendarIcon, TrendingDown, BrainCircuit, Info, Settings, TrendingUp
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -27,7 +27,7 @@ const db = getFirestore(app);
 const foodsCollection = collection(db, 'foods');
 
 // ==========================================
-// 2. MOTEUR D'ANALYSE MÉTABOLIQUE (IA Simulée)
+// 2. MOTEUR D'ANALYSE MÉTABOLIQUE (IA & MATHS)
 // ==========================================
 
 // Équation de Mifflin-St Jeor
@@ -39,7 +39,25 @@ const calculateMifflin = (profile) => {
   return { bmr: Math.round(bmr), tdee: Math.round(tdee) };
 };
 
-// Simulation Random Forest (Arbre de décision)
+// Calculateur d'Objectifs (Sèche, Maintien, Prise de masse)
+const calculateTargetGoals = (profile, tdee) => {
+  let targetCalories = tdee;
+  let multiplier = 1;
+  if (profile.goal === 'cut') multiplier = 0.85; // Déficit 15%
+  if (profile.goal === 'bulk') multiplier = 1.10; // Surplus 10%
+  
+  targetCalories = Math.round(tdee * multiplier);
+
+  // Macros Scientifiques
+  const protein = Math.round(profile.weight * 2.2); // 2.2g par kg de poids de corps pour préserver/construire le muscle
+  const fat = Math.round((targetCalories * 0.25) / 9); // 25% des calories allouées aux lipides
+  const remainingCals = targetCalories - (protein * 4) - (fat * 9);
+  const carbs = Math.max(0, Math.round(remainingCals / 4)); // Le reste en glucides
+
+  return { targetCalories, protein, fat, carbs, multiplier };
+};
+
+// Classification Random Forest (Arbre de décision)
 const simulateRandomForest = (profile) => {
   const fat = profile.bodyFat;
   const bmi = profile.weight / Math.pow(profile.height / 100, 2);
@@ -50,18 +68,23 @@ const simulateRandomForest = (profile) => {
   return { type: "Profil Atypique", risk: "À surveiller", focus: "Ajustement progressif des macros." };
 };
 
-// Simulation Régression Linéaire Multiple (Prédiction de perte)
-const simulateLinearRegression = (currentWeight, history, targetDeficit = 500) => {
-  // Poids perdu estimé par semaine (7000 kcal = ~1kg de graisse)
-  const weeklyLoss = (targetDeficit * 7) / 7000; 
+// Régression Linéaire Multiple (Prédiction de poids)
+const simulateLinearRegression = (profile, tdee) => {
+  const target = calculateTargetGoals(profile, tdee).targetCalories;
+  const dailyDiff = target - tdee; // Négatif si déficit, Positif si surplus
+  // 7000 kcal = ~1kg de tissu adipeux/musculaire
+  const weeklyChange = (dailyDiff * 7) / 7000; 
+  const prediction30Days = (profile.weight + (weeklyChange * 4.2)).toFixed(1);
+
   return {
-    prediction30Days: (currentWeight - (weeklyLoss * 4.2)).toFixed(1),
-    trend: weeklyLoss > 0 ? 'Baisse' : 'Stagnation'
+    prediction30Days,
+    trend: dailyDiff < 0 ? 'Baisse' : dailyDiff > 0 ? 'Hausse' : 'Stagnation',
+    weeklyChange: Math.abs(weeklyChange).toFixed(2)
   };
 };
 
 // ==========================================
-// COMPOSANTS VISUELS (Jauges)
+// COMPOSANTS VISUELS
 // ==========================================
 const CircularGauge = ({ value, max, color, size = 64, strokeWidth = 6, icon: Icon }) => {
   const radius = (size - strokeWidth) / 2;
@@ -80,13 +103,13 @@ const CircularGauge = ({ value, max, color, size = 64, strokeWidth = 6, icon: Ic
 };
 
 // ==========================================
-// COMPOSANT ONBOARDING (Première Connexion)
+// ONBOARDING WIZARD (Première Connexion)
 // ==========================================
 function OnboardingWizard({ onComplete }) {
   const [step, setStep] = useState(1);
   const [profile, setProfile] = useState({
     age: 25, gender: 'M', weight: 75, height: 175, activityLevel: 'Modéré',
-    bodyFat: 15, muscleMass: 40, boneMass: 3, hydration: 60
+    bodyFat: 15, muscleMass: 40, boneMass: 3, hydration: 60, goal: 'maintain'
   });
 
   return (
@@ -95,33 +118,68 @@ function OnboardingWizard({ onComplete }) {
         <div className="text-center">
           <BrainCircuit size={48} className="text-blue-500 mx-auto mb-4 animate-pulse" />
           <h1 className="text-3xl font-black uppercase tracking-tighter">Étalonnage<br/>Métabolique</h1>
-          <p className="text-zinc-400 text-sm mt-2">L'IA de MÉCANIK a besoin de vos biométries pour générer vos algorithmes de croissance.</p>
+          <p className="text-zinc-400 text-sm mt-2">L'IA de MÉCANIK a besoin de vos biométries.</p>
         </div>
 
-        {step === 1 ? (
+        {step === 1 && (
           <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="space-y-4">
             <h2 className="text-xs font-black uppercase tracking-widest text-blue-500">1. Données de Base</h2>
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-zinc-900 p-4 rounded-2xl"><span className="text-[10px] uppercase text-zinc-500 font-bold">Âge</span><input type="number" value={profile.age} onChange={e=>setProfile({...profile, age: e.target.value})} className="bg-transparent w-full font-black text-xl outline-none" /></div>
-              <div className="bg-zinc-900 p-4 rounded-2xl"><span className="text-[10px] uppercase text-zinc-500 font-bold">Genre (M/F)</span><select value={profile.gender} onChange={e=>setProfile({...profile, gender: e.target.value})} className="bg-transparent w-full font-black text-xl outline-none"><option value="M">M</option><option value="F">F</option></select></div>
-              <div className="bg-zinc-900 p-4 rounded-2xl"><span className="text-[10px] uppercase text-zinc-500 font-bold">Poids (kg)</span><input type="number" value={profile.weight} onChange={e=>setProfile({...profile, weight: e.target.value})} className="bg-transparent w-full font-black text-xl outline-none" /></div>
-              <div className="bg-zinc-900 p-4 rounded-2xl"><span className="text-[10px] uppercase text-zinc-500 font-bold">Taille (cm)</span><input type="number" value={profile.height} onChange={e=>setProfile({...profile, height: e.target.value})} className="bg-transparent w-full font-black text-xl outline-none" /></div>
+              <div className="bg-zinc-900 p-4 rounded-2xl"><span className="text-[10px] uppercase text-zinc-500 font-bold">Âge</span><input type="number" value={profile.age} onChange={e=>setProfile({...profile, age: Number(e.target.value)})} className="bg-transparent w-full font-black text-xl outline-none" /></div>
+              <div className="bg-zinc-900 p-4 rounded-2xl"><span className="text-[10px] uppercase text-zinc-500 font-bold">Genre</span><select value={profile.gender} onChange={e=>setProfile({...profile, gender: e.target.value})} className="bg-transparent w-full font-black text-xl outline-none"><option value="M">M</option><option value="F">F</option></select></div>
+              <div className="bg-zinc-900 p-4 rounded-2xl"><span className="text-[10px] uppercase text-zinc-500 font-bold">Poids (kg)</span><input type="number" value={profile.weight} onChange={e=>setProfile({...profile, weight: Number(e.target.value)})} className="bg-transparent w-full font-black text-xl outline-none" /></div>
+              <div className="bg-zinc-900 p-4 rounded-2xl"><span className="text-[10px] uppercase text-zinc-500 font-bold">Taille (cm)</span><input type="number" value={profile.height} onChange={e=>setProfile({...profile, height: Number(e.target.value)})} className="bg-transparent w-full font-black text-xl outline-none" /></div>
             </div>
             <div className="bg-zinc-900 p-4 rounded-2xl"><span className="text-[10px] uppercase text-zinc-500 font-bold">Activité</span><select value={profile.activityLevel} onChange={e=>setProfile({...profile, activityLevel: e.target.value})} className="bg-transparent w-full font-black text-lg outline-none"><option>Sédentaire</option><option>Léger</option><option>Modéré</option><option>Intense</option></select></div>
             <button onClick={() => setStep(2)} className="w-full py-4 bg-blue-600 rounded-full font-black uppercase text-xs">Suivant</button>
           </motion.div>
-        ) : (
+        )}
+
+        {step === 2 && (
           <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="space-y-4">
             <h2 className="text-xs font-black uppercase tracking-widest text-cyan-500">2. Composition (Options)</h2>
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-zinc-900 p-4 rounded-2xl border border-blue-900/30"><span className="text-[10px] uppercase text-zinc-500 font-bold">Masse Grasse (%)</span><input type="number" value={profile.bodyFat} onChange={e=>setProfile({...profile, bodyFat: e.target.value})} className="bg-transparent w-full font-black text-xl outline-none text-blue-400" /></div>
-              <div className="bg-zinc-900 p-4 rounded-2xl border border-red-900/30"><span className="text-[10px] uppercase text-zinc-500 font-bold">Muscle (kg)</span><input type="number" value={profile.muscleMass} onChange={e=>setProfile({...profile, muscleMass: e.target.value})} className="bg-transparent w-full font-black text-xl outline-none text-red-400" /></div>
-              <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-700/50"><span className="text-[10px] uppercase text-zinc-500 font-bold">Os (kg)</span><input type="number" value={profile.boneMass} onChange={e=>setProfile({...profile, boneMass: e.target.value})} className="bg-transparent w-full font-black text-xl outline-none" /></div>
-              <div className="bg-zinc-900 p-4 rounded-2xl border border-cyan-900/30"><span className="text-[10px] uppercase text-zinc-500 font-bold">Eau (%)</span><input type="number" value={profile.hydration} onChange={e=>setProfile({...profile, hydration: e.target.value})} className="bg-transparent w-full font-black text-xl outline-none text-cyan-400" /></div>
+              <div className="bg-zinc-900 p-4 rounded-2xl border border-blue-900/30"><span className="text-[10px] uppercase text-zinc-500 font-bold">Masse Grasse (%)</span><input type="number" value={profile.bodyFat} onChange={e=>setProfile({...profile, bodyFat: Number(e.target.value)})} className="bg-transparent w-full font-black text-xl outline-none text-blue-400" /></div>
+              <div className="bg-zinc-900 p-4 rounded-2xl border border-red-900/30"><span className="text-[10px] uppercase text-zinc-500 font-bold">Muscle (kg)</span><input type="number" value={profile.muscleMass} onChange={e=>setProfile({...profile, muscleMass: Number(e.target.value)})} className="bg-transparent w-full font-black text-xl outline-none text-red-400" /></div>
+              <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-700/50"><span className="text-[10px] uppercase text-zinc-500 font-bold">Os (kg)</span><input type="number" value={profile.boneMass} onChange={e=>setProfile({...profile, boneMass: Number(e.target.value)})} className="bg-transparent w-full font-black text-xl outline-none" /></div>
+              <div className="bg-zinc-900 p-4 rounded-2xl border border-cyan-900/30"><span className="text-[10px] uppercase text-zinc-500 font-bold">Eau (%)</span><input type="number" value={profile.hydration} onChange={e=>setProfile({...profile, hydration: Number(e.target.value)})} className="bg-transparent w-full font-black text-xl outline-none text-cyan-400" /></div>
             </div>
             <div className="flex gap-2">
                <button onClick={() => setStep(1)} className="p-4 bg-zinc-800 rounded-2xl"><ChevronLeft size={20}/></button>
-               <button onClick={() => onComplete(profile)} className="flex-1 py-4 bg-cyan-600 text-black rounded-2xl font-black uppercase text-xs shadow-[0_0_20px_rgba(6,182,212,0.4)]">Générer mon profil IA</button>
+               <button onClick={() => setStep(3)} className="flex-1 py-4 bg-cyan-600 text-black rounded-2xl font-black uppercase text-xs">Suivant</button>
+            </div>
+          </motion.div>
+        )}
+
+        {step === 3 && (
+          <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="space-y-4">
+            <h2 className="text-xs font-black uppercase tracking-widest text-emerald-500">3. Stratégie Nutritionnelle</h2>
+            
+            <div className="space-y-3">
+              <div onClick={() => setProfile({...profile, goal: 'cut'})} className={`p-4 rounded-2xl border cursor-pointer transition-all ${profile.goal === 'cut' ? 'bg-emerald-900/40 border-emerald-500' : 'bg-zinc-900 border-zinc-800'}`}>
+                <div className="flex justify-between items-center mb-1"><span className="font-black text-white">Sèche / Perte de Poids</span><TrendingDown size={18} className={profile.goal === 'cut' ? 'text-emerald-500' : 'text-zinc-500'}/></div>
+                <p className="text-[10px] text-zinc-400 font-bold">Déficit contrôlé de -15%</p>
+              </div>
+              <div onClick={() => setProfile({...profile, goal: 'maintain'})} className={`p-4 rounded-2xl border cursor-pointer transition-all ${profile.goal === 'maintain' ? 'bg-blue-900/40 border-blue-500' : 'bg-zinc-900 border-zinc-800'}`}>
+                <div className="flex justify-between items-center mb-1"><span className="font-black text-white">Maintien (Stabilité)</span><Activity size={18} className={profile.goal === 'maintain' ? 'text-blue-500' : 'text-zinc-500'}/></div>
+                <p className="text-[10px] text-zinc-400 font-bold">Calories = Dépense Journalière</p>
+              </div>
+              <div onClick={() => setProfile({...profile, goal: 'bulk'})} className={`p-4 rounded-2xl border cursor-pointer transition-all ${profile.goal === 'bulk' ? 'bg-red-900/40 border-red-500' : 'bg-zinc-900 border-zinc-800'}`}>
+                <div className="flex justify-between items-center mb-1"><span className="font-black text-white">Prise de Masse (Lean Bulk)</span><TrendingUp size={18} className={profile.goal === 'bulk' ? 'text-red-500' : 'text-zinc-500'}/></div>
+                <p className="text-[10px] text-zinc-400 font-bold">Surplus contrôlé de +10%</p>
+              </div>
+            </div>
+
+            <div className="bg-zinc-900/80 border border-zinc-800 p-4 rounded-2xl flex gap-3 items-start mt-4">
+              <Info size={20} className="text-zinc-500 shrink-0" />
+              <p className="text-[10px] text-zinc-400 leading-relaxed font-medium">
+                <strong>Justification Scientifique :</strong> MÉCANIK plafonne le surplus à +10/15% pour éviter la lipogenèse excessive (Dirty Bulk), et limite le déficit à -15/20% pour prévenir le catabolisme musculaire et le ralentissement métabolique.
+              </p>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+               <button onClick={() => setStep(2)} className="p-4 bg-zinc-800 rounded-2xl"><ChevronLeft size={20}/></button>
+               <button onClick={() => onComplete(profile)} className="flex-1 py-4 bg-emerald-600 text-black rounded-2xl font-black uppercase text-xs shadow-[0_0_20px_rgba(16,185,129,0.4)]">Générer mon profil IA</button>
             </div>
           </motion.div>
         )}
@@ -133,21 +191,21 @@ function OnboardingWizard({ onComplete }) {
 // COMPOSANT PRINCIPAL NUTRITION
 // ==========================================
 export default function Nutrition({ onBack }) {
-  // 1. ÉTATS : Profil Utilisateur & Onboarding
+  // 1. ÉTATS : Profil Utilisateur
   const [profile, setProfile] = useState(() => {
     const saved = localStorage.getItem('mecanik_user_profile');
     return saved ? JSON.parse(saved) : null;
   });
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false); // Mode édition
 
   // 2. ÉTATS : Journal Temporel (Navigation par Jour)
   const getTodayStr = () => new Date().toISOString().split('T')[0];
   const [currentDateStr, setCurrentDateStr] = useState(getTodayStr());
   
   const [journal, setJournal] = useState(() => {
-    const saved = localStorage.getItem('mecanik_nutrition_journal_v2');
+    const saved = localStorage.getItem('mecanik_nutrition_journal_v3');
     if (saved) return JSON.parse(saved);
-    // Structure initiale si vide
     return {
       [getTodayStr()]: {
         meals: { breakfast: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, lunch: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, dinner: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, snacks: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 } },
@@ -163,7 +221,7 @@ export default function Nutrition({ onBack }) {
 
   // Sauvegardes locales
   useEffect(() => { if (profile) localStorage.setItem('mecanik_user_profile', JSON.stringify(profile)); }, [profile]);
-  useEffect(() => { localStorage.setItem('mecanik_nutrition_journal_v2', JSON.stringify(journal)); }, [journal]);
+  useEffect(() => { localStorage.setItem('mecanik_nutrition_journal_v3', JSON.stringify(journal)); }, [journal]);
 
   // 3. ÉTATS : Cloud & Recherche
   const [globalDB, setGlobalFoodDB] = useState([]);
@@ -181,55 +239,41 @@ export default function Nutrition({ onBack }) {
     fetchFoodsFromCloud();
   }, []);
 
-  // 4. CALCULS GLOBAUX DU JOUR ACTUEL
+  // 4. CALCULS GLOBAUX & DYNAMIQUES DU JOUR ACTUEL
   const totalConsumed = Object.values(currentData.meals).reduce((acc, meal) => acc + meal.cals, 0);
   const totalCarbs = Object.values(currentData.meals).reduce((acc, meal) => acc + meal.carbs, 0);
   const totalProt = Object.values(currentData.meals).reduce((acc, meal) => acc + meal.prot, 0);
   const totalFat = Object.values(currentData.meals).reduce((acc, meal) => acc + meal.fat, 0);
   
-  // IA : Calcul des objectifs basés sur le profil
-  const metabolicStats = profile ? calculateMifflin(profile) : { tdee: 2600 };
-  const dynamicGoals = {
-    calories: metabolicStats.tdee,
-    carbs: Math.round((metabolicStats.tdee * 0.45) / 4), // 45% Glucides
-    protein: Math.round(profile ? profile.weight * 2.2 : 160), // 2.2g par kg
-    fat: Math.round((metabolicStats.tdee * 0.25) / 9), // 25% Lipides
-    water: profile ? Math.round(profile.weight * 35) : 2500 // 35ml par kg
-  };
-  const remainingCals = dynamicGoals.calories - totalConsumed + currentData.activity;
+  // IA & MATHS : Recalcul en direct selon le profil et la stratégie
+  const metabolicStats = profile ? calculateMifflin(profile) : { bmr: 0, tdee: 2600 };
+  const targetGoals = profile ? calculateTargetGoals(profile, metabolicStats.tdee) : { targetCalories: 2600, protein: 160, carbs: 300, fat: 80 };
+  const waterGoal = profile ? Math.round(profile.weight * 35) : 2500;
+  
+  // Reste à manger = Objectif Ciblé - Consommé + Brûlé (Le sport redonne des calories à manger)
+  const remainingCals = targetGoals.targetCalories - totalConsumed + currentData.activity;
 
   // 5. ACTIONS NUTRITION
-  const updateCurrentJournal = (newData) => {
-    setJournal(prev => ({ ...prev, [currentDateStr]: { ...currentData, ...newData } }));
-  };
-
-  const handleAddWater = () => updateCurrentJournal({ water: Math.min(currentData.water + 250, dynamicGoals.water + 1000) });
+  const updateCurrentJournal = (newData) => setJournal(prev => ({ ...prev, [currentDateStr]: { ...currentData, ...newData } }));
+  const handleAddWater = () => updateCurrentJournal({ water: Math.min(currentData.water + 250, waterGoal + 1000) });
   const handleRemoveWater = () => updateCurrentJournal({ water: Math.max(currentData.water - 250, 0) });
 
   const handleAddFoodToMeal = (food) => {
     const meal = currentData.meals[activeMealModal];
     updateCurrentJournal({
-      meals: {
-        ...currentData.meals,
-        [activeMealModal]: {
-          items: [...meal.items, food],
-          cals: meal.cals + food.cals, carbs: meal.carbs + food.carbs, prot: meal.prot + food.prot, fat: meal.fat + food.fat
-        }
-      }
+      meals: { ...currentData.meals, [activeMealModal]: { items: [...meal.items, food], cals: meal.cals + food.cals, carbs: meal.carbs + food.carbs, prot: meal.prot + food.prot, fat: meal.fat + food.fat } }
     });
     setSearchQuery("");
   };
 
   // 6. GESTION DU SWIPE TEMPOREL (Changement de date)
   const changeDate = (offset) => {
-    const d = new Date(currentDateStr);
-    d.setDate(d.getDate() + offset);
-    setCurrentDateStr(d.toISOString().split('T')[0]);
+    const d = new Date(currentDateStr); d.setDate(d.getDate() + offset); setCurrentDateStr(d.toISOString().split('T')[0]);
   };
 
   const handleDragEnd = (event, info) => {
-    if (info.offset.x > 100) changeDate(-1); // Swipe Droite = Hier
-    if (info.offset.x < -100) changeDate(1); // Swipe Gauche = Demain
+    if (info.offset.x > 100) changeDate(-1); 
+    if (info.offset.x < -100) changeDate(1); 
   };
 
   // --- RENDU ---
@@ -264,16 +308,13 @@ export default function Nutrition({ onBack }) {
       </header>
 
       {/* ZONE SWIPEABLE (Le journal du jour) */}
-      <motion.main 
-        drag="x" dragConstraints={{ left: 0, right: 0 }} onDragEnd={handleDragEnd}
-        key={currentDateStr} initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ type: "spring", bounce: 0.4 }}
-        className="flex-1 overflow-y-auto px-4 pt-6 pb-32 space-y-6"
-      >
-        {/* 1. TABLEAU DE BORD (CALORIES & MACROS) */}
+      <motion.main drag="x" dragConstraints={{ left: 0, right: 0 }} onDragEnd={handleDragEnd} key={currentDateStr} initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ type: "spring", bounce: 0.4 }} className="flex-1 overflow-y-auto px-4 pt-6 pb-32 space-y-6">
+        
+        {/* 1. TABLEAU DE BORD (CALORIES & MACROS DYNAMIQUES) */}
         <section className="bg-[#151517] rounded-[32px] p-6 border border-[#222225] shadow-2xl pointer-events-none">
           <div className="flex justify-between items-center mb-8">
             <div className="flex flex-col items-center gap-2">
-              <CircularGauge value={totalConsumed} max={dynamicGoals.calories} color="#3B82F6" icon={Utensils} size={60} />
+              <CircularGauge value={totalConsumed} max={targetGoals.targetCalories} color="#3B82F6" icon={Utensils} size={60} />
               <span className="text-[10px] font-black uppercase text-blue-500 mt-2">{Math.round(totalConsumed)}</span>
             </div>
             <div className="flex flex-col items-center justify-center">
@@ -286,9 +327,9 @@ export default function Nutrition({ onBack }) {
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3 border-t border-zinc-800 pt-6">
-            <div className="flex flex-col items-center gap-2"><span className="text-[9px] font-black text-yellow-500 uppercase tracking-widest">Glucides</span><div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden"><div className="h-full bg-yellow-500" style={{ width: `${Math.min((totalCarbs/dynamicGoals.carbs)*100, 100)}%` }}/></div><span className="text-xs font-bold">{Math.round(totalCarbs)} <span className="text-[9px] text-zinc-500">/ {dynamicGoals.carbs}g</span></span></div>
-            <div className="flex flex-col items-center gap-2"><span className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Protéines</span><div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden"><div className="h-full bg-blue-500" style={{ width: `${Math.min((totalProt/dynamicGoals.protein)*100, 100)}%` }}/></div><span className="text-xs font-bold">{Math.round(totalProt)} <span className="text-[9px] text-zinc-500">/ {dynamicGoals.protein}g</span></span></div>
-            <div className="flex flex-col items-center gap-2"><span className="text-[9px] font-black text-red-500 uppercase tracking-widest">Lipides</span><div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden"><div className="h-full bg-red-500" style={{ width: `${Math.min((totalFat/dynamicGoals.fat)*100, 100)}%` }}/></div><span className="text-xs font-bold">{Math.round(totalFat)} <span className="text-[9px] text-zinc-500">/ {dynamicGoals.fat}g</span></span></div>
+            <div className="flex flex-col items-center gap-2"><span className="text-[9px] font-black text-yellow-500 uppercase tracking-widest">Glucides</span><div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden"><div className="h-full bg-yellow-500 transition-all duration-500" style={{ width: `${Math.min((totalCarbs/targetGoals.carbs)*100, 100)}%` }}/></div><span className="text-xs font-bold">{Math.round(totalCarbs)} <span className="text-[9px] text-zinc-500">/ {targetGoals.carbs}g</span></span></div>
+            <div className="flex flex-col items-center gap-2"><span className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Protéines</span><div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden"><div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${Math.min((totalProt/targetGoals.protein)*100, 100)}%` }}/></div><span className="text-xs font-bold">{Math.round(totalProt)} <span className="text-[9px] text-zinc-500">/ {targetGoals.protein}g</span></span></div>
+            <div className="flex flex-col items-center gap-2"><span className="text-[9px] font-black text-red-500 uppercase tracking-widest">Lipides</span><div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden"><div className="h-full bg-red-500 transition-all duration-500" style={{ width: `${Math.min((totalFat/targetGoals.fat)*100, 100)}%` }}/></div><span className="text-xs font-bold">{Math.round(totalFat)} <span className="text-[9px] text-zinc-500">/ {targetGoals.fat}g</span></span></div>
           </div>
         </section>
 
@@ -310,12 +351,12 @@ export default function Nutrition({ onBack }) {
         {/* 3. EAU */}
         <section className="bg-[#151517] border border-[#222225] rounded-[32px] p-6 relative overflow-hidden">
           <div className="flex justify-between items-start mb-6">
-             <div><h3 className="font-bold text-lg mb-1">Hydratation</h3><p className="text-[11px] font-black text-cyan-500 uppercase">{currentData.water} / {dynamicGoals.water} ml</p></div>
+             <div><h3 className="font-bold text-lg mb-1">Hydratation</h3><p className="text-[11px] font-black text-cyan-500 uppercase">{currentData.water} / {waterGoal} ml</p></div>
              {currentData.water > 0 && <button onClick={handleRemoveWater} className="text-[10px] text-zinc-500 underline uppercase">Annuler</button>}
           </div>
           <div className="flex justify-between items-center gap-1">
              {[...Array(8)].map((_, i) => {
-               const isFilled = currentData.water >= (i + 1) * (dynamicGoals.water/8);
+               const isFilled = currentData.water >= (i + 1) * (waterGoal/8);
                return <button key={i} onClick={handleAddWater} className="active:scale-90 p-1"><Droplet size={28} fill={isFilled ? "#06B6D4" : "transparent"} stroke={isFilled ? "#06B6D4" : "#3f3f46"} /></button>
              })}
           </div>
@@ -323,52 +364,70 @@ export default function Nutrition({ onBack }) {
       </motion.main>
 
       {/* ==================================================== */}
-      {/* MODAL 1 : FICHE MÉTABOLIQUE (IA)                       */}
+      {/* MODAL 1 : FICHE MÉTABOLIQUE & ÉDITION (IA)             */}
       {/* ==================================================== */}
       <AnimatePresence>
         {showProfileModal && (
           <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col">
             <div className="p-5 border-b border-zinc-800 flex justify-between items-center">
-              <h2 className="text-lg font-black uppercase flex items-center gap-2"><BrainCircuit size={20} className="text-cyan-500"/> Fiche Métabolique</h2>
-              <button onClick={() => setShowProfileModal(false)} className="p-2 bg-zinc-800 rounded-full"><X size={20}/></button>
+              <h2 className="text-lg font-black uppercase flex items-center gap-2"><BrainCircuit size={20} className="text-cyan-500"/> Fiche IA</h2>
+              <div className="flex gap-3">
+                <button onClick={() => setIsEditingProfile(!isEditingProfile)} className={`p-2 rounded-full transition-colors ${isEditingProfile ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400'}`}><Settings size={20}/></button>
+                <button onClick={() => { setShowProfileModal(false); setIsEditingProfile(false); }} className="p-2 bg-zinc-800 rounded-full"><X size={20}/></button>
+              </div>
             </div>
+            
             <div className="p-5 overflow-y-auto space-y-6 flex-1">
               
-              {/* Classification IA */}
-              <div className="bg-gradient-to-br from-cyan-900/40 to-blue-900/20 p-5 rounded-[24px] border border-cyan-500/30">
-                <span className="text-[10px] uppercase font-black tracking-widest text-cyan-500">Classification Random Forest</span>
-                <p className="text-2xl font-black mt-1 text-white">{simulateRandomForest(profile).type}</p>
-                <p className="text-xs text-cyan-200 mt-2 border-l-2 border-cyan-500 pl-2">{simulateRandomForest(profile).focus}</p>
-              </div>
-
-              {/* Statistiques Mifflin */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800"><Flame size={20} className="text-red-500 mb-2"/><p className="text-[10px] text-zinc-500 uppercase font-bold">Maintien (TDEE)</p><p className="text-xl font-black">{metabolicStats.tdee} kcal</p></div>
-                <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800"><Activity size={20} className="text-blue-500 mb-2"/><p className="text-[10px] text-zinc-500 uppercase font-bold">Métabolisme Base</p><p className="text-xl font-black">{metabolicStats.bmr} kcal</p></div>
-              </div>
-
-              {/* Prédiction Régression Linéaire */}
-              <div className="bg-zinc-900 p-5 rounded-[24px] border border-zinc-800 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] uppercase font-black tracking-widest text-zinc-500 flex items-center gap-1"><TrendingDown size={12}/> Prédiction à 30 Jours</span>
-                  <p className="text-xl font-black text-white mt-1">{simulateLinearRegression(profile.weight, [], 500).prediction30Days} kg</p>
+              {/* MODE ÉDITION EN TEMPS RÉEL */}
+              {isEditingProfile ? (
+                <div className="space-y-4">
+                  <div className="bg-blue-900/20 p-4 rounded-2xl border border-blue-500/30 flex gap-3"><Info size={20} className="text-blue-500 shrink-0"/><p className="text-[10px] text-blue-200">Les modifications ci-dessous recalculent instantanément vos objectifs caloriques et algorithmes.</p></div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-zinc-900 p-4 rounded-2xl"><span className="text-[10px] uppercase text-zinc-500 font-bold">Poids (kg)</span><input type="number" value={profile.weight} onChange={e=>setProfile({...profile, weight: Number(e.target.value)})} className="bg-transparent w-full font-black text-xl outline-none" /></div>
+                    <div className="bg-zinc-900 p-4 rounded-2xl"><span className="text-[10px] uppercase text-zinc-500 font-bold">Gras (%)</span><input type="number" value={profile.bodyFat} onChange={e=>setProfile({...profile, bodyFat: Number(e.target.value)})} className="bg-transparent w-full font-black text-xl outline-none" /></div>
+                  </div>
+                  <div className="bg-zinc-900 p-4 rounded-2xl">
+                    <span className="text-[10px] uppercase text-zinc-500 font-bold mb-2 block">Stratégie Nutritionnelle</span>
+                    <select value={profile.goal} onChange={e=>setProfile({...profile, goal: e.target.value})} className="bg-transparent w-full font-black text-lg outline-none text-blue-400">
+                      <option value="cut">Sèche / Perte de Poids (-15%)</option>
+                      <option value="maintain">Maintien (Équilibre)</option>
+                      <option value="bulk">Prise de Masse (+10%)</option>
+                    </select>
+                  </div>
+                  <button onClick={() => setIsEditingProfile(false)} className="w-full py-4 bg-white text-black rounded-full font-black uppercase text-xs">Terminer l'édition</button>
                 </div>
-                <div className="text-right">
-                  <span className="text-[10px] text-zinc-500 uppercase">Tendance</span>
-                  <p className="text-sm font-bold text-green-500">Baisse Constante</p>
-                </div>
-              </div>
+              ) : (
+                /* MODE AFFICHAGE IA */
+                <>
+                  <div className="bg-gradient-to-br from-cyan-900/40 to-blue-900/20 p-5 rounded-[24px] border border-cyan-500/30">
+                    <div className="flex justify-between items-start">
+                       <span className="text-[10px] uppercase font-black tracking-widest text-cyan-500">Profil Random Forest</span>
+                       <span className="text-[10px] bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded font-bold uppercase">{profile.goal === 'cut' ? 'Sèche' : profile.goal === 'bulk' ? 'Bulk' : 'Maintien'}</span>
+                    </div>
+                    <p className="text-2xl font-black mt-1 text-white">{simulateRandomForest(profile).type}</p>
+                    <p className="text-xs text-cyan-200 mt-2 border-l-2 border-cyan-500 pl-2">{simulateRandomForest(profile).focus}</p>
+                  </div>
 
-              {/* Graphique d'évolution simulé */}
-              <div className="h-48 pt-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={[{d: 'J-15', w: profile.weight+1.5}, {d: 'J-7', w: profile.weight+0.8}, {d: 'Auj', w: profile.weight}]}>
-                    <Tooltip contentStyle={{ background: '#111', border: 'none', borderRadius: '12px' }} />
-                    <Line type="monotone" dataKey="w" stroke="#06B6D4" strokeWidth={4} dot={{r: 5}} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800"><Flame size={20} className="text-red-500 mb-2"/><p className="text-[10px] text-zinc-500 uppercase font-bold">Cible Journalière</p><p className="text-xl font-black">{targetGoals.targetCalories} kcal</p></div>
+                    <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800"><Activity size={20} className="text-blue-500 mb-2"/><p className="text-[10px] text-zinc-500 uppercase font-bold">Maintien (TDEE)</p><p className="text-xl font-black">{metabolicStats.tdee} kcal</p></div>
+                  </div>
 
+                  <div className="bg-zinc-900 p-5 rounded-[24px] border border-zinc-800 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] uppercase font-black tracking-widest text-zinc-500 flex items-center gap-1"><TrendingDown size={12}/> Prédiction à 30 Jours</span>
+                      <p className="text-xl font-black text-white mt-1">{simulateLinearRegression(profile, metabolicStats.tdee).prediction30Days} kg</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] text-zinc-500 uppercase">Tendance</span>
+                      <p className={`text-sm font-bold ${simulateLinearRegression(profile, metabolicStats.tdee).trend === 'Baisse' ? 'text-emerald-500' : 'text-red-500'}`}>
+                        {simulateLinearRegression(profile, metabolicStats.tdee).trend}
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </motion.div>
         )}
