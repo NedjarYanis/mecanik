@@ -5,9 +5,11 @@ import {
   Coffee, Utensils, Moon, Cookie, Activity, X, 
   Search, CheckCircle2, Globe, DatabaseZap, CloudLightning, RefreshCw,
   User, Calendar as CalendarIcon, TrendingDown, BrainCircuit, Info, Settings, TrendingUp,
-  History, Heart, Bookmark, ScanBarcode
+  History, Heart, Bookmark, ScanBarcode, Zap, ZapOff
 } from 'lucide-react';
-import { Html5Qrcode } from 'html5-qrcode'; 
+
+// IMPORT DE L'OPTIMISATEUR DE FORMATS
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'; 
 
 // ==========================================
 // 1. CONFIGURATION CLOUD FIREBASE
@@ -24,7 +26,6 @@ const firebaseConfig = {
   appId: "1:669005036732:web:a998919f7b462fe19fe4b9"
 };
 
-// Sécurité : On vérifie si Firebase est déjà lancé par App.jsx
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const foodsCollection = collection(db, 'foods');
@@ -82,16 +83,32 @@ const CircularGauge = React.memo(({ value, max, color, size = 64, strokeWidth = 
 });
 
 // ==========================================
-// 3. SCANNER LIVE BLINDÉ (COMPATIBILITÉ 100%)
+// 3. SCANNER LIVE (ULTRA-OPTIMISÉ)
 // ==========================================
 const LiveBarcodeScanner = ({ onScanComplete, onClose }) => {
+  const [torchOn, setTorchOn] = useState(false);
+  const [scannerInstance, setScannerInstance] = useState(null);
+
   useEffect(() => {
     const html5QrCode = new Html5Qrcode("live-reader");
+    setScannerInstance(html5QrCode);
     let isScanning = true;
 
     const startScanner = async () => {
       try {
-        const config = { fps: 10, qrbox: { width: 200, height: 150 }, aspectRatio: 1.0, disableFlip: false };
+        // OPTIMISATION MAJEURE : On restreint l'algo aux codes alimentaires
+        const config = { 
+          fps: 30, // Analyse hyper-rapide pour contrer les tremblements
+          qrbox: { width: 300, height: 120 }, // Rectangle fin pour forcer l'autofocus
+          aspectRatio: 1.0, 
+          disableFlip: true, // Gagne du temps processeur
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E
+          ]
+        };
         
         const onScanSuccess = (decodedText) => {
           if (!isScanning) return;
@@ -100,20 +117,23 @@ const LiveBarcodeScanner = ({ onScanComplete, onClose }) => {
         };
 
         try {
-          // TENTATIVE 1 : On demande la caméra arrière
-          await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, () => {});
+          // Demande une haute résolution avec autofocus continu
+          await html5QrCode.start(
+            { facingMode: "environment", width: { ideal: 1920 }, advanced: [{ focusMode: "continuous" }] }, 
+            config, onScanSuccess, () => {}
+          );
         } catch (err1) {
-          // TENTATIVE 2 : Si échec, on liste les caméras et on force la première (Fallback infaillible)
+          // Mode survie : On prend la caméra brute sans filtres si le tel bloque
           const cameras = await Html5Qrcode.getCameras();
           if (cameras && cameras.length > 0) {
-            await html5QrCode.start(cameras[0].id, config, onScanSuccess, () => {});
+            await html5QrCode.start(cameras[cameras.length - 1].id, config, onScanSuccess, () => {});
           } else {
             throw new Error("Aucune caméra détectée.");
           }
         }
       } catch (finalError) {
         console.error("Camera Error:", finalError);
-        alert("La caméra est bloquée. Allez dans Réglages > Safari/Chrome > Caméra > Autoriser, et fermez les autres applications.");
+        alert("La caméra est bloquée. Allez dans Réglages > Safari/Chrome > Caméra > Autoriser.");
         onClose();
       }
     };
@@ -126,16 +146,35 @@ const LiveBarcodeScanner = ({ onScanComplete, onClose }) => {
     };
   }, [onScanComplete, onClose]);
 
+  // FONCTION POUR LA LAMPE TORCHE
+  const toggleTorch = async () => {
+    if (scannerInstance && scannerInstance.getState() === 2) { // 2 = SCANNING
+      try {
+        await scannerInstance.applyVideoConstraints({ advanced: [{ torch: !torchOn }] });
+        setTorchOn(!torchOn);
+      } catch (error) {
+        alert("Flash non supporté par ce navigateur.");
+      }
+    }
+  };
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-xl p-6 flex flex-col items-center justify-center">
-      <h2 className="text-white mb-6 font-black uppercase tracking-widest text-lg text-center">Détection Automatique</h2>
+      <div className="flex items-center justify-between w-full max-w-sm mb-6">
+        <h2 className="text-white font-black uppercase tracking-widest text-lg">Scanner Aliment</h2>
+        <button onClick={toggleTorch} className={`p-3 rounded-full transition-all ${torchOn ? 'bg-yellow-500 text-black shadow-[0_0_15px_#eab308]' : 'bg-zinc-800 text-zinc-400'}`}>
+          {torchOn ? <Zap size={20} /> : <ZapOff size={20} />}
+        </button>
+      </div>
+
       <div className="w-full max-w-sm rounded-[32px] bg-black border-4 border-emerald-500 shadow-[0_0_40px_rgba(16,185,129,0.4)] relative overflow-hidden">
         <div id="live-reader" className="w-full min-h-[300px] flex items-center justify-center bg-zinc-900 overflow-hidden rounded-[28px] [&>video]:object-cover [&>video]:w-full [&>video]:h-full"></div>
-        <motion.div animate={{ y: [0, 300, 0] }} transition={{ repeat: Infinity, duration: 2, ease: "linear" }} className="absolute top-0 left-0 w-full h-1 bg-emerald-500 shadow-[0_0_20px_#10b981] pointer-events-none" />
+        <motion.div animate={{ y: [0, 300, 0] }} transition={{ repeat: Infinity, duration: 1.2, ease: "linear" }} className="absolute top-0 left-0 w-full h-1 bg-emerald-500 shadow-[0_0_20px_#10b981] pointer-events-none" />
       </div>
+      
       <p className="text-xs text-zinc-400 mt-6 text-center font-bold uppercase tracking-widest leading-relaxed">
-        <span className="text-emerald-500">Caméra activée.</span><br/>
-        Maintenez l'aliment dans le cadre.
+        <span className="text-emerald-500">Moteur EAN Haute Vitesse.</span><br/>
+        Allumez le flash si l'emballage reflète.
       </p>
       <button onClick={onClose} className="mt-8 px-10 py-4 bg-zinc-900 rounded-full font-black uppercase text-xs text-white border border-zinc-800 active:scale-95 shadow-lg">Annuler</button>
     </motion.div>
