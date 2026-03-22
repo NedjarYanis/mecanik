@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ChevronLeft, ChevronRight, Flame, Plus, Beef, Wheat, Droplet, 
@@ -8,14 +8,14 @@ import {
   History, Heart, Bookmark, ScanBarcode
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { Html5QrcodeScanner } from 'html5-qrcode'; // IMPORT DU SCANNER
+import { Html5QrcodeScanner } from 'html5-qrcode';
 
 // ==========================================
 // 1. CONFIGURATION CLOUD FIREBASE
 // ==========================================
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, getDocs, addDoc, doc, setDoc, getDoc } from "firebase/firestore";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { getFirestore, collection, getDocs, addDoc } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDgWfWXpAV6ZHHrlE4q1EC3mFeZAJOV5wc",
@@ -29,62 +29,6 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const foodsCollection = collection(db, 'foods');
-
-// ==========================================
-// BASE DE DONNÉES INTÉGRÉE (LES 50 ALIMENTS)
-// ==========================================
-const INITIAL_GLOBAL_DB = [
-  { id: '1', name: "Blanc de Poulet (cru)", cals: 110, prot: 23, carbs: 0, fat: 1.5, verified: true },
-  { id: '2', name: "Riz Basmati (cru)", cals: 350, prot: 8, carbs: 77, fat: 1, verified: true },
-  { id: '3', name: "Flocons d'avoine", cals: 370, prot: 13, carbs: 60, fat: 7, verified: true },
-  { id: '4', name: "Oeuf entier", cals: 145, prot: 12, carbs: 1, fat: 10, verified: true },
-  { id: '5', name: "Pâtes (crues)", cals: 350, prot: 12, carbs: 72, fat: 1.5, verified: true },
-  { id: '6', name: "Whey Protein (Isolate)", cals: 360, prot: 85, carbs: 3, fat: 1, verified: true },
-  { id: '7', name: "Saumon (frais)", cals: 200, prot: 20, carbs: 0, fat: 13, verified: true },
-  { id: '8', name: "Bœuf haché 5%", cals: 125, prot: 21, carbs: 0, fat: 5, verified: true },
-  { id: '9', name: "Lentilles corail (crues)", cals: 360, prot: 25, carbs: 55, fat: 2, verified: true },
-  { id: '10', name: "Amandes", cals: 600, prot: 21, carbs: 9, fat: 50, verified: true },
-  { id: '11', name: "Avocat", cals: 160, prot: 2, carbs: 9, fat: 15, verified: true },
-  { id: '12', name: "Banane", cals: 89, prot: 1, carbs: 23, fat: 0.3, verified: true },
-  { id: '13', name: "Pomme", cals: 52, prot: 0.3, carbs: 14, fat: 0.2, verified: true },
-  { id: '14', name: "Beurre de cacahuète", cals: 590, prot: 25, carbs: 16, fat: 50, verified: true },
-  { id: '15', name: "Skyr 0%", cals: 57, prot: 10, carbs: 4, fat: 0, verified: true },
-  { id: '16', name: "Thon en boîte (eau)", cals: 110, prot: 25, carbs: 0, fat: 1, verified: true },
-  { id: '17', name: "Patate douce (crue)", cals: 86, prot: 1.6, carbs: 20, fat: 0.1, verified: true },
-  { id: '18', name: "Pomme de terre (crue)", cals: 77, prot: 2, carbs: 17, fat: 0.1, verified: true },
-  { id: '19', name: "Quinoa (cru)", cals: 370, prot: 14, carbs: 64, fat: 6, verified: true },
-  { id: '20', name: "Pois chiches (en boîte)", cals: 140, prot: 7, carbs: 20, fat: 2.5, verified: true },
-  { id: '21', name: "Haricots rouges (boîte)", cals: 110, prot: 8, carbs: 15, fat: 0.5, verified: true },
-  { id: '22', name: "Tofu ferme", cals: 144, prot: 15, carbs: 3, fat: 8, verified: true },
-  { id: '23', name: "Lait demi-écrémé", cals: 47, prot: 3.3, carbs: 4.8, fat: 1.5, verified: true },
-  { id: '24', name: "Lait d'amande (sans sucre)", cals: 15, prot: 0.5, carbs: 0.3, fat: 1.1, verified: true },
-  { id: '25', name: "Huile d'olive", cals: 884, prot: 0, carbs: 0, fat: 100, verified: true },
-  { id: '26', name: "Noix de cajou", cals: 553, prot: 18, carbs: 30, fat: 44, verified: true },
-  { id: '27', name: "Noix", cals: 654, prot: 15, carbs: 14, fat: 65, verified: true },
-  { id: '28', name: "Pain complet", cals: 250, prot: 10, carbs: 40, fat: 3, verified: true },
-  { id: '29', name: "Galette de riz", cals: 380, prot: 8, carbs: 80, fat: 3, verified: true },
-  { id: '30', name: "Blanc de Dinde", cals: 105, prot: 24, carbs: 0, fat: 1, verified: true },
-  { id: '31', name: "Bœuf (Steak 15%)", cals: 215, prot: 19, carbs: 0, fat: 15, verified: true },
-  { id: '32', name: "Maquereau", cals: 260, prot: 19, carbs: 0, fat: 20, verified: true },
-  { id: '33', name: "Sardines (huile)", cals: 210, prot: 24, carbs: 0, fat: 12, verified: true },
-  { id: '34', name: "Crevettes (cuites)", cals: 100, prot: 24, carbs: 0, fat: 0.3, verified: true },
-  { id: '35', name: "Yaourt nature", cals: 60, prot: 4, carbs: 5, fat: 3, verified: true },
-  { id: '36', name: "Mozzarella", cals: 280, prot: 28, carbs: 2, fat: 17, verified: true },
-  { id: '37', name: "Emmental", cals: 370, prot: 28, carbs: 0, fat: 29, verified: true },
-  { id: '38', name: "Riz complet (cru)", cals: 360, prot: 8, carbs: 74, fat: 3, verified: true },
-  { id: '39', name: "Semoule (crue)", cals: 360, prot: 12, carbs: 73, fat: 1.5, verified: true },
-  { id: '40', name: "Miel", cals: 304, prot: 0.3, carbs: 82, fat: 0, verified: true },
-  { id: '41', name: "Chocolat noir 70%", cals: 600, prot: 8, carbs: 35, fat: 42, verified: true },
-  { id: '42', name: "Framboises", cals: 52, prot: 1.2, carbs: 12, fat: 0.6, verified: true },
-  { id: '43', name: "Myrtilles", cals: 57, prot: 0.7, carbs: 14, fat: 0.3, verified: true },
-  { id: '44', name: "Brocoli", cals: 34, prot: 2.8, carbs: 7, fat: 0.4, verified: true },
-  { id: '45', name: "Haricots verts", cals: 31, prot: 1.8, carbs: 7, fat: 0.2, verified: true },
-  { id: '46', name: "Épinards", cals: 23, prot: 2.9, carbs: 3.6, fat: 0.4, verified: true },
-  { id: '47', name: "Courgette", cals: 17, prot: 1.2, carbs: 3.1, fat: 0.3, verified: true },
-  { id: '48', name: "Tomate", cals: 18, prot: 0.9, carbs: 3.9, fat: 0.2, verified: true },
-  { id: '49', name: "Carotte", cals: 41, prot: 0.9, carbs: 10, fat: 0.2, verified: true },
-  { id: '50', name: "Concombre", cals: 15, prot: 0.6, carbs: 3.6, fat: 0.1, verified: true }
-];
 
 // ==========================================
 // 2. MOTEUR D'ANALYSE MÉTABOLIQUE
@@ -127,7 +71,7 @@ const simulateLinearRegression = (profile, tdee) => {
   return { prediction30Days, trend: dailyDiff < 0 ? 'Baisse' : dailyDiff > 0 ? 'Hausse' : 'Stagnation' };
 };
 
-const CircularGauge = ({ value, max, color, size = 64, strokeWidth = 6, icon: Icon }) => {
+const CircularGauge = React.memo(({ value, max, color, size = 64, strokeWidth = 6, icon: Icon }) => {
   const radius = (size - strokeWidth) / 2; const circumference = 2 * Math.PI * radius; const percent = Math.min(value / max, 1);
   const strokeDashoffset = circumference - percent * circumference;
   return (
@@ -136,8 +80,35 @@ const CircularGauge = ({ value, max, color, size = 64, strokeWidth = 6, icon: Ic
       <div className="absolute flex flex-col items-center justify-center">{Icon && <Icon size={size * 0.3} color={color} />}</div>
     </div>
   );
-};
+});
 
+// ==========================================
+// 3. COMPOSANT SCANNER SÉCURISÉ
+// ==========================================
+const BarcodeScanner = ({ onScanComplete, onClose }) => {
+  useEffect(() => {
+    const scanner = new Html5QrcodeScanner("food-reader", { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 }, false);
+    scanner.render((text) => {
+      scanner.clear();
+      onScanComplete(text);
+    }, () => {});
+    return () => { scanner.clear().catch(e => console.error(e)); };
+  }, [onScanComplete]);
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-[200] bg-black/95 backdrop-blur-xl p-6 flex flex-col items-center justify-center">
+      <h2 className="text-white mb-6 font-black uppercase tracking-widest text-lg text-center">Scanner un Code-Barre</h2>
+      <div className="w-full max-w-sm rounded-[32px] overflow-hidden bg-black border-4 border-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.3)] relative">
+        <div id="food-reader" className="w-full bg-white"></div>
+      </div>
+      <p className="text-xs text-zinc-500 mt-4 text-center font-bold uppercase tracking-widest">Connecté à OpenFoodFacts</p>
+      <button onClick={onClose} className="mt-8 px-10 py-4 bg-zinc-900 rounded-full font-black uppercase text-xs text-white border border-zinc-800 active:scale-95">Annuler</button>
+    </motion.div>
+  );
+};
+// ==========================================
+// 4. ONBOARDING WIZARD
+// ==========================================
 function OnboardingWizard({ onComplete }) {
   const [step, setStep] = useState(1);
   const [profile, setProfile] = useState({ age: 25, gender: 'M', weight: 75, height: 175, activityLevel: 'Modéré', bodyFat: 15, muscleMass: 40, boneMass: 3, hydration: 60, goal: 'maintain' });
@@ -146,6 +117,7 @@ function OnboardingWizard({ onComplete }) {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[200] bg-black text-white flex flex-col p-6 overflow-y-auto">
       <div className="flex-1 flex flex-col justify-center max-w-sm mx-auto w-full space-y-8">
         <div className="text-center"><BrainCircuit size={48} className="text-blue-500 mx-auto mb-4 animate-pulse" /><h1 className="text-3xl font-black uppercase tracking-tighter">Étalonnage<br/>Métabolique</h1><p className="text-zinc-400 text-sm mt-2">L'IA a besoin de vos biométries.</p></div>
+        
         {step === 1 && (
           <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="space-y-4">
             <h2 className="text-xs font-black uppercase tracking-widest text-blue-500">1. Données de Base</h2>
@@ -159,6 +131,7 @@ function OnboardingWizard({ onComplete }) {
             <button onClick={() => setStep(2)} className="w-full py-4 bg-blue-600 rounded-full font-black uppercase text-xs">Suivant</button>
           </motion.div>
         )}
+        
         {step === 2 && (
           <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="space-y-4">
             <h2 className="text-xs font-black uppercase tracking-widest text-cyan-500">2. Composition (Optionnel)</h2>
@@ -168,12 +141,22 @@ function OnboardingWizard({ onComplete }) {
               <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-700/50"><span className="text-[10px] uppercase text-zinc-500 font-bold">Os (kg)</span><input type="number" value={profile.boneMass} onChange={e=>setProfile({...profile, boneMass: Number(e.target.value)})} className="bg-transparent w-full font-black text-xl outline-none" /></div>
               <div className="bg-zinc-900 p-4 rounded-2xl border border-cyan-900/30"><span className="text-[10px] uppercase text-zinc-500 font-bold">Eau (%)</span><input type="number" value={profile.hydration} onChange={e=>setProfile({...profile, hydration: Number(e.target.value)})} className="bg-transparent w-full font-black text-xl outline-none text-cyan-400" /></div>
             </div>
+            
             <div className="flex flex-col gap-3 mt-6">
-              <div className="flex gap-2"><button onClick={() => setStep(1)} className="p-4 bg-zinc-800 rounded-2xl"><ChevronLeft size={20}/></button><button onClick={() => setStep(3)} className="flex-1 py-4 bg-cyan-600 text-black rounded-2xl font-black uppercase text-xs shadow-[0_0_15px_rgba(6,182,212,0.4)]">Valider ces données</button></div>
-              <button onClick={() => { setProfile({...profile, bodyFat: 15, muscleMass: 0, boneMass: 0, hydration: 60}); setStep(3); }} className="w-full py-4 bg-zinc-900 border border-zinc-800 text-zinc-400 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95">Je n'ai pas ces données (Passer)</button>
+              <div className="flex gap-2">
+                <button onClick={() => setStep(1)} className="p-4 bg-zinc-800 rounded-2xl"><ChevronLeft size={20}/></button>
+                <button onClick={() => setStep(3)} className="flex-1 py-4 bg-cyan-600 text-black rounded-2xl font-black uppercase text-xs shadow-[0_0_15px_rgba(6,182,212,0.4)]">Valider ces données</button>
+              </div>
+              <button 
+                onClick={() => { setProfile({...profile, bodyFat: 15, muscleMass: 0, boneMass: 0, hydration: 60}); setStep(3); }} 
+                className="w-full py-4 bg-zinc-900 border border-zinc-800 text-zinc-400 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95"
+              >
+                Je n'ai pas ces données (Passer)
+              </button>
             </div>
           </motion.div>
         )}
+        
         {step === 3 && (
           <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="space-y-4">
             <h2 className="text-xs font-black uppercase tracking-widest text-emerald-500">3. Stratégie Nutritionnelle</h2>
@@ -189,8 +172,9 @@ function OnboardingWizard({ onComplete }) {
     </motion.div>
   );
 }
+
 // ==========================================
-// COMPOSANT PRINCIPAL NUTRITION 
+// 5. COMPOSANT PRINCIPAL NUTRITION 
 // ==========================================
 export default function Nutrition({ onBack, dataContext }) {
   const { profile, setProfile, journal, setJournal, syncToCloud, isSyncing } = dataContext;
@@ -198,93 +182,63 @@ export default function Nutrition({ onBack, dataContext }) {
   const getTodayStr = () => new Date().toISOString().split('T')[0];
   const [currentDateStr, setCurrentDateStr] = useState(getTodayStr());
 
+  // ÉTATS LOCAUX
   const [favorites, setFavorites] = useState(() => JSON.parse(localStorage.getItem('mecanik_favorites_v1')) || []);
   const [recentFoods, setRecentFoods] = useState(() => JSON.parse(localStorage.getItem('mecanik_recents_v1')) || []);
   const [myFoods, setMyFoods] = useState(() => JSON.parse(localStorage.getItem('mecanik_my_foods_v1')) || []);
   const [activeSearchTab, setActiveSearchTab] = useState('recent'); 
-
-  // ÉTAT DU SCANNER ALIMENTAIRE
   const [isScanningFood, setIsScanningFood] = useState(false);
-
-  useEffect(() => { localStorage.setItem('mecanik_favorites_v1', JSON.stringify(favorites)); }, [favorites]);
-  useEffect(() => { localStorage.setItem('mecanik_recents_v1', JSON.stringify(recentFoods)); }, [recentFoods]);
-  useEffect(() => { localStorage.setItem('mecanik_my_foods_v1', JSON.stringify(myFoods)); }, [myFoods]);
-
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [globalDB, setGlobalFoodDB] = useState(INITIAL_GLOBAL_DB);
+  const [globalDB, setGlobalFoodDB] = useState([]); // VIDE PAR DÉFAUT (Fetch depuis Firebase)
   const [activeMealModal, setActiveMealModal] = useState(null); 
   const [searchQuery, setSearchQuery] = useState("");
   const [showContributeModal, setShowContributeModal] = useState(false);
   const [newFood, setNewFood] = useState({ name: "", cals: "", prot: "", carbs: "", fat: "" });
   const [isPublishing, setIsPublishing] = useState(false);
 
+  // SAUVEGARDES LOCALES DES ONGLETS
+  useEffect(() => { localStorage.setItem('mecanik_favorites_v1', JSON.stringify(favorites)); }, [favorites]);
+  useEffect(() => { localStorage.setItem('mecanik_recents_v1', JSON.stringify(recentFoods)); }, [recentFoods]);
+  useEffect(() => { localStorage.setItem('mecanik_my_foods_v1', JSON.stringify(myFoods)); }, [myFoods]);
+
+  // FETCH EXCLUSIF DEPUIS FIREBASE (Fini les données en dur !)
   useEffect(() => {
     const fetchFoodsFromCloud = async () => {
       try {
         const snapshot = await getDocs(foodsCollection);
         const foodsFromFirebase = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setGlobalFoodDB([...INITIAL_GLOBAL_DB, ...foodsFromFirebase]);
-      } catch (error) { setGlobalFoodDB(INITIAL_GLOBAL_DB); }
+        setGlobalFoodDB(foodsFromFirebase);
+      } catch (error) { 
+        console.error("Erreur de chargement de la base de données", error);
+      }
     };
     fetchFoodsFromCloud();
   }, []);
 
-  // LOGIQUE DU SCANNER OPENFOODFACTS
-  useEffect(() => {
-    let scanner = null;
-    if (isScanningFood) {
-      scanner = new Html5QrcodeScanner("food-reader", { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 }, false);
-      scanner.render(async (text) => {
-        scanner.clear();
-        setIsScanningFood(false);
-        try {
-          const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${text}.json`);
-          const data = await res.json();
-          if (data.status === 1) {
-            const p = data.product;
-            const nut = p.nutriments;
-            // On extrait les valeurs pour 100g
-            const scannedFood = {
-              id: `off-${text}`,
-              name: p.product_name || "Produit Scanné",
-              cals: Math.round(nut['energy-kcal_100g'] || nut['energy-kcal_serving'] || 0),
-              prot: Math.round(nut['proteins_100g'] || 0),
-              carbs: Math.round(nut['carbohydrates_100g'] || 0),
-              fat: Math.round(nut['fat_100g'] || 0),
-              verified: true // Code-barre officiel
-            };
-            
-            // On l'ajoute dans la base de données et on auto-remplit la barre de recherche
-            setGlobalFoodDB(prev => [scannedFood, ...prev.filter(f => f.id !== scannedFood.id)]);
-            setSearchQuery(scannedFood.name);
-          } else {
-            alert("Ce code-barre n'existe pas dans la base de données mondiale.");
-          }
-        } catch (e) {
-          alert("Erreur de connexion lors du scan.");
-        }
-      }, () => {});
-    }
-    return () => { if (scanner) scanner.clear().catch(e => console.error(e)); };
-  }, [isScanningFood]);
-
-  const currentData = journal[currentDateStr] || {
+  // OPTIMISATION DES PERFORMANCES : useMemo évite les recalculs inutiles
+  const currentData = useMemo(() => journal[currentDateStr] || {
     meals: { breakfast: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, lunch: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, dinner: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, snacks: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 } },
     activity: 0, water: 0
-  };
+  }, [journal, currentDateStr]);
 
-  const totalConsumed = Object.values(currentData.meals).reduce((acc, meal) => acc + meal.cals, 0);
-  const totalCarbs = Object.values(currentData.meals).reduce((acc, meal) => acc + meal.carbs, 0);
-  const totalProt = Object.values(currentData.meals).reduce((acc, meal) => acc + meal.prot, 0);
-  const totalFat = Object.values(currentData.meals).reduce((acc, meal) => acc + meal.fat, 0);
+  const { totalConsumed, totalCarbs, totalProt, totalFat } = useMemo(() => {
+    const meals = Object.values(currentData.meals);
+    return {
+      totalConsumed: meals.reduce((acc, meal) => acc + meal.cals, 0),
+      totalCarbs: meals.reduce((acc, meal) => acc + meal.carbs, 0),
+      totalProt: meals.reduce((acc, meal) => acc + meal.prot, 0),
+      totalFat: meals.reduce((acc, meal) => acc + meal.fat, 0)
+    };
+  }, [currentData]);
   
-  const metabolicStats = profile ? calculateMifflin(profile) : { bmr: 0, tdee: 2600 };
-  const targetGoals = profile ? calculateTargetGoals(profile, metabolicStats.tdee) : { targetCalories: 2600, protein: 160, carbs: 300, fat: 80 };
-  const waterGoal = profile ? Math.round(Number(profile.weight || 75) * 35) : 2500;
+  const metabolicStats = useMemo(() => profile ? calculateMifflin(profile) : { bmr: 0, tdee: 2600 }, [profile]);
+  const targetGoals = useMemo(() => profile ? calculateTargetGoals(profile, metabolicStats.tdee) : { targetCalories: 2600, protein: 160, carbs: 300, fat: 80 }, [profile, metabolicStats.tdee]);
+  const waterGoal = useMemo(() => profile ? Math.round(Number(profile.weight || 75) * 35) : 2500, [profile]);
   const remainingCals = targetGoals.targetCalories - totalConsumed + currentData.activity;
 
-  const updateCurrentJournal = (newData) => setJournal(prev => ({ ...prev, [currentDateStr]: { ...currentData, ...newData } }));
+  // ACTIONS
+  const updateCurrentJournal = useCallback((newData) => setJournal(prev => ({ ...prev, [currentDateStr]: { ...currentData, ...newData } })), [currentDateStr, currentData, setJournal]);
   const handleAddWater = () => updateCurrentJournal({ water: Math.min(currentData.water + 250, waterGoal + 1000) });
   const handleRemoveWater = () => updateCurrentJournal({ water: Math.max(currentData.water - 250, 0) });
 
@@ -316,15 +270,31 @@ export default function Nutrition({ onBack, dataContext }) {
     } catch (error) { console.error(error); } finally { setIsPublishing(false); }
   };
 
-  const changeDate = (offset) => {
-    const d = new Date(currentDateStr); d.setDate(d.getDate() + offset); setCurrentDateStr(d.toISOString().split('T')[0]);
+  const handleScanComplete = async (text) => {
+    setIsScanningFood(false);
+    try {
+      const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${text}.json`);
+      const data = await res.json();
+      if (data.status === 1) {
+        const p = data.product;
+        const nut = p.nutriments;
+        const scannedFood = {
+          id: `off-${text}`, name: p.product_name || "Produit Scanné",
+          cals: Math.round(nut['energy-kcal_100g'] || nut['energy-kcal_serving'] || 0),
+          prot: Math.round(nut['proteins_100g'] || 0), carbs: Math.round(nut['carbohydrates_100g'] || 0), fat: Math.round(nut['fat_100g'] || 0),
+          verified: true 
+        };
+        setGlobalFoodDB(prev => [scannedFood, ...prev.filter(f => f.id !== scannedFood.id)]);
+        setSearchQuery(scannedFood.name);
+      } else { alert("Ce code-barre n'existe pas dans la base de données."); }
+    } catch (e) { alert("Erreur de connexion lors du scan."); }
   };
 
   if (!profile) return <OnboardingWizard onComplete={(p) => setProfile(p)} />;
-
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col h-full w-full bg-black text-white relative overflow-hidden">
       
+      {/* EN-TÊTE */}
       <header className="px-5 pt-10 pb-4 bg-black/90 backdrop-blur-xl z-40 border-b border-zinc-900 flex-shrink-0">
         <div className="flex justify-between items-center mb-4">
           <button onClick={onBack} className="p-2.5 bg-zinc-900 rounded-full text-zinc-400 active:scale-95"><ChevronLeft size={18}/></button>
@@ -341,7 +311,10 @@ export default function Nutrition({ onBack, dataContext }) {
         </div>
       </header>
 
+      {/* DASHBOARD PRINCIPAL */}
       <motion.main drag="x" dragConstraints={{ left: 0, right: 0 }} onDragEnd={(e, info) => { if (info.offset.x > 100) changeDate(-1); if (info.offset.x < -100) changeDate(1); }} key={currentDateStr} initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ type: "spring", bounce: 0.4 }} className="flex-1 overflow-y-auto px-4 pt-6 pb-32 space-y-6">
+        
+        {/* JAUGES */}
         <section className="bg-[#151517] rounded-[32px] p-6 border border-[#222225] shadow-2xl pointer-events-none">
           <div className="flex justify-between items-center mb-8">
             <div className="flex flex-col items-center gap-2"><CircularGauge value={totalConsumed} max={targetGoals.targetCalories} color="#3B82F6" icon={Utensils} size={60} /><span className="text-[10px] font-black uppercase text-blue-500 mt-2">{Math.round(totalConsumed)}</span></div>
@@ -355,20 +328,20 @@ export default function Nutrition({ onBack, dataContext }) {
           </div>
         </section>
 
-        <section>
-          <div className="space-y-3">
-            {[ { id: 'breakfast', name: 'Petit-déj', icon: Coffee }, { id: 'lunch', name: 'Déjeuner', icon: Utensils }, { id: 'dinner', name: 'Dîner', icon: Moon }, { id: 'snacks', name: 'Snacks', icon: Cookie } ].map(meal => (
-              <div key={meal.id} onClick={() => setActiveMealModal(meal.id)} className="bg-[#151517] border border-[#222225] rounded-[24px] p-4 flex flex-col active:scale-95 transition-transform cursor-pointer">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4"><div className="w-12 h-12 bg-zinc-900 rounded-full flex items-center justify-center"><meal.icon size={20} className="text-zinc-400"/></div><div><p className="font-bold text-sm text-white">{meal.name}</p><p className="text-[11px] font-mono text-blue-500 font-bold">{Math.round(currentData.meals[meal.id].cals)} Kcal</p></div></div>
-                  <div className="w-8 h-8 bg-blue-600/20 rounded-full flex items-center justify-center text-blue-500"><Plus size={16}/></div>
-                </div>
-                {currentData.meals[meal.id].items.length > 0 && <p className="text-[10px] text-zinc-500 mt-3 truncate">{currentData.meals[meal.id].items.map(i => i.name).join(", ")}</p>}
+        {/* LISTE DES REPAS */}
+        <section className="space-y-3">
+          {[ { id: 'breakfast', name: 'Petit-déjeuner', icon: Coffee }, { id: 'lunch', name: 'Déjeuner', icon: Utensils }, { id: 'dinner', name: 'Dîner', icon: Moon }, { id: 'snacks', name: 'Snacks', icon: Cookie } ].map(meal => (
+            <div key={meal.id} onClick={() => setActiveMealModal(meal.id)} className="bg-[#151517] border border-[#222225] rounded-[24px] p-4 flex flex-col active:scale-95 transition-transform cursor-pointer">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4"><div className="w-12 h-12 bg-zinc-900 rounded-full flex items-center justify-center"><meal.icon size={20} className="text-zinc-400"/></div><div><p className="font-bold text-sm text-white">{meal.name}</p><p className="text-[11px] font-mono text-blue-500 font-bold">{Math.round(currentData.meals[meal.id].cals)} Kcal</p></div></div>
+                <div className="w-8 h-8 bg-blue-600/20 rounded-full flex items-center justify-center text-blue-500"><Plus size={16}/></div>
               </div>
-            ))}
-          </div>
+              {currentData.meals[meal.id].items.length > 0 && <p className="text-[10px] text-zinc-500 mt-3 truncate">{currentData.meals[meal.id].items.map(i => i.name).join(", ")}</p>}
+            </div>
+          ))}
         </section>
 
+        {/* EAU */}
         <section className="bg-[#151517] border border-[#222225] rounded-[32px] p-6 relative overflow-hidden">
           <div className="flex justify-between items-start mb-6">
              <div><h3 className="font-bold text-lg mb-1">Hydratation</h3><p className="text-[11px] font-black text-cyan-500 uppercase">{currentData.water} / {waterGoal} ml</p></div>
@@ -382,6 +355,7 @@ export default function Nutrition({ onBack, dataContext }) {
           </div>
         </section>
         
+        {/* CLOUD SYNC */}
         <div className="mt-8 mb-4">
           <button onClick={syncToCloud} disabled={isSyncing} className={`w-full py-5 rounded-[24px] font-black uppercase text-xs flex items-center justify-center gap-2 shadow-xl transition-all active:scale-95 ${isSyncing ? 'bg-zinc-800 text-zinc-500' : 'bg-green-600/20 text-green-500 border border-green-500/30 hover:bg-green-600 hover:text-white'}`}>
             {isSyncing ? <RefreshCw size={18} className="animate-spin" /> : <CloudLightning size={18} />}
@@ -389,6 +363,10 @@ export default function Nutrition({ onBack, dataContext }) {
           </button>
         </div>
       </motion.main>
+
+      {/* ==================================================== */}
+      {/* MODALS : PROFIL IA, RECHERCHE AVEC SCANNER, AJOUT CLOUD */}
+      {/* ==================================================== */}
       <AnimatePresence>
         {showProfileModal && (
           <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col">
@@ -431,16 +409,6 @@ export default function Nutrition({ onBack, dataContext }) {
                     <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800"><Flame size={20} className="text-red-500 mb-2"/><p className="text-[10px] text-zinc-500 uppercase font-bold">Cible Journalière</p><p className="text-xl font-black">{targetGoals.targetCalories} kcal</p></div>
                     <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800"><Activity size={20} className="text-blue-500 mb-2"/><p className="text-[10px] text-zinc-500 uppercase font-bold">Maintien (TDEE)</p><p className="text-xl font-black">{metabolicStats.tdee} kcal</p></div>
                   </div>
-                  <div className="bg-zinc-900 p-5 rounded-[24px] border border-zinc-800 flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] uppercase font-black tracking-widest text-zinc-500 flex items-center gap-1"><TrendingDown size={12}/> Prédiction à 30 Jours</span>
-                      <p className="text-xl font-black text-white mt-1">{simulateLinearRegression(profile, metabolicStats.tdee).prediction30Days} kg</p>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[10px] text-zinc-500 uppercase">Tendance</span>
-                      <p className={`text-sm font-bold ${simulateLinearRegression(profile, metabolicStats.tdee).trend === 'Baisse' ? 'text-emerald-500' : 'text-red-500'}`}>{simulateLinearRegression(profile, metabolicStats.tdee).trend}</p>
-                    </div>
-                  </div>
                 </>
               )}
             </div>
@@ -448,37 +416,29 @@ export default function Nutrition({ onBack, dataContext }) {
         )}
       </AnimatePresence>
 
-      {/* ==================================================== */}
-      {/* MODAL DE RECHERCHE AVEC SCANNER CODE BARRE           */}
-      {/* ==================================================== */}
       <AnimatePresence>
         {activeMealModal && (
           <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="fixed inset-0 z-[120] bg-black/95 backdrop-blur-xl flex flex-col">
-            
             <div className="p-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
-              <h2 className="text-lg font-black uppercase">
-                {activeMealModal === 'breakfast' ? 'Petit-déjeuner' : activeMealModal === 'lunch' ? 'Déjeuner' : activeMealModal === 'dinner' ? 'Dîner' : 'Snacks'}
-              </h2>
+              <h2 className="text-lg font-black uppercase">{activeMealModal === 'breakfast' ? 'Petit-déjeuner' : activeMealModal === 'lunch' ? 'Déjeuner' : activeMealModal === 'dinner' ? 'Dîner' : 'Snacks'}</h2>
               <button onClick={() => { setActiveMealModal(null); setSearchQuery(''); setActiveSearchTab('recent'); }} className="p-2 bg-zinc-800 rounded-full active:scale-90 transition-transform"><X size={20}/></button>
             </div>
 
             <div className="p-4 flex-1 flex flex-col">
               
-              {/* BARRE DE RECHERCHE & BOUTON SCANNER */}
-              <div className="flex items-center gap-3 bg-zinc-900 p-4 rounded-2xl mb-4 border border-zinc-800">
+              <div className="flex items-center gap-3 bg-zinc-900 p-4 rounded-2xl mb-4 border border-zinc-800 shadow-inner">
                 <Search size={20} className="text-zinc-500" />
                 <input type="text" placeholder="Aliment, repas ou marque" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="bg-transparent font-bold text-white outline-none w-full placeholder:text-zinc-600" autoFocus />
-                {/* BOUTON DU SCANNER */}
                 <button onClick={() => setIsScanningFood(true)} className="active:scale-90 transition-transform p-1">
-                  <ScanBarcode size={24} className="text-emerald-500" />
+                  <ScanBarcode size={24} className="text-emerald-500 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
                 </button>
               </div>
 
               {!searchQuery && (
                 <div className="bg-[#151517] p-4 rounded-2xl border border-[#222225] mb-4 shadow-xl">
                   <div className="flex justify-between items-center mb-3 border-b border-zinc-800/50 pb-2">
-                    <span className="text-[10px] font-black uppercase text-zinc-400">Total Journalier</span>
-                    <span className="text-xs font-black text-white">{Math.round(totalConsumed)} / {targetGoals.targetCalories} kcal</span>
+                    <span className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Aperçu Journalier</span>
+                    <span className="text-xs font-black text-blue-500">{Math.round(totalConsumed)} / {targetGoals.targetCalories} kcal</span>
                   </div>
                   <div className="flex justify-between text-center px-2">
                     <div><p className="text-[9px] uppercase text-zinc-500 font-bold mb-1">Glucides</p><p className="text-xs font-black text-white">{Math.round(totalCarbs)} / {targetGoals.carbs}g</p></div>
@@ -489,7 +449,7 @@ export default function Nutrition({ onBack, dataContext }) {
               )}
 
               {!searchQuery && (
-                <div className="flex gap-2 mb-4 bg-[#151517] p-1.5 rounded-2xl border border-[#222225]">
+                <div className="flex gap-2 mb-4 bg-[#151517] p-1.5 rounded-2xl border border-[#222225] shadow-inner">
                   <button onClick={() => setActiveSearchTab('recent')} className={`flex-1 py-3 rounded-xl flex justify-center items-center transition-all ${activeSearchTab === 'recent' ? 'bg-[#222225] text-white shadow-md border border-zinc-800' : 'text-zinc-500 hover:text-zinc-400'}`}><History size={18} /></button>
                   <button onClick={() => setActiveSearchTab('favorites')} className={`flex-1 py-3 rounded-xl flex justify-center items-center transition-all ${activeSearchTab === 'favorites' ? 'bg-[#222225] text-red-500 shadow-md border border-zinc-800' : 'text-zinc-500 hover:text-red-400/50'}`}><Heart size={18} fill={activeSearchTab === 'favorites' ? 'currentColor' : 'none'} /></button>
                   <button onClick={() => setActiveSearchTab('my')} className={`flex-1 py-3 rounded-xl flex justify-center items-center transition-all ${activeSearchTab === 'my' ? 'bg-[#222225] text-emerald-500 shadow-md border border-zinc-800' : 'text-zinc-500 hover:text-emerald-400/50'}`}><Bookmark size={18} fill={activeSearchTab === 'my' ? 'currentColor' : 'none'} /></button>
@@ -501,8 +461,8 @@ export default function Nutrition({ onBack, dataContext }) {
                   let listToRender = [];
                   
                   if (searchQuery) {
-                    listToRender = globalDB.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 15);
-                    if (listToRender.length === 0) return <p className="text-center text-zinc-500 font-bold text-xs mt-10">Aucun résultat trouvé.</p>;
+                    listToRender = globalDB.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 20);
+                    if (listToRender.length === 0) return <p className="text-center text-zinc-500 font-bold text-xs mt-10 uppercase tracking-widest">Aucun résultat trouvé.</p>;
                   } else {
                     if (activeSearchTab === 'recent') listToRender = recentFoods;
                     else if (activeSearchTab === 'favorites') listToRender = favorites;
@@ -551,23 +511,9 @@ export default function Nutrition({ onBack, dataContext }) {
         )}
       </AnimatePresence>
 
-      {/* ==================================================== */}
-      {/* CAMÉRA PLEIN ÉCRAN POUR SCANNER LES ALIMENTS         */}
-      {/* ==================================================== */}
+      {/* COMPOSANT SCANNER ISOLÉ (Plus sûr pour la mémoire du navigateur) */}
       <AnimatePresence>
-        {isScanningFood && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-[200] bg-black/95 backdrop-blur-xl p-6 flex flex-col items-center justify-center">
-            <h2 className="text-white mb-6 font-black uppercase tracking-widest text-lg text-center">Scanner un Code-Barre</h2>
-            
-            <div className="w-full max-w-sm rounded-[32px] overflow-hidden bg-black border-4 border-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.3)] relative">
-              {/* Le fond blanc permet de rendre le cadre de HTML5-QRCode lisible */}
-              <div id="food-reader" className="w-full bg-white"></div>
-            </div>
-            
-            <p className="text-xs text-zinc-500 mt-4 text-center font-bold uppercase tracking-widest">Connecté à OpenFoodFacts</p>
-            <button onClick={() => setIsScanningFood(false)} className="mt-8 px-10 py-4 bg-zinc-900 rounded-full font-black uppercase text-xs text-white border border-zinc-800 active:scale-95">Annuler</button>
-          </motion.div>
-        )}
+        {isScanningFood && <BarcodeScanner onScanComplete={handleScanComplete} onClose={() => setIsScanningFood(false)} />}
       </AnimatePresence>
 
       <AnimatePresence>
