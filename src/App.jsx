@@ -1,19 +1,12 @@
 import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
-import { 
-  Play, Timer, Check, Target, HeartPulse, 
-  BedDouble, Info, Activity, X, TrendingUp, Star, 
-  Scan, Music, SkipForward, SkipBack, Pause, RefreshCw, 
-  LogIn, LogOut, Minus, MonitorSpeaker, FastForward, Rewind, 
-  Edit3, Plus, Trash2, ChevronLeft, ChevronRight, Utensils, Dumbbell, 
-  LayoutDashboard, Calendar, ArrowRight, CloudLightning, AlertTriangle,
-  Repeat, Settings2, Search, Download, Trophy, BrainCircuit, Image as ImageIcon, Sparkles
-} from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
+import { Music, Minus, X, SkipBack, Pause, Play, SkipForward, LayoutDashboard, Dumbbell, Utensils, Trophy, Sparkles, ChevronRight, Plus, TrendingUp } from 'lucide-react';
 
 import Nutrition from './Nutrition';
-import Social from './Social'; 
+import Social from './Social';
 import Progress from './Progress';
+import DashboardTab from './Dashboard';
+import WorkoutTab from './Workout';
 
 // IMPORTS DES IMAGES
 import imgPresse from './assets/presse-a-cuisses-inclinee.gif';
@@ -32,9 +25,9 @@ import imgPullover from './assets/pull-over-poulie.gif';
 import imgHammerCurl from './assets/Dumbbell-Hammer-Curl_Forearm.gif';
 import imgCurlBiceps from './assets/Curl_Biceps.png';
 
-// IMPORT FIRESTORE COMPLET
+// IMPORT FIRESTORE
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, doc, setDoc, getDoc, collection, getDocs, addDoc } from "firebase/firestore";
+import { getFirestore, doc, setDoc, getDoc, collection, getDocs } from "firebase/firestore";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 const firebaseConfig = {
@@ -50,7 +43,7 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 const AuthContext = createContext();
-const useAuth = () => useContext(AuthContext);
+export const useAuth = () => useContext(AuthContext);
 
 function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
@@ -158,15 +151,8 @@ function DataProvider({ children }) {
     return () => clearInterval(timer);
   }, [currentUser]);
 
-  return <DataContext.Provider value={{ program, setProgram, history, setHistory, profile, setProfile, journal, setJournal, syncToCloud, isSyncing, customCatalog }}>{children}</DataContext.Provider>;
+  return <DataContext.Provider value={{ program, setProgram, history, setHistory, profile, setProfile, journal, setJournal, syncToCloud, isSyncing, customCatalog, CATALOGUE_EXERCICES }}>{children}</DataContext.Provider>;
 }
-
-const ChartTooltip = ({ active, payload, color }) => {
-  if (active && payload && payload.length) {
-    return ( <div className="bg-black border border-zinc-800 p-3 rounded-xl shadow-xl"><p className="font-bold text-sm" style={{color: color || '#3b82f6'}}>{`${payload[0].value} kg`}</p></div> );
-  }
-  return null;
-};
 
 const SPOTIFY_AUTH_URL = atob("aHR0cHM6Ly9hY2NvdW50cy5zcG90aWZ5LmNvbQ=="); 
 const SPOTIFY_API_URL = atob("aHR0cHM6Ly9hcGkuc3BvdGlmeS5jb20vdjE="); 
@@ -216,546 +202,6 @@ function AuthScreen() {
   );
 }
 
-function DashboardTab({ onNavigate }) {
-  const { logout, currentUser } = useAuth();
-  const { program, journal, setJournal, profile, setProfile, history } = useData();
-  const today = new Date().getDay() || 7; 
-  const todaysWorkout = program[today];
-  
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todayJournal = journal[todayStr] || {};
-  let nutritionCals = 0;
-  if (todayJournal.meals) { nutritionCals = Object.values(todayJournal.meals).reduce((acc, meal) => acc + (meal?.cals || 0), 0); }
-
-  const [showReadiness, setShowReadiness] = useState(todayJournal.readiness === undefined);
-  const logReadiness = (score) => {
-    setJournal(prev => ({ ...prev, [todayStr]: { ...(prev[todayStr] || {}), readiness: score } }));
-    setShowReadiness(false);
-  };
-
-  const isSunday = new Date().getDay() === 0;
-  const [showWeeklyReview, setShowWeeklyReview] = useState(isSunday && profile?.lastReviewDate !== todayStr);
-
-  const handleReviewDecision = (action) => {
-    let newGoal = profile.goal;
-    if (action === 'cut') {
-        alert("L'IA a réduit vos calories cibles (-15%).");
-        newGoal = 'cut';
-    } else {
-        alert("Objectif maintenu.");
-    }
-    setProfile(prev => ({ ...prev, lastReviewDate: todayStr, goal: newGoal }));
-    setShowWeeklyReview(false);
-  };
-
-  const [newWeight, setNewWeight] = useState(profile?.weight || 75);
-  const logWeight = () => {
-    const w = parseFloat(newWeight);
-    if(w) {
-      const hist = profile.weightHistory || [];
-      const updatedHistory = [...hist.filter(h => h.date !== todayStr), { date: todayStr, weight: w }].slice(-30);
-      setProfile(prev => ({ ...prev, weight: w, weightHistory: updatedHistory }));
-    }
-  };
-
-  const exportData = () => {
-    const dataStr = JSON.stringify({ profile, history, journal }, null, 2);
-    const blob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `MECANIK_Export_${todayStr}.json`;
-    link.click();
-  };
-
-  return (
-    <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.02 }} className="h-full w-full bg-black p-5 overflow-y-auto pb-32" style={{ touchAction: "pan-y" }}>
-      
-      <AnimatePresence>
-        {showReadiness && !showWeeklyReview && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-6">
-            <div className="bg-[#121214] w-full max-w-sm rounded-[24px] p-8 border border-zinc-800/80 shadow-2xl text-center">
-              <HeartPulse size={40} className="text-red-500 mx-auto mb-4 animate-pulse" />
-              <h2 className="text-xl font-bold tracking-tight mb-2 text-white">État de Forme</h2>
-              <p className="text-xs text-zinc-400 font-medium mb-8">De 1 (Épuisé) à 10 (Pleine forme), comment te sens-tu aujourd'hui ?</p>
-              <div className="grid grid-cols-5 gap-2 mb-4">
-                {[1,2,3,4,5,6,7,8,9,10].map(score => (
-                  <button key={score} onClick={() => logReadiness(score)} className={`h-10 rounded-xl font-bold text-sm transition-all active:scale-95 ${score <= 4 ? 'bg-red-900/20 text-red-500 border border-red-500/20' : score <= 7 ? 'bg-yellow-900/20 text-yellow-500 border border-yellow-500/20' : 'bg-emerald-900/20 text-emerald-500 border border-emerald-500/20'}`}>
-                    {score}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showWeeklyReview && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[210] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-6">
-            <div className="bg-gradient-to-b from-blue-900/30 to-[#121214] w-full max-w-sm rounded-[24px] p-8 border border-blue-500/20 shadow-2xl text-center relative overflow-hidden">
-              <BrainCircuit size={40} className="text-blue-500 mx-auto mb-4" />
-              <h2 className="text-xl font-bold tracking-tight mb-2 text-white">Bilan IA</h2>
-              <p className="text-xs text-blue-200 font-medium mb-8 leading-relaxed">Il est l'heure de faire le point. Si votre poids stagne, l'IA recommande un ajustement.</p>
-              <div className="space-y-3">
-                  <button onClick={() => handleReviewDecision('cut')} className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-bold text-sm active:scale-95">Diminuer Calories (-15%)</button>
-                  <button onClick={() => handleReviewDecision('keep')} className="w-full py-3.5 bg-black text-zinc-400 border border-zinc-800 rounded-xl font-bold text-sm active:scale-95">Maintenir la stratégie</button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <header className="pt-8 mb-6 flex justify-between items-center">
-        <div className="flex-1 overflow-hidden pr-4">
-            <h1 className="text-xl font-extrabold tracking-tight uppercase text-white">Mécanik</h1>
-            <p className="text-zinc-500 text-[10px] font-medium truncate">{currentUser?.email}</p>
-        </div>
-        <div className="flex gap-2 shrink-0">
-            <button onClick={exportData} className="bg-zinc-900 p-2.5 rounded-full text-zinc-400 hover:text-white transition-colors active:scale-95"><Download size={18}/></button>
-            <button onClick={logout} className="bg-red-900/10 p-2.5 rounded-full text-red-500 hover:bg-red-900/20 transition-colors active:scale-95"><LogOut size={18}/></button>
-        </div>
-      </header>
-
-      <div className="space-y-4">
-        <div className="bg-[#121214] border border-zinc-800/50 rounded-[24px] p-5">
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-2"><TrendingUp size={16} className="text-emerald-500" /><span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500">Poids</span></div>
-            <div className="flex bg-black rounded-xl border border-zinc-800/50 p-1 pl-2">
-              <input type="number" step="0.1" value={newWeight} onChange={e=>setNewWeight(e.target.value)} className="w-12 bg-transparent text-white font-bold outline-none text-xs" />
-              <button onClick={logWeight} className="bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-lg text-[10px] font-bold uppercase active:scale-95">OK</button>
-            </div>
-          </div>
-          <div className="h-28 w-full mt-2 -ml-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={profile?.weightHistory || []}>
-                <Line type="monotone" dataKey="weight" stroke="#10b981" strokeWidth={3} dot={{r: 3, fill: "#10b981", stroke: "#000", strokeWidth: 1.5}} activeDot={{r: 5}} />
-                <Tooltip content={<ChartTooltip color="#10b981" />} cursor={{ stroke: '#27272a', strokeWidth: 1, strokeDasharray: '4 4' }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-          {(!profile?.weightHistory || profile.weightHistory.length === 0) && <p className="text-center text-[10px] text-zinc-600 font-medium mt-2">Aucun poids enregistré.</p>}
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-            <div onClick={() => onNavigate('workout')} className="bg-[#121214] border border-zinc-800/50 rounded-[24px] p-4 cursor-pointer active:scale-95 flex flex-col justify-between transition-transform">
-                <div>
-                    <div className="flex items-center gap-2 mb-3"><Calendar size={14} className="text-blue-500" /><span className="text-[9px] font-bold uppercase tracking-widest text-blue-500">Training</span></div>
-                    <h2 className="text-sm font-bold text-white leading-tight">{todaysWorkout.focus}</h2>
-                    <p className="text-[10px] text-zinc-500 mt-1 font-medium">{['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'][today-1]}</p>
-                </div>
-                <div className="mt-5 flex items-center justify-between text-blue-500">
-                    <span className="text-[10px] font-bold uppercase tracking-wide">Ouvrir</span>
-                    <div className="w-6 h-6 rounded-full bg-blue-500/10 flex items-center justify-center"><ArrowRight size={12} /></div>
-                </div>
-            </div>
-
-            <div onClick={() => onNavigate('nutrition')} className="bg-[#121214] border border-zinc-800/50 rounded-[24px] p-4 cursor-pointer active:scale-95 flex flex-col justify-between transition-transform">
-                <div>
-                    <div className="flex items-center gap-2 mb-3"><Activity size={14} className="text-green-500" /><span className="text-[9px] font-bold uppercase tracking-widest text-green-500">Diète</span></div>
-                    <div className="flex items-baseline gap-1"><span className="text-2xl font-bold text-white leading-none">{Math.round(nutritionCals)}</span><span className="text-[10px] text-zinc-500 font-medium">kcal</span></div>
-                </div>
-                <div className="mt-5 flex items-center justify-between text-green-500">
-                    <span className="text-[10px] font-bold uppercase tracking-wide">Journal</span>
-                    <div className="w-6 h-6 rounded-full bg-green-500/10 flex items-center justify-center"><ArrowRight size={12} /></div>
-                </div>
-            </div>
-        </div>
-
-      </div>
-    </motion.div>
-  );
-}
-
-function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpotify }) {
-  const { program, setProgram, history, setHistory, syncToCloud, isSyncing, journal, customCatalog } = useData(); 
-  
-  const getTodayStr = () => new Date().toISOString().split('T')[0];
-  const [currentDateStr, setCurrentDateStr] = useState(getTodayStr());
-
-  const activeDay = React.useMemo(() => {
-    const d = new Date(currentDateStr).getDay();
-    return d === 0 ? 7 : d;
-  }, [currentDateStr]);
-
-  const changeDate = (offset) => { 
-    const d = new Date(currentDateStr); 
-    d.setDate(d.getDate() + offset); 
-    setCurrentDateStr(d.toISOString().split('T')[0]); 
-  };
-
-  const [restTime, setRestTime] = useState(0);
-  const timerRef = useRef(null);
-
-  const [isEditingDay, setIsEditingDay] = useState(false);
-  const [showCatalog, setShowCatalog] = useState(false);
-  const [swapId, setSwapId] = useState(null); 
-  const [catalogSearch, setCatalogSearch] = useState('');
-  
-  const [isCreatingExo, setIsCreatingExo] = useState(false);
-  const [newExo, setNewExo] = useState({ name: '', focus: '', image: '' });
-  const [isSavingExo, setIsSavingExo] = useState(false);
-
-  const readiness = journal[currentDateStr]?.readiness || 10;
-  const isTired = readiness <= 4; 
-
-  useEffect(() => {
-    if (restTime > 0) { timerRef.current = setInterval(() => setRestTime(t => t - 1), 1000); } 
-    else { if (restTime === 0 && timerRef.current) { window.navigator.vibrate?.([200, 100, 200]); } clearInterval(timerRef.current); }
-    return () => clearInterval(timerRef.current);
-  }, [restTime]);
-
-  const logWeight = (id, weight) => {
-    const dateObj = new Date(currentDateStr);
-    const dateFormatted = dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
-    setHistory(prev => ({ ...prev, [id]: [...(prev[id] || []).filter(h => h.date !== dateFormatted), { date: dateFormatted, weight: parseFloat(weight) }].slice(-30) })); 
-  };
-
-  const currentDay = program[activeDay];
-
-  const handleUpdateDayFocus = (newFocus) => { setProgram(prev => ({ ...prev, [activeDay]: { ...prev[activeDay], focus: newFocus } })); };
-  const handleUpdateExo = (exoId, newProps) => { setProgram(prev => { const day = prev[activeDay]; const newExercises = day.exercises.map(e => e.id === exoId ? { ...e, ...newProps } : e); return { ...prev, [activeDay]: { ...day, exercises: newExercises } }; }); };
-  const handleDeleteExo = (exoId) => { setProgram(prev => { const day = prev[activeDay]; const newExercises = day.exercises.filter(e => e.id !== exoId); return { ...prev, [activeDay]: { ...day, exercises: newExercises } }; }); };
-
-  const handleSelectFromCatalog = (exoTemplate) => {
-    const newExoId = exoTemplate.id.startsWith('CUST-') ? exoTemplate.id : Date.now().toString();
-    const newExo = { ...exoTemplate, id: newExoId }; 
-
-    setProgram(prev => {
-      const day = prev[activeDay];
-      let newExercises = [...(day.exercises || [])];
-      const newType = (day.type === 'rest' || day.type === 'cardio') ? 'mixed' : day.type; 
-
-      if (swapId) {
-        const index = newExercises.findIndex(e => e.id === swapId);
-        if (index !== -1) newExercises[index] = newExo;
-      } else { newExercises.push(newExo); }
-      return { ...prev, [activeDay]: { ...day, type: newType, exercises: newExercises } };
-    });
-    setShowCatalog(false);
-    setIsCreatingExo(false);
-    setSwapId(null);
-    setCatalogSearch('');
-  };
-
-  const handleCreateCustomExo = async () => {
-    if (!newExo.name) return alert("Le nom de l'exercice est obligatoire !");
-    setIsSavingExo(true);
-    const exoObj = {
-       name: newExo.name,
-       focus: newExo.focus || "Général",
-       image: newExo.image || "https://cdn-icons-png.flaticon.com/512/3048/3048364.png",
-       sets: 4, reps: "10-12", tempo: "2-0-1-1", rest: 90
-    };
-    try {
-      const docRef = await addDoc(collection(db, "custom_exercises"), exoObj);
-      const completeExo = { ...exoObj, id: docRef.id };
-      handleSelectFromCatalog(completeExo); 
-      setNewExo({name:'', focus:'', image:''});
-    } catch (e) {
-      console.error(e);
-      alert("Erreur réseau");
-    } finally {
-      setIsSavingExo(false);
-    }
-  };
-
-  const FULL_CATALOG = [...CATALOGUE_EXERCICES, ...(customCatalog || [])];
-  const filteredCatalog = FULL_CATALOG.filter(e => e.name.toLowerCase().includes(catalogSearch.toLowerCase()));
-
-  return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col h-full w-full bg-black relative overflow-hidden">
-      <header className="px-5 pt-10 pb-4 bg-black/90 backdrop-blur-xl z-40 border-b border-zinc-900 flex-shrink-0">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-xl font-extrabold tracking-tight uppercase">Entraînement</h1>
-          <div className="flex gap-2">
-            {!spotifyToken ? ( <button onClick={loginSpotify} className="p-2 bg-[#1DB954]/10 rounded-full text-[#1DB954] border border-[#1DB954]/20 active:scale-95"><Music size={18}/></button> ) : ( <button onClick={() => setShowSpotifyWidget(true)} className="p-2 bg-zinc-900 rounded-full text-[#1DB954] border border-zinc-800 active:scale-95"><Music size={18}/></button> )}
-          </div>
-        </div>
-        
-        <div className="flex justify-between items-center bg-zinc-900/50 p-2 rounded-full border border-zinc-800">
-          <button onClick={() => changeDate(-1)} className="p-1 text-zinc-400 hover:text-white"><ChevronLeft size={18}/></button>
-          <span className="text-xs font-bold uppercase tracking-widest text-blue-500 flex items-center gap-2">
-            <Calendar size={12}/> 
-            {currentDateStr === getTodayStr() ? "Aujourd'hui" : new Date(currentDateStr).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
-          </span>
-          <button onClick={() => changeDate(1)} className="p-1 text-zinc-400 hover:text-white"><ChevronRight size={18}/></button>
-        </div>
-      </header>
-      
-      <motion.main 
-        drag="x" 
-        dragConstraints={{ left: 0, right: 0 }} 
-        style={{ touchAction: "pan-y" }} 
-        onDragEnd={(e, info) => { if (info.offset.x > 80) changeDate(-1); if (info.offset.x < -80) changeDate(1); }} 
-        key={currentDateStr} 
-        initial={{ opacity: 0, x: 50 }} 
-        animate={{ opacity: 1, x: 0 }} 
-        transition={{ type: "spring", bounce: 0.4 }} 
-        className="flex-1 overflow-y-auto px-4 pt-6 pb-32 space-y-5"
-      >
-        <div className="mb-4 flex justify-between items-start border-l-2 border-blue-500 pl-3">
-          <div className="flex-1 pr-4">
-            {isEditingDay ? (
-                <input type="text" value={currentDay.focus} onChange={(e) => handleUpdateDayFocus(e.target.value)} className="bg-transparent text-white font-extrabold text-xl uppercase tracking-tight outline-none border-b border-zinc-700 w-full mb-1" />
-            ) : (
-                <h2 className="text-xl font-extrabold leading-tight text-white uppercase tracking-tight">{currentDay.focus}</h2>
-            )}
-            <p className="text-zinc-500 text-[11px] mt-1 font-medium">{['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'][activeDay-1]} • {currentDay.desc}</p>
-          </div>
-          <button onClick={() => setIsEditingDay(!isEditingDay)} className={`p-2 rounded-full shadow-sm transition-colors ${isEditingDay ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400 active:scale-90'}`}>
-            {isEditingDay ? <Check size={18}/> : <Settings2 size={18}/>}
-          </button>
-        </div>
-
-        {isTired && (currentDay.type === 'lift' || currentDay.type === 'mixed') && (
-          <div className="bg-red-900/10 border border-red-500/20 p-3 rounded-xl flex items-center gap-3">
-            <AlertTriangle size={20} className="text-red-500 shrink-0" />
-            <p className="text-[11px] text-red-200/80 font-medium">Fatigue détectée. Charge limitée à 75% du max et répétitions ajustées.</p>
-          </div>
-        )}
-
-        {(currentDay.type === 'lift' || currentDay.type === 'mixed') && currentDay.exercises && currentDay.exercises.map(exo => (
-          <ExerciseCard 
-            key={exo.id} 
-            data={exo} 
-            isTired={isTired} 
-            isEditing={isEditingDay}
-            history={history[exo.id] || []} 
-            onStartRest={() => setRestTime(exo.rest)} 
-            onLogWeight={(w) => logWeight(exo.id, w)} 
-            onUpdate={(newProps) => handleUpdateExo(exo.id, newProps)}
-            onDelete={() => handleDeleteExo(exo.id)}
-            onSwap={() => { setSwapId(exo.id); setShowCatalog(true); setIsCreatingExo(false); }}
-          />
-        ))}
-
-        {isEditingDay && (
-          <button onClick={() => { setSwapId(null); setShowCatalog(true); setIsCreatingExo(false); }} className="w-full py-4 border border-dashed border-zinc-700 rounded-[20px] text-zinc-400 font-bold text-sm flex justify-center items-center gap-2 hover:bg-zinc-900 transition-colors active:scale-95">
-            <Plus size={18} /> Ajouter un exercice
-          </button>
-        )}
-
-        {currentDay.cardio && <CardioCard data={currentDay.cardio} isFinisher={currentDay.type === 'mixed'} />}
-        {currentDay.type === 'rest' && !isEditingDay && <RestCard data={currentDay} />}
-        
-        <div className="mt-8 mb-4">
-          <button onClick={syncToCloud} disabled={isSyncing} className={`w-full py-3.5 rounded-[20px] font-bold text-xs flex items-center justify-center gap-2 shadow-sm ${isSyncing ? 'bg-zinc-800 text-zinc-500' : 'bg-zinc-900 text-blue-400 hover:bg-blue-600 hover:text-white transition-colors active:scale-95'}`}>
-            {isSyncing ? <RefreshCw size={16} className="animate-spin" /> : <CloudLightning size={16} />} Synchro Cloud
-          </button>
-        </div>
-      </motion.main>
-
-      <AnimatePresence>
-        {restTime > 0 && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-[200] bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center p-6">
-            <Timer size={48} className="text-blue-500 mb-6 animate-pulse" />
-            <span className="text-7xl font-mono font-bold tabular-nums tracking-tighter drop-shadow-[0_0_20px_rgba(10,132,255,0.3)] mb-10">
-              {Math.floor(restTime/60)}:{(restTime%60).toString().padStart(2,'0')}
-            </span>
-            <div className="flex items-center gap-4 w-full max-w-xs justify-center">
-              <button onClick={() => setRestTime(t => Math.max(1, t - 15))} className="w-14 h-14 bg-zinc-900 rounded-full font-bold text-lg text-white border border-zinc-800 active:scale-95 flex items-center justify-center">-15</button>
-              <button onClick={() => setRestTime(0)} className="flex-1 h-14 bg-blue-600 rounded-full font-bold text-sm text-white shadow-[0_0_15px_rgba(10,132,255,0.3)] active:scale-95">Passer</button>
-              <button onClick={() => setRestTime(t => t + 15)} className="w-14 h-14 bg-zinc-900 rounded-full font-bold text-lg text-white border border-zinc-800 active:scale-95 flex items-center justify-center">+15</button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showCatalog && (
-          <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-xl flex flex-col">
-            <div className="p-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
-              <h2 className="text-lg font-extrabold uppercase flex items-center gap-2"><Search size={18} className="text-blue-500"/> Catalogue</h2>
-              <button onClick={() => { setShowCatalog(false); setSwapId(null); }} className="p-2 bg-zinc-800 rounded-full active:scale-90"><X size={18}/></button>
-            </div>
-            
-            <div className="p-4 flex-1 flex flex-col min-h-0">
-              {isCreatingExo ? (
-                <div className="flex-1 overflow-y-auto space-y-4 pb-32" style={{ touchAction: "pan-y" }}>
-                   <div className="bg-[#121214] p-5 rounded-[24px] border border-zinc-800/80 shadow-lg space-y-4">
-                       <div>
-                          <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest block mb-2">Nom de l'exercice *</span>
-                          <input type="text" value={newExo.name} onChange={e=>setNewExo({...newExo, name: e.target.value})} className="w-full bg-black border border-zinc-800 p-3.5 rounded-xl text-white font-medium text-sm outline-none focus:border-blue-500" placeholder="Ex: Soulevé de terre" />
-                       </div>
-                       <div>
-                          <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest block mb-2">Focus (Muscle)</span>
-                          <input type="text" value={newExo.focus} onChange={e=>setNewExo({...newExo, focus: e.target.value})} className="w-full bg-black border border-zinc-800 p-3.5 rounded-xl text-white font-medium text-sm outline-none focus:border-blue-500" placeholder="Ex: Dos / Ischios" />
-                       </div>
-                       <div>
-                          <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest block mb-2">Lien Image (Optionnel)</span>
-                          <input type="text" value={newExo.image} onChange={e=>setNewExo({...newExo, image: e.target.value})} className="w-full bg-black border border-zinc-800 p-3.5 rounded-xl text-white font-medium text-sm outline-none focus:border-blue-500" placeholder="https://..." />
-                       </div>
-                       <button onClick={handleCreateCustomExo} disabled={isSavingExo} className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-bold text-sm shadow-md active:scale-95 flex items-center justify-center gap-2 mt-2">
-                           {isSavingExo ? <RefreshCw size={16} className="animate-spin" /> : <Plus size={16} />}
-                           {isSavingExo ? "Création..." : "Créer et Ajouter"}
-                       </button>
-                       <button onClick={() => setIsCreatingExo(false)} className="w-full py-3.5 bg-zinc-900 text-zinc-400 rounded-xl font-bold text-sm active:scale-95 border border-zinc-800">
-                           Retour
-                       </button>
-                   </div>
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-center gap-3 bg-zinc-900/80 p-3.5 rounded-2xl mb-4 border border-zinc-800">
-                    <Search size={18} className="text-zinc-500" />
-                    <input type="text" placeholder="Rechercher une machine..." value={catalogSearch} onChange={e => setCatalogSearch(e.target.value)} className="bg-transparent font-medium text-sm text-white outline-none w-full placeholder:text-zinc-600" autoFocus />
-                  </div>
-                  
-                  <button onClick={() => setIsCreatingExo(true)} className="w-full py-3.5 mb-4 bg-zinc-900/50 border border-dashed border-zinc-700 rounded-xl text-blue-400 font-bold text-sm flex justify-center items-center gap-2 active:scale-95">
-                      <Plus size={16} /> Créer un exercice manuel
-                  </button>
-
-                  <div className="flex-1 overflow-y-auto space-y-2 pb-32" style={{ touchAction: "pan-y" }}>
-                      {filteredCatalog.length === 0 && <p className="text-center text-zinc-500 font-medium text-xs mt-8">Aucun résultat trouvé.</p>}
-                      {filteredCatalog.map((exo, idx) => (
-                          <div key={idx} onClick={() => handleSelectFromCatalog(exo)} className="bg-[#121214] p-3 rounded-xl border border-zinc-800/80 flex items-center gap-4 cursor-pointer active:scale-95">
-                              <div className="w-12 h-12 bg-black rounded-lg p-1 shrink-0 flex items-center justify-center border border-zinc-800/50">
-                                <img src={exo.image || "https://cdn-icons-png.flaticon.com/512/3048/3048364.png"} className="max-w-full max-h-full object-contain" alt="" />
-                              </div>
-                              <div className="flex-1"><h3 className="font-bold text-white text-sm">{exo.name}</h3></div>
-                              <div className="w-8 h-8 bg-blue-600/10 rounded-full flex items-center justify-center text-blue-500"><Plus size={16}/></div>
-                          </div>
-                      ))}
-                  </div>
-                </>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  );
-}
-
-function ExerciseCard({ data, isTired, isEditing, onStartRest, history, onLogWeight, onUpdate, onDelete, onSwap }) {
-  const [completedSets, setCompletedSets] = useState([]);
-  const [weight, setWeight] = useState("");
-  const [showChart, setShowChart] = useState(false); 
-  
-  // PLUS DE REDUCTION DE SERIES
-  const actualSets = parseInt(data.sets || 1);
-
-  // IA FATIGUE : CALCUL DU POIDS MAX ET DU 75%
-  const maxHistoricalWeight = history && history.length > 0 ? Math.max(...history.map(h => parseFloat(h.weight) || 0)) : 0;
-  const limitWeight = maxHistoricalWeight > 0 ? Math.round(maxHistoricalWeight * 0.75) : 0;
-
-  // IA FATIGUE : REDUCTION DES REPS
-  const parseReps = (repStr) => {
-    if(!repStr) return "8";
-    if(repStr.toString().includes('-')) {
-      return repStr.split('-').map(r => Math.max(1, parseInt(r)-2)).join('-');
-    }
-    return Math.max(1, parseInt(repStr)-2);
-  };
-  const displayReps = isTired ? parseReps(data.reps) : data.reps;
-
-  const toggleSet = (i) => {
-    const done = !completedSets.includes(i);
-    setCompletedSets(prev => done ? [...prev, i] : prev.filter(s => s !== i));
-    if (done && weight) onLogWeight(weight);
-  };
-  return (
-    <div className={`bg-[#121214] rounded-[24px] border ${isEditing ? 'border-blue-500/30' : 'border-zinc-800/80'} overflow-hidden mb-5 flex flex-col transition-all`}>
-      <div className="p-4 flex justify-between items-center border-b border-zinc-800/50 bg-zinc-900/20">
-        <div>
-          <h3 className="text-sm font-bold text-white leading-tight">{data.name}</h3>
-          {isEditing ? (
-              <div className="flex gap-2 mt-2 items-center">
-                  <input type="number" value={data.sets} onChange={e => onUpdate({sets: e.target.value})} className="w-10 bg-black border border-zinc-700 py-0.5 rounded text-center text-xs font-bold text-blue-400 outline-none" />
-                  <span className="text-zinc-600 font-bold text-xs">x</span>
-                  <input type="text" value={data.reps} onChange={e => onUpdate({reps: e.target.value})} className="w-14 bg-black border border-zinc-700 py-0.5 rounded text-center text-xs font-bold text-white outline-none" />
-              </div>
-          ) : (
-              <div className={`px-2 py-0.5 rounded-md text-[10px] font-bold inline-block mt-1.5 ${isTired ? 'bg-red-900/20 text-red-400 border border-red-500/20' : 'bg-black text-blue-400 border border-zinc-800/50'}`}>
-                {isTired && <span className="mr-1">⚠️ 75% MAX | </span>}
-                {actualSets}x{displayReps}
-              </div>
-          )}
-        </div>
-
-        {isEditing && (
-            <div className="flex gap-2">
-                <button onClick={onSwap} className="w-8 h-8 bg-zinc-800 text-zinc-400 rounded-full flex items-center justify-center hover:bg-zinc-700 active:scale-90"><Repeat size={14}/></button>
-                <button onClick={onDelete} className="w-8 h-8 bg-red-900/20 text-red-500 rounded-full flex items-center justify-center hover:bg-red-900/40 active:scale-90"><Trash2 size={14}/></button>
-            </div>
-        )}
-      </div>
-
-      <div className="p-4 space-y-4">
-        <div className="h-40 bg-black/50 rounded-[16px] overflow-hidden border border-zinc-800/50 flex items-center justify-center relative" style={{ touchAction: "pan-y" }}>
-          <img src={data.image || "https://cdn-icons-png.flaticon.com/512/3048/3048364.png"} draggable={false} alt="" className="w-full h-full object-contain opacity-70 pointer-events-none" style={{ touchAction: "none" }} />
-          {!isEditing && (
-            <button onClick={onSwap} className="absolute top-2 right-2 bg-black/60 backdrop-blur text-zinc-400 p-2 rounded-lg hover:text-white active:scale-90 border border-zinc-800">
-              <Repeat size={14} />
-            </button>
-          )}
-        </div>
-        
-        <div className="flex gap-3">
-            <div className="flex-1 bg-black p-3 rounded-[16px] border border-zinc-800/50 flex items-center justify-between">
-                <div className="flex items-center">
-                    <span className="text-[10px] text-zinc-500 uppercase font-bold mr-3">Kilos</span>
-                </div>
-                <input type="number" value={weight} onChange={e => setWeight(e.target.value)} placeholder={isTired && limitWeight > 0 ? `~${limitWeight}kg` : "-"} className="bg-transparent font-bold text-white text-lg outline-none w-20 text-right" />
-            </div>
-        </div>
-        
-        <div className="flex justify-between items-center px-1 bg-black/40 p-1.5 rounded-full border border-zinc-800/50">
-            <div className="flex gap-1.5 pl-1">{[...Array(actualSets)].map((_, i) => (<button key={i} onClick={() => toggleSet(i)} className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs transition-colors ${completedSets.includes(i) ? 'bg-[#10b981] text-black shadow-sm' : 'bg-zinc-900 text-zinc-500 border border-zinc-800'}`}>{completedSets.includes(i) ? <Check size={16} strokeWidth={3} /> : i + 1}</button>))}</div>
-            <button onClick={onStartRest} className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center active:scale-90"><Play size={16} fill="white" className="ml-0.5"/></button>
-        </div>
-
-        {!isEditing && (
-          <div className="pt-2 border-t border-zinc-800/30">
-             <button onClick={() => setShowChart(!showChart)} className={`w-full py-2.5 rounded-xl flex items-center justify-center gap-2 font-bold text-[10px] uppercase tracking-wider transition-colors ${showChart ? 'text-blue-400 bg-blue-900/10' : 'text-zinc-500'}`}>
-                 <TrendingUp size={14}/> Historique
-             </button>
-             
-             <AnimatePresence>
-               {showChart && (
-                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 120, opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="w-full mt-3 overflow-hidden" style={{ touchAction: "pan-y" }}>
-                    {history.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={history}>
-                                <Line type="monotone" dataKey="weight" stroke="#3b82f6" strokeWidth={2} dot={{r: 3, fill: "#3b82f6", stroke: "#000", strokeWidth: 1}} activeDot={{r: 5}} />
-                                <Tooltip content={<ChartTooltip color="#3b82f6" />} cursor={{ stroke: '#27272a', strokeWidth: 1, strokeDasharray: '4 4' }} />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    ) : (
-                       <div className="h-full flex items-center justify-center"><p className="text-[10px] text-zinc-600 font-medium">Aucun poids enregistré.</p></div>
-                    )}
-                 </motion.div>
-               )}
-             </AnimatePresence>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function CardioCard({ data, isFinisher }) {
-  return (
-    <article className="bg-[#121214] rounded-[24px] border border-zinc-800/80 p-6 mb-5">
-      <div className="flex items-center gap-2 mb-4"><HeartPulse size={16} className="text-[#FF453A] animate-pulse" /><span className="text-[#FF453A] text-[10px] font-bold uppercase tracking-widest">{isFinisher ? "Finisher Cardio" : "Cardio"}</span></div>
-      <h3 className="text-lg font-bold text-white mb-4">{data.name}</h3>
-      <div className="flex gap-3 mb-4"><div className="flex-1 bg-black rounded-2xl p-4 border border-zinc-800/50 text-center"><span className="text-[10px] text-zinc-500 font-bold block mb-1">TEMPS</span><span className="font-bold text-sm text-white">{data.duration}</span></div><div className="flex-1 bg-black rounded-2xl p-4 border border-zinc-800/50 text-center"><span className="text-[10px] text-zinc-500 font-bold block mb-1">BPM CIBLE</span><span className="font-bold text-sm text-[#FF453A]">{data.bpm}</span></div></div>
-      <div className="bg-black/50 p-3 rounded-xl flex gap-3 items-start"><Info size={14} className="text-zinc-500 shrink-0 mt-0.5" /><p className="text-[11px] text-zinc-400 leading-relaxed font-medium">{data.focus}</p></div>
-    </article>
-  );
-}
-
-function RestCard({ data }) {
-  return (
-    <div className="bg-[#121214] p-8 rounded-[24px] border border-zinc-800/80 text-center mt-6">
-      <div className="w-16 h-16 bg-blue-900/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-900/20"><BedDouble size={32} className="text-blue-500" /></div>
-      <h3 className="text-lg font-bold text-white mb-2">{data.focus}</h3>
-      <p className="text-xs text-zinc-500 leading-relaxed font-medium">{data.desc}</p>
-    </div>
-  );
-}
-
 function FloatingSpotifyWidget({ token, track, onClose, refreshTrack, setSpotifyToken }) {
   const dragControls = useDragControls();
   const [minimized, setMinimized] = useState(false);
@@ -801,9 +247,6 @@ function FloatingSpotifyWidget({ token, track, onClose, refreshTrack, setSpotify
   );
 }
 
-// ==========================================
-// 🔔 COMPOSANT DE MISE A JOUR V3 (POPUP UNIQUE)
-// ==========================================
 function UpdateModal({ onClose }) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[300] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-6">
@@ -890,7 +333,7 @@ function AppRouter() {
       <div className="flex-1 relative overflow-hidden" style={{ touchAction: "pan-y" }}>
         <AnimatePresence mode="wait">
           {currentTab === 'home' && <DashboardTab key="home" onNavigate={setCurrentTab} />}
-          {currentTab === 'workout' && <WorkoutTab key="workout" spotifyToken={spotifyToken} spotifyTrack={spotifyTrack} setShowSpotifyWidget={setShowSpotifyWidget} loginSpotify={loginSpotify} />}
+          {currentTab === 'workout' && <WorkoutTab key="workout" spotifyToken={spotifyToken} spotifyTrack={spotifyTrack} setShowSpotifyWidget={setShowSpotifyWidget} loginSpotify={loginSpotify} db={db} />}
           {currentTab === 'nutrition' && <Nutrition key="nutrition" onBack={() => setCurrentTab('home')} dataContext={dataContextValues} />}
           {currentTab === 'progress' && <Progress key="progress" onBack={() => setCurrentTab('home')} dataContext={dataContextValues} />}
           {currentTab === 'social' && <Social key="social" onBack={() => setCurrentTab('home')} currentUser={currentUser} db={db} />}
@@ -898,7 +341,6 @@ function AppRouter() {
       </div>
       {showSpotifyWidget && spotifyToken && <FloatingSpotifyWidget token={spotifyToken} track={spotifyTrack} onClose={() => setShowSpotifyWidget(false)} refreshTrack={fetchCurrentlyPlaying} setSpotifyToken={setSpotifyToken} />}
       
-      {/* NOUVELLE BARRE DE NAVIGATION A 5 BOUTONS */}
       <div className="fixed bottom-0 left-0 right-0 p-3 z-[90] pointer-events-none">
          <div className="max-w-md mx-auto bg-black/90 backdrop-blur-lg border border-zinc-800/80 rounded-2xl flex justify-between items-center p-1.5 shadow-2xl pointer-events-auto">
             <button onClick={() => setCurrentTab('home')} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl transition-all ${currentTab === 'home' ? 'text-white bg-zinc-800/50' : 'text-zinc-500 hover:text-zinc-300'}`}><LayoutDashboard size={18} className="mb-1" /><span className="text-[8px] font-bold uppercase tracking-widest">Accueil</span></button>
