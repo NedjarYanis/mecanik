@@ -81,8 +81,22 @@ const defaultProgramData = {
   7: { type: 'rest', dayName: "Dimanche", focus: "Repos Absolu", desc: "Restauration du SNC." }
 };
 
-const CATALOGUE_EXERCICES = [];
-Object.values(defaultProgramData).forEach(day => { if (day.exercises) { day.exercises.forEach(exo => { if (!CATALOGUE_EXERCICES.find(e => e.name === exo.name)) { CATALOGUE_EXERCICES.push(exo); } }); } });
+// AJOUT DES NOUVEAUX EXERCICES DIRECTEMENT DANS LE CATALOGUE
+const CATALOGUE_EXERCICES = [
+  { id: 'NEW1', name: "Développé Couché Haltères", sets: 4, reps: "8-12", tempo: "3-0-1-0", rest: 120, image: imgDCSmith },
+  { id: 'NEW2', name: "Développé Incliné Barre", sets: 4, reps: "8-12", tempo: "3-0-1-0", rest: 120, image: imgDCSmith },
+  { id: 'NEW3', name: "Pec Deck Fly (Écartés)", sets: 3, reps: "12-15", tempo: "2-0-1-1", rest: 90, image: imgChestPress }
+];
+
+Object.values(defaultProgramData).forEach(day => { 
+  if (day.exercises) { 
+    day.exercises.forEach(exo => { 
+      if (!CATALOGUE_EXERCICES.find(e => e.name === exo.name)) { 
+        CATALOGUE_EXERCICES.push(exo); 
+      } 
+    }); 
+  } 
+});
 
 const DataContext = createContext();
 export const useData = () => useContext(DataContext);
@@ -418,10 +432,12 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpo
         </div>
       </header>
       
+      {/* L'AJOUT DU touchAction ICI REGLE LE PROBLEME DE SCROLL ! */}
       <motion.main 
         drag="x" 
         dragConstraints={{ left: 0, right: 0 }} 
-        onDragEnd={(e, info) => { if (info.offset.x > 100) changeDate(-1); if (info.offset.x < -100) changeDate(1); }} 
+        style={{ touchAction: "pan-y" }} 
+        onDragEnd={(e, info) => { if (info.offset.x > 80) changeDate(-1); if (info.offset.x < -80) changeDate(1); }} 
         key={currentDateStr} 
         initial={{ opacity: 0, x: 50 }} 
         animate={{ opacity: 1, x: 0 }} 
@@ -503,12 +519,14 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpo
               <h2 className="text-lg font-black uppercase flex items-center gap-2"><Search size={20} className="text-blue-500"/> Catalogue</h2>
               <button onClick={() => { setShowCatalog(false); setSwapId(null); }} className="p-2 bg-zinc-800 rounded-full active:scale-90"><X size={20}/></button>
             </div>
-            <div className="p-4 flex-1 flex flex-col">
+            
+            {/* CORRECTION DU SCROLL ICI AUSSI : Ajout de min-h-0 et pb-32 */}
+            <div className="p-4 flex-1 flex flex-col min-h-0">
               <div className="flex items-center gap-3 bg-zinc-900 p-4 rounded-2xl mb-4 border border-zinc-800 shadow-inner">
                 <Search size={20} className="text-zinc-500" />
                 <input type="text" placeholder="Rechercher une machine..." value={catalogSearch} onChange={e => setCatalogSearch(e.target.value)} className="bg-transparent font-bold text-white outline-none w-full placeholder:text-zinc-600" autoFocus />
               </div>
-              <div className="flex-1 overflow-y-auto space-y-3 pb-4">
+              <div className="flex-1 overflow-y-auto space-y-3 pb-32" style={{ touchAction: "pan-y" }}>
                   {filteredCatalog.length === 0 && <p className="text-center text-zinc-500 font-bold text-xs mt-10 uppercase tracking-widest">Aucun résultat trouvé.</p>}
                   {filteredCatalog.map((exo, idx) => (
                       <div key={idx} onClick={() => handleSelectFromCatalog(exo)} className="bg-[#151517] p-3 rounded-2xl border border-zinc-800 flex items-center gap-4 cursor-pointer active:scale-95 shadow-lg">
