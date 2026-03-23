@@ -13,6 +13,7 @@ import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 
 import Nutrition from './Nutrition';
 import Social from './Social'; 
+import Progress from './Progress';
 
 // IMPORTS DES IMAGES
 import imgPresse from './assets/presse-a-cuisses-inclinee.gif';
@@ -162,7 +163,7 @@ function DataProvider({ children }) {
 
 const ChartTooltip = ({ active, payload, color }) => {
   if (active && payload && payload.length) {
-    return ( <div className="bg-black border border-zinc-800 p-3 rounded-xl shadow-xl"><p className="font-black" style={{color: color || '#3b82f6'}}>{`${payload[0].value} kg`}</p></div> );
+    return ( <div className="bg-black border border-zinc-800 p-3 rounded-xl shadow-xl"><p className="font-bold text-sm" style={{color: color || '#3b82f6'}}>{`${payload[0].value} kg`}</p></div> );
   }
   return null;
 };
@@ -198,24 +199,24 @@ function AuthScreen() {
 
   return (
     <div className="h-screen w-full flex items-center justify-center bg-black p-6 relative overflow-hidden">
-      <motion.div initial={{opacity: 0, y: 20}} animate={{opacity: 1, y: 0}} className="w-full max-w-sm bg-[#151517] p-8 rounded-[32px] border border-zinc-800 shadow-2xl relative z-10">
-        <h2 className="text-2xl font-black text-center uppercase tracking-tighter mb-8">{isLogin ? 'Connexion' : 'Rejoindre MÉCANIK'}</h2>
+      <motion.div initial={{opacity: 0, y: 20}} animate={{opacity: 1, y: 0}} className="w-full max-w-sm bg-[#111113] p-8 rounded-[32px] border border-zinc-800 shadow-2xl relative z-10">
+        <h2 className="text-xl font-extrabold text-center tracking-tight mb-8">{isLogin ? 'Connexion' : 'Rejoindre MÉCANIK'}</h2>
         {error && <p className="text-[10px] text-red-500 bg-red-500/10 p-3 rounded-xl mb-4 text-center font-bold break-words">{error}</p>}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} className="w-full bg-zinc-900 p-4 rounded-2xl border border-zinc-800 outline-none focus:border-blue-500 font-bold text-white placeholder:text-zinc-600" required />
-          <input type="password" placeholder="Mot de passe" value={password} onChange={e=>setPassword(e.target.value)} className="w-full bg-zinc-900 p-4 rounded-2xl border border-zinc-800 outline-none focus:border-blue-500 font-bold text-white placeholder:text-zinc-600" required />
-          <button type="submit" className="w-full py-4 bg-blue-600 rounded-full font-black uppercase text-xs shadow-[0_0_20px_rgba(10,132,255,0.4)] text-white">{isLogin ? 'Entrer' : 'Créer mon compte'}</button>
+          <input type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} className="w-full bg-black p-4 rounded-2xl border border-zinc-800/80 outline-none focus:border-blue-500 font-medium text-sm text-white placeholder:text-zinc-600" required />
+          <input type="password" placeholder="Mot de passe" value={password} onChange={e=>setPassword(e.target.value)} className="w-full bg-black p-4 rounded-2xl border border-zinc-800/80 outline-none focus:border-blue-500 font-medium text-sm text-white placeholder:text-zinc-600" required />
+          <button type="submit" className="w-full py-3.5 bg-blue-600 rounded-2xl font-bold text-sm text-white">{isLogin ? 'Entrer' : 'Créer mon compte'}</button>
         </form>
-        <div className="mt-6 border-t border-zinc-800 pt-6">
-          <button onClick={handleGoogle} className="w-full py-4 bg-white rounded-full font-black uppercase text-xs text-black flex justify-center items-center gap-2 active:scale-95 shadow-lg">Google</button>
+        <div className="mt-6 border-t border-zinc-800/50 pt-6">
+          <button onClick={handleGoogle} className="w-full py-3.5 bg-white rounded-2xl font-bold text-sm text-black flex justify-center items-center gap-2 active:scale-95 shadow-sm">Google</button>
         </div>
-        <button onClick={() => setIsLogin(!isLogin)} className="w-full mt-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">{isLogin ? "Je n'ai pas de compte" : "J'ai déjà un compte"}</button>
+        <button onClick={() => setIsLogin(!isLogin)} className="w-full mt-4 text-xs text-zinc-500 font-medium">{isLogin ? "Je n'ai pas de compte" : "J'ai déjà un compte"}</button>
       </motion.div>
     </div>
   );
 }
 
-function DashboardTab({ onNavigate, spotifyToken, loginSpotify, setShowSpotifyWidget }) {
+function DashboardTab({ onNavigate }) {
   const { logout, currentUser } = useAuth();
   const { program, journal, setJournal, profile, setProfile, history } = useData();
   const today = new Date().getDay() || 7; 
@@ -268,18 +269,18 @@ function DashboardTab({ onNavigate, spotifyToken, loginSpotify, setShowSpotifyWi
   };
 
   return (
-    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} className="h-full w-full bg-black p-6 overflow-y-auto pb-32" style={{ touchAction: "pan-y" }}>
+    <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.02 }} className="h-full w-full bg-black p-5 overflow-y-auto pb-32" style={{ touchAction: "pan-y" }}>
       
       <AnimatePresence>
         {showReadiness && !showWeeklyReview && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-6">
-            <div className="bg-[#151517] w-full max-w-sm rounded-[32px] p-8 border border-zinc-800 shadow-2xl text-center">
-              <HeartPulse size={48} className="text-red-500 mx-auto mb-4 animate-pulse" />
-              <h2 className="text-2xl font-black uppercase tracking-tighter mb-2">État de Forme</h2>
+            <div className="bg-[#121214] w-full max-w-sm rounded-[24px] p-8 border border-zinc-800/80 shadow-2xl text-center">
+              <HeartPulse size={40} className="text-red-500 mx-auto mb-4 animate-pulse" />
+              <h2 className="text-xl font-bold tracking-tight mb-2 text-white">État de Forme</h2>
               <p className="text-xs text-zinc-400 font-medium mb-8">De 1 (Épuisé) à 10 (Pleine forme), comment te sens-tu aujourd'hui ?</p>
-              <div className="grid grid-cols-5 gap-2 mb-6">
+              <div className="grid grid-cols-5 gap-2 mb-4">
                 {[1,2,3,4,5,6,7,8,9,10].map(score => (
-                  <button key={score} onClick={() => logReadiness(score)} className={`h-12 rounded-xl font-black text-lg transition-all shadow-inner active:scale-90 ${score <= 4 ? 'bg-red-900/30 text-red-500 border border-red-500/30' : score <= 7 ? 'bg-yellow-900/30 text-yellow-500 border border-yellow-500/30' : 'bg-emerald-900/30 text-emerald-500 border border-emerald-500/30'}`}>
+                  <button key={score} onClick={() => logReadiness(score)} className={`h-10 rounded-xl font-bold text-sm transition-all active:scale-95 ${score <= 4 ? 'bg-red-900/20 text-red-500 border border-red-500/20' : score <= 7 ? 'bg-yellow-900/20 text-yellow-500 border border-yellow-500/20' : 'bg-emerald-900/20 text-emerald-500 border border-emerald-500/20'}`}>
                     {score}
                   </button>
                 ))}
@@ -292,60 +293,75 @@ function DashboardTab({ onNavigate, spotifyToken, loginSpotify, setShowSpotifyWi
       <AnimatePresence>
         {showWeeklyReview && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[210] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-6">
-            <div className="bg-gradient-to-b from-blue-900/40 to-black w-full max-w-sm rounded-[32px] p-8 border border-blue-500/30 shadow-[0_0_50px_rgba(37,99,235,0.2)] text-center relative overflow-hidden">
-              <BrainCircuit size={48} className="text-blue-500 mx-auto mb-4" />
-              <h2 className="text-2xl font-black uppercase tracking-tighter mb-2 text-white">Bilan IA de la Semaine</h2>
-              <p className="text-sm text-blue-200 font-medium mb-8 leading-relaxed">Il est l'heure de faire le point. Vos performances ont été analysées. Si votre poids stagne, l'IA recommande un ajustement.</p>
+            <div className="bg-gradient-to-b from-blue-900/30 to-[#121214] w-full max-w-sm rounded-[24px] p-8 border border-blue-500/20 shadow-2xl text-center relative overflow-hidden">
+              <BrainCircuit size={40} className="text-blue-500 mx-auto mb-4" />
+              <h2 className="text-xl font-bold tracking-tight mb-2 text-white">Bilan IA</h2>
+              <p className="text-xs text-blue-200 font-medium mb-8 leading-relaxed">Il est l'heure de faire le point. Si votre poids stagne, l'IA recommande un ajustement.</p>
               <div className="space-y-3">
-                  <button onClick={() => handleReviewDecision('cut')} className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs shadow-[0_0_20px_rgba(37,99,235,0.4)] active:scale-95">Diminuer Calories (-15%)</button>
-                  <button onClick={() => handleReviewDecision('keep')} className="w-full py-4 bg-zinc-900 text-zinc-400 border border-zinc-700 rounded-2xl font-black uppercase text-xs active:scale-95">Maintenir la stratégie</button>
+                  <button onClick={() => handleReviewDecision('cut')} className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-bold text-sm active:scale-95">Diminuer Calories (-15%)</button>
+                  <button onClick={() => handleReviewDecision('keep')} className="w-full py-3.5 bg-black text-zinc-400 border border-zinc-800 rounded-xl font-bold text-sm active:scale-95">Maintenir la stratégie</button>
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <header className="pt-10 mb-8 flex justify-between items-start">
-        <div className="flex-1 overflow-hidden pr-4"><h1 className="text-3xl font-black tracking-tighter uppercase mb-1">MÉCANIK</h1><p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest truncate">ID : {currentUser?.email}</p></div>
+      <header className="pt-8 mb-6 flex justify-between items-center">
+        <div className="flex-1 overflow-hidden pr-4">
+            <h1 className="text-xl font-extrabold tracking-tight uppercase text-white">Mécanik</h1>
+            <p className="text-zinc-500 text-[10px] font-medium truncate">{currentUser?.email}</p>
+        </div>
         <div className="flex gap-2 shrink-0">
-            <button onClick={exportData} className="bg-blue-900/20 p-3 rounded-full text-blue-500 border border-blue-500/20 active:scale-95"><Download size={20}/></button>
-            <button onClick={logout} className="bg-red-900/20 p-3 rounded-full text-red-500 border border-red-500/20 active:scale-95"><LogOut size={20}/></button>
+            <button onClick={exportData} className="bg-zinc-900 p-2.5 rounded-full text-zinc-400 hover:text-white transition-colors active:scale-95"><Download size={18}/></button>
+            <button onClick={logout} className="bg-red-900/10 p-2.5 rounded-full text-red-500 hover:bg-red-900/20 transition-colors active:scale-95"><LogOut size={18}/></button>
         </div>
       </header>
 
       <div className="space-y-4">
-        <div className="bg-[#151517] border border-zinc-800 rounded-[32px] p-6 shadow-2xl">
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center gap-2"><TrendingUp size={18} className="text-emerald-500" /><span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Évolution du Poids</span></div>
-            <div className="flex bg-black rounded-full border border-zinc-800 p-1 pl-3 shadow-inner">
-              <input type="number" step="0.1" value={newWeight} onChange={e=>setNewWeight(e.target.value)} className="w-14 bg-transparent text-white font-black outline-none text-sm" />
-              <button onClick={logWeight} className="bg-emerald-500 text-black px-4 py-1.5 rounded-full text-[10px] font-black uppercase shadow-[0_0_10px_rgba(16,185,129,0.3)] active:scale-95">OK</button>
+        <div className="bg-[#121214] border border-zinc-800/50 rounded-[24px] p-5">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-2"><TrendingUp size={16} className="text-emerald-500" /><span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500">Poids</span></div>
+            <div className="flex bg-black rounded-xl border border-zinc-800/50 p-1 pl-2">
+              <input type="number" step="0.1" value={newWeight} onChange={e=>setNewWeight(e.target.value)} className="w-12 bg-transparent text-white font-bold outline-none text-xs" />
+              <button onClick={logWeight} className="bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-lg text-[10px] font-bold uppercase active:scale-95">OK</button>
             </div>
           </div>
-          <div className="h-32 w-full mt-2 -ml-4" style={{ touchAction: "pan-y" }}>
+          <div className="h-28 w-full mt-2 -ml-4">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={profile?.weightHistory || []}>
-                <Line type="monotone" dataKey="weight" stroke="#10b981" strokeWidth={4} dot={{r: 4, fill: "#10b981", stroke: "#000", strokeWidth: 2}} activeDot={{r: 6}} />
-                <Tooltip content={<ChartTooltip color="#10b981" />} cursor={{ stroke: '#27272a', strokeWidth: 2, strokeDasharray: '5 5' }} />
+                <Line type="monotone" dataKey="weight" stroke="#10b981" strokeWidth={3} dot={{r: 3, fill: "#10b981", stroke: "#000", strokeWidth: 1.5}} activeDot={{r: 5}} />
+                <Tooltip content={<ChartTooltip color="#10b981" />} cursor={{ stroke: '#27272a', strokeWidth: 1, strokeDasharray: '4 4' }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
-          {(!profile?.weightHistory || profile.weightHistory.length === 0) && <p className="text-center text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-2">Sauvegardez votre poids pour voir le graphique.</p>}
+          {(!profile?.weightHistory || profile.weightHistory.length === 0) && <p className="text-center text-[10px] text-zinc-600 font-medium mt-2">Aucun poids enregistré.</p>}
         </div>
 
-        {!spotifyToken ? (
-          <div onClick={loginSpotify} className="bg-[#1DB954]/10 border border-[#1DB954]/30 rounded-[32px] p-6 shadow-2xl cursor-pointer active:scale-95 flex items-center gap-4 group">
-            <div className="w-14 h-14 bg-[#1DB954] rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(29,185,84,0.4)] shrink-0"><Music size={24} fill="black" className="text-black" /></div>
-            <div><h2 className="text-xl font-black text-white uppercase tracking-tight">Connecter Spotify</h2><p className="text-[10px] text-[#1DB954] font-bold uppercase tracking-widest mt-1">Lancer le lecteur</p></div>
-          </div>
-        ) : (
-          <div onClick={() => setShowSpotifyWidget(true)} className="bg-zinc-900 border border-[#1DB954]/50 rounded-[32px] p-6 shadow-2xl cursor-pointer active:scale-95 flex items-center gap-4 group">
-            <div className="w-14 h-14 bg-black rounded-full flex items-center justify-center border border-[#1DB954] shrink-0"><Music size={24} className="text-[#1DB954] animate-pulse" /></div>
-            <div><h2 className="text-xl font-black text-white uppercase tracking-tight">Spotify Connecté</h2><p className="text-[10px] text-[#1DB954] font-bold uppercase tracking-widest mt-1">Ouvrir le lecteur</p></div>
-          </div>
-        )}
-        <div onClick={() => onNavigate('workout')} className="bg-[#151517] border border-zinc-800 rounded-[32px] p-6 shadow-2xl cursor-pointer active:scale-95"><div className="flex items-center gap-2 mb-4"><Calendar size={16} className="text-blue-500" /><span className="text-[10px] font-black uppercase tracking-widest text-blue-500">Séance du Jour • {todaysWorkout.dayName}</span></div><h2 className="text-2xl font-black uppercase tracking-tight mb-2">{todaysWorkout.focus}</h2><button className="w-full py-4 mt-6 bg-blue-600 rounded-full font-black uppercase text-xs shadow-[0_0_20px_rgba(10,132,255,0.3)] text-white">Ouvrir la séance</button></div>
-        <div onClick={() => onNavigate('nutrition')} className="bg-[#151517] border border-zinc-800 rounded-[32px] p-6 shadow-2xl cursor-pointer active:scale-95"><div className="flex items-center gap-2 mb-4"><Activity size={16} className="text-green-500" /><span className="text-[10px] font-black uppercase tracking-widest text-green-500">Aperçu Nutrition</span></div><div className="flex items-end gap-2 mb-6"><span className="text-4xl font-black tracking-tighter">{Math.round(nutritionCals)}</span><span className="text-sm font-bold text-zinc-500 mb-1">kcal consommées</span></div><button className="w-full py-4 bg-zinc-900 border border-zinc-800 rounded-full font-black uppercase text-xs text-white">Ouvrir le journal</button></div>
+        <div className="grid grid-cols-2 gap-4">
+            <div onClick={() => onNavigate('workout')} className="bg-[#121214] border border-zinc-800/50 rounded-[24px] p-4 cursor-pointer active:scale-95 flex flex-col justify-between transition-transform">
+                <div>
+                    <div className="flex items-center gap-2 mb-3"><Calendar size={14} className="text-blue-500" /><span className="text-[9px] font-bold uppercase tracking-widest text-blue-500">Training</span></div>
+                    <h2 className="text-sm font-bold text-white leading-tight">{todaysWorkout.focus}</h2>
+                    <p className="text-[10px] text-zinc-500 mt-1 font-medium">{['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'][today-1]}</p>
+                </div>
+                <div className="mt-5 flex items-center justify-between text-blue-500">
+                    <span className="text-[10px] font-bold uppercase tracking-wide">Ouvrir</span>
+                    <div className="w-6 h-6 rounded-full bg-blue-500/10 flex items-center justify-center"><ArrowRight size={12} /></div>
+                </div>
+            </div>
+
+            <div onClick={() => onNavigate('nutrition')} className="bg-[#121214] border border-zinc-800/50 rounded-[24px] p-4 cursor-pointer active:scale-95 flex flex-col justify-between transition-transform">
+                <div>
+                    <div className="flex items-center gap-2 mb-3"><Activity size={14} className="text-green-500" /><span className="text-[9px] font-bold uppercase tracking-widest text-green-500">Diète</span></div>
+                    <div className="flex items-baseline gap-1"><span className="text-2xl font-bold text-white leading-none">{Math.round(nutritionCals)}</span><span className="text-[10px] text-zinc-500 font-medium">kcal</span></div>
+                </div>
+                <div className="mt-5 flex items-center justify-between text-green-500">
+                    <span className="text-[10px] font-bold uppercase tracking-wide">Journal</span>
+                    <div className="w-6 h-6 rounded-full bg-green-500/10 flex items-center justify-center"><ArrowRight size={12} /></div>
+                </div>
+            </div>
+        </div>
+
       </div>
     </motion.div>
   );
@@ -451,15 +467,15 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpo
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col h-full w-full bg-black relative overflow-hidden">
       <header className="px-5 pt-10 pb-4 bg-black/90 backdrop-blur-xl z-40 border-b border-zinc-900 flex-shrink-0">
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-xl font-black tracking-tight uppercase">Entraînement</h1>
+          <h1 className="text-xl font-extrabold tracking-tight uppercase">Entraînement</h1>
           <div className="flex gap-2">
-            {!spotifyToken ? ( <button onClick={loginSpotify} className="p-2.5 bg-[#1DB954]/10 rounded-full text-[#1DB954] border border-[#1DB954]/20"><Music size={18}/></button> ) : ( <button onClick={() => setShowSpotifyWidget(true)} className="p-2.5 bg-zinc-900 rounded-full text-[#1DB954] border border-zinc-800"><Music size={18}/></button> )}
+            {!spotifyToken ? ( <button onClick={loginSpotify} className="p-2 bg-[#1DB954]/10 rounded-full text-[#1DB954] border border-[#1DB954]/20 active:scale-95"><Music size={18}/></button> ) : ( <button onClick={() => setShowSpotifyWidget(true)} className="p-2 bg-zinc-900 rounded-full text-[#1DB954] border border-zinc-800 active:scale-95"><Music size={18}/></button> )}
           </div>
         </div>
         
         <div className="flex justify-between items-center bg-zinc-900/50 p-2 rounded-full border border-zinc-800">
           <button onClick={() => changeDate(-1)} className="p-1 text-zinc-400 hover:text-white"><ChevronLeft size={18}/></button>
-          <span className="text-xs font-black uppercase tracking-widest text-blue-500 flex items-center gap-2">
+          <span className="text-xs font-bold uppercase tracking-widest text-blue-500 flex items-center gap-2">
             <Calendar size={12}/> 
             {currentDateStr === getTodayStr() ? "Aujourd'hui" : new Date(currentDateStr).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
           </span>
@@ -476,26 +492,26 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpo
         initial={{ opacity: 0, x: 50 }} 
         animate={{ opacity: 1, x: 0 }} 
         transition={{ type: "spring", bounce: 0.4 }} 
-        className="flex-1 overflow-y-auto px-4 pt-6 pb-32 space-y-6"
+        className="flex-1 overflow-y-auto px-4 pt-6 pb-32 space-y-5"
       >
-        <div className="mb-6 flex justify-between items-start border-l-2 border-blue-600 pl-3">
+        <div className="mb-4 flex justify-between items-start border-l-2 border-blue-500 pl-3">
           <div className="flex-1 pr-4">
             {isEditingDay ? (
-                <input type="text" value={currentDay.focus} onChange={(e) => handleUpdateDayFocus(e.target.value)} className="bg-transparent text-white font-black text-[26px] uppercase tracking-tighter outline-none border-b border-zinc-700 w-full mb-1" />
+                <input type="text" value={currentDay.focus} onChange={(e) => handleUpdateDayFocus(e.target.value)} className="bg-transparent text-white font-extrabold text-xl uppercase tracking-tight outline-none border-b border-zinc-700 w-full mb-1" />
             ) : (
-                <h2 className="text-[26px] font-black leading-tight text-white uppercase tracking-tighter">{currentDay.focus}</h2>
+                <h2 className="text-xl font-extrabold leading-tight text-white uppercase tracking-tight">{currentDay.focus}</h2>
             )}
-            <p className="text-[#8E8E93] text-[12px] mt-1 font-bold uppercase tracking-widest">{['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'][activeDay-1]} • {currentDay.desc}</p>
+            <p className="text-zinc-500 text-[11px] mt-1 font-medium">{['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'][activeDay-1]} • {currentDay.desc}</p>
           </div>
-          <button onClick={() => setIsEditingDay(!isEditingDay)} className={`p-2.5 rounded-full shadow-lg transition-colors ${isEditingDay ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400 active:scale-90'}`}>
-            {isEditingDay ? <Check size={20}/> : <Settings2 size={20}/>}
+          <button onClick={() => setIsEditingDay(!isEditingDay)} className={`p-2 rounded-full shadow-sm transition-colors ${isEditingDay ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400 active:scale-90'}`}>
+            {isEditingDay ? <Check size={18}/> : <Settings2 size={18}/>}
           </button>
         </div>
 
         {isTired && (currentDay.type === 'lift' || currentDay.type === 'mixed') && (
-          <div className="bg-red-900/20 border border-red-500/30 p-4 rounded-2xl flex items-center gap-3 mb-6">
-            <AlertTriangle size={24} className="text-red-500 shrink-0" />
-            <p className="text-xs text-red-200 font-medium">L'IA a détecté que vous étiez fatigué(e). <strong className="text-white">Le volume a été réduit d'une série.</strong></p>
+          <div className="bg-red-900/10 border border-red-500/20 p-3 rounded-xl flex items-center gap-3">
+            <AlertTriangle size={20} className="text-red-500 shrink-0" />
+            <p className="text-[11px] text-red-200/80 font-medium">Fatigue détectée. Charge limitée à 75% du max et répétitions ajustées.</p>
           </div>
         )}
 
@@ -515,7 +531,7 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpo
         ))}
 
         {isEditingDay && (
-          <button onClick={() => { setSwapId(null); setShowCatalog(true); setIsCreatingExo(false); }} className="w-full py-5 border-2 border-dashed border-zinc-700 rounded-[24px] text-zinc-500 font-black uppercase text-xs flex justify-center items-center gap-2 hover:bg-zinc-900 transition-colors mb-6 active:scale-95">
+          <button onClick={() => { setSwapId(null); setShowCatalog(true); setIsCreatingExo(false); }} className="w-full py-4 border border-dashed border-zinc-700 rounded-[20px] text-zinc-400 font-bold text-sm flex justify-center items-center gap-2 hover:bg-zinc-900 transition-colors active:scale-95">
             <Plus size={18} /> Ajouter un exercice
           </button>
         )}
@@ -523,9 +539,9 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpo
         {currentDay.cardio && <CardioCard data={currentDay.cardio} isFinisher={currentDay.type === 'mixed'} />}
         {currentDay.type === 'rest' && !isEditingDay && <RestCard data={currentDay} />}
         
-        <div className="mt-12 mb-4">
-          <button onClick={syncToCloud} disabled={isSyncing} className={`w-full py-5 rounded-[24px] font-black uppercase text-xs flex items-center justify-center gap-2 shadow-xl ${isSyncing ? 'bg-zinc-800 text-zinc-500' : 'bg-blue-600/20 text-blue-500 border border-blue-500/30 hover:bg-blue-600 hover:text-white transition-colors active:scale-95'}`}>
-            {isSyncing ? <RefreshCw size={18} className="animate-spin" /> : <CloudLightning size={18} />} Synchronisation Cloud...
+        <div className="mt-8 mb-4">
+          <button onClick={syncToCloud} disabled={isSyncing} className={`w-full py-3.5 rounded-[20px] font-bold text-xs flex items-center justify-center gap-2 shadow-sm ${isSyncing ? 'bg-zinc-800 text-zinc-500' : 'bg-zinc-900 text-blue-400 hover:bg-blue-600 hover:text-white transition-colors active:scale-95'}`}>
+            {isSyncing ? <RefreshCw size={16} className="animate-spin" /> : <CloudLightning size={16} />} Synchro Cloud
           </button>
         </div>
       </motion.main>
@@ -533,14 +549,14 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpo
       <AnimatePresence>
         {restTime > 0 && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-[200] bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center p-6">
-            <Timer size={56} className="text-blue-500 mb-8 animate-pulse" />
-            <span className="text-8xl font-mono font-black tabular-nums tracking-tighter drop-shadow-[0_0_30px_rgba(10,132,255,0.4)] mb-12">
+            <Timer size={48} className="text-blue-500 mb-6 animate-pulse" />
+            <span className="text-7xl font-mono font-bold tabular-nums tracking-tighter drop-shadow-[0_0_20px_rgba(10,132,255,0.3)] mb-10">
               {Math.floor(restTime/60)}:{(restTime%60).toString().padStart(2,'0')}
             </span>
             <div className="flex items-center gap-4 w-full max-w-xs justify-center">
-              <button onClick={() => setRestTime(t => Math.max(1, t - 15))} className="w-16 h-16 bg-zinc-900 rounded-full font-black text-xl text-white border border-zinc-800 active:scale-95 flex items-center justify-center">-15</button>
-              <button onClick={() => setRestTime(0)} className="flex-1 h-16 bg-blue-600 rounded-full font-black text-xs uppercase tracking-widest text-white shadow-[0_0_20px_rgba(10,132,255,0.4)] active:scale-95">Passer</button>
-              <button onClick={() => setRestTime(t => t + 15)} className="w-16 h-16 bg-zinc-900 rounded-full font-black text-xl text-white border border-zinc-800 active:scale-95 flex items-center justify-center">+15</button>
+              <button onClick={() => setRestTime(t => Math.max(1, t - 15))} className="w-14 h-14 bg-zinc-900 rounded-full font-bold text-lg text-white border border-zinc-800 active:scale-95 flex items-center justify-center">-15</button>
+              <button onClick={() => setRestTime(0)} className="flex-1 h-14 bg-blue-600 rounded-full font-bold text-sm text-white shadow-[0_0_15px_rgba(10,132,255,0.3)] active:scale-95">Passer</button>
+              <button onClick={() => setRestTime(t => t + 15)} className="w-14 h-14 bg-zinc-900 rounded-full font-bold text-lg text-white border border-zinc-800 active:scale-95 flex items-center justify-center">+15</button>
             </div>
           </motion.div>
         )}
@@ -550,55 +566,55 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpo
         {showCatalog && (
           <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-xl flex flex-col">
             <div className="p-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
-              <h2 className="text-lg font-black uppercase flex items-center gap-2"><Search size={20} className="text-blue-500"/> Catalogue</h2>
-              <button onClick={() => { setShowCatalog(false); setSwapId(null); }} className="p-2 bg-zinc-800 rounded-full active:scale-90"><X size={20}/></button>
+              <h2 className="text-lg font-extrabold uppercase flex items-center gap-2"><Search size={18} className="text-blue-500"/> Catalogue</h2>
+              <button onClick={() => { setShowCatalog(false); setSwapId(null); }} className="p-2 bg-zinc-800 rounded-full active:scale-90"><X size={18}/></button>
             </div>
             
             <div className="p-4 flex-1 flex flex-col min-h-0">
               {isCreatingExo ? (
                 <div className="flex-1 overflow-y-auto space-y-4 pb-32" style={{ touchAction: "pan-y" }}>
-                   <div className="bg-[#151517] p-5 rounded-[24px] border border-zinc-800 shadow-xl space-y-4">
+                   <div className="bg-[#121214] p-5 rounded-[24px] border border-zinc-800/80 shadow-lg space-y-4">
                        <div>
-                          <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest block mb-2">Nom de l'exercice *</span>
-                          <input type="text" value={newExo.name} onChange={e=>setNewExo({...newExo, name: e.target.value})} className="w-full bg-black border border-zinc-800 p-4 rounded-xl text-white font-bold outline-none focus:border-blue-500" placeholder="Ex: Soulevé de terre" />
+                          <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest block mb-2">Nom de l'exercice *</span>
+                          <input type="text" value={newExo.name} onChange={e=>setNewExo({...newExo, name: e.target.value})} className="w-full bg-black border border-zinc-800 p-3.5 rounded-xl text-white font-medium text-sm outline-none focus:border-blue-500" placeholder="Ex: Soulevé de terre" />
                        </div>
                        <div>
-                          <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest block mb-2">Focus (Muscle)</span>
-                          <input type="text" value={newExo.focus} onChange={e=>setNewExo({...newExo, focus: e.target.value})} className="w-full bg-black border border-zinc-800 p-4 rounded-xl text-white font-bold outline-none focus:border-blue-500" placeholder="Ex: Dos / Ischios" />
+                          <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest block mb-2">Focus (Muscle)</span>
+                          <input type="text" value={newExo.focus} onChange={e=>setNewExo({...newExo, focus: e.target.value})} className="w-full bg-black border border-zinc-800 p-3.5 rounded-xl text-white font-medium text-sm outline-none focus:border-blue-500" placeholder="Ex: Dos / Ischios" />
                        </div>
                        <div>
-                          <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest block mb-2">Lien Image (Optionnel)</span>
-                          <input type="text" value={newExo.image} onChange={e=>setNewExo({...newExo, image: e.target.value})} className="w-full bg-black border border-zinc-800 p-4 rounded-xl text-white font-bold outline-none focus:border-blue-500" placeholder="https://..." />
+                          <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest block mb-2">Lien Image (Optionnel)</span>
+                          <input type="text" value={newExo.image} onChange={e=>setNewExo({...newExo, image: e.target.value})} className="w-full bg-black border border-zinc-800 p-3.5 rounded-xl text-white font-medium text-sm outline-none focus:border-blue-500" placeholder="https://..." />
                        </div>
-                       <button onClick={handleCreateCustomExo} disabled={isSavingExo} className="w-full py-4 bg-blue-600 text-white rounded-xl font-black uppercase text-xs shadow-lg active:scale-95 flex items-center justify-center gap-2">
+                       <button onClick={handleCreateCustomExo} disabled={isSavingExo} className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-bold text-sm shadow-md active:scale-95 flex items-center justify-center gap-2 mt-2">
                            {isSavingExo ? <RefreshCw size={16} className="animate-spin" /> : <Plus size={16} />}
                            {isSavingExo ? "Création..." : "Créer et Ajouter"}
                        </button>
-                       <button onClick={() => setIsCreatingExo(false)} className="w-full py-4 bg-zinc-900 text-zinc-400 rounded-xl font-black uppercase text-xs active:scale-95 border border-zinc-800">
-                           Retour au catalogue
+                       <button onClick={() => setIsCreatingExo(false)} className="w-full py-3.5 bg-zinc-900 text-zinc-400 rounded-xl font-bold text-sm active:scale-95 border border-zinc-800">
+                           Retour
                        </button>
                    </div>
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center gap-3 bg-zinc-900 p-4 rounded-2xl mb-4 border border-zinc-800 shadow-inner">
-                    <Search size={20} className="text-zinc-500" />
-                    <input type="text" placeholder="Rechercher une machine..." value={catalogSearch} onChange={e => setCatalogSearch(e.target.value)} className="bg-transparent font-bold text-white outline-none w-full placeholder:text-zinc-600" autoFocus />
+                  <div className="flex items-center gap-3 bg-zinc-900/80 p-3.5 rounded-2xl mb-4 border border-zinc-800">
+                    <Search size={18} className="text-zinc-500" />
+                    <input type="text" placeholder="Rechercher une machine..." value={catalogSearch} onChange={e => setCatalogSearch(e.target.value)} className="bg-transparent font-medium text-sm text-white outline-none w-full placeholder:text-zinc-600" autoFocus />
                   </div>
                   
-                  <button onClick={() => setIsCreatingExo(true)} className="w-full py-4 mb-4 bg-zinc-900 border border-dashed border-zinc-700 rounded-2xl text-blue-500 font-black uppercase text-xs flex justify-center items-center gap-2 active:scale-95">
-                      <Plus size={18} /> Créer un exercice manuellement
+                  <button onClick={() => setIsCreatingExo(true)} className="w-full py-3.5 mb-4 bg-zinc-900/50 border border-dashed border-zinc-700 rounded-xl text-blue-400 font-bold text-sm flex justify-center items-center gap-2 active:scale-95">
+                      <Plus size={16} /> Créer un exercice manuel
                   </button>
 
-                  <div className="flex-1 overflow-y-auto space-y-3 pb-32" style={{ touchAction: "pan-y" }}>
-                      {filteredCatalog.length === 0 && <p className="text-center text-zinc-500 font-bold text-xs mt-10 uppercase tracking-widest">Aucun résultat trouvé.</p>}
+                  <div className="flex-1 overflow-y-auto space-y-2 pb-32" style={{ touchAction: "pan-y" }}>
+                      {filteredCatalog.length === 0 && <p className="text-center text-zinc-500 font-medium text-xs mt-8">Aucun résultat trouvé.</p>}
                       {filteredCatalog.map((exo, idx) => (
-                          <div key={idx} onClick={() => handleSelectFromCatalog(exo)} className="bg-[#151517] p-3 rounded-2xl border border-zinc-800 flex items-center gap-4 cursor-pointer active:scale-95 shadow-lg">
-                              <div className="w-16 h-16 bg-black rounded-xl p-1 shrink-0 flex items-center justify-center border border-zinc-800">
+                          <div key={idx} onClick={() => handleSelectFromCatalog(exo)} className="bg-[#121214] p-3 rounded-xl border border-zinc-800/80 flex items-center gap-4 cursor-pointer active:scale-95">
+                              <div className="w-12 h-12 bg-black rounded-lg p-1 shrink-0 flex items-center justify-center border border-zinc-800/50">
                                 <img src={exo.image || "https://cdn-icons-png.flaticon.com/512/3048/3048364.png"} className="max-w-full max-h-full object-contain" alt="" />
                               </div>
-                              <div className="flex-1"><h3 className="font-bold text-white text-sm">{exo.name}</h3><p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mt-1">Sélectionner</p></div>
-                              <button className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center shadow-lg pointer-events-none"><Plus size={20} className="text-white"/></button>
+                              <div className="flex-1"><h3 className="font-bold text-white text-sm">{exo.name}</h3></div>
+                              <div className="w-8 h-8 bg-blue-600/10 rounded-full flex items-center justify-center text-blue-500"><Plus size={16}/></div>
                           </div>
                       ))}
                   </div>
@@ -617,7 +633,22 @@ function ExerciseCard({ data, isTired, isEditing, onStartRest, history, onLogWei
   const [weight, setWeight] = useState("");
   const [showChart, setShowChart] = useState(false); 
   
-  const actualSets = isTired ? Math.max(1, parseInt(data.sets || 1) - 1) : parseInt(data.sets || 1);
+  // PLUS DE REDUCTION DE SERIES
+  const actualSets = parseInt(data.sets || 1);
+
+  // IA FATIGUE : CALCUL DU POIDS MAX ET DU 75%
+  const maxHistoricalWeight = history && history.length > 0 ? Math.max(...history.map(h => parseFloat(h.weight) || 0)) : 0;
+  const limitWeight = maxHistoricalWeight > 0 ? Math.round(maxHistoricalWeight * 0.75) : 0;
+
+  // IA FATIGUE : REDUCTION DES REPS
+  const parseReps = (repStr) => {
+    if(!repStr) return "8";
+    if(repStr.toString().includes('-')) {
+      return repStr.split('-').map(r => Math.max(1, parseInt(r)-2)).join('-');
+    }
+    return Math.max(1, parseInt(repStr)-2);
+  };
+  const displayReps = isTired ? parseReps(data.reps) : data.reps;
 
   const toggleSet = (i) => {
     const done = !completedSets.includes(i);
@@ -625,67 +656,74 @@ function ExerciseCard({ data, isTired, isEditing, onStartRest, history, onLogWei
     if (done && weight) onLogWeight(weight);
   };
   return (
-    <div className={`bg-[#151517] rounded-[32px] border ${isEditing ? 'border-blue-500/50 shadow-[0_0_20px_rgba(37,99,235,0.1)]' : 'border-[#222225] shadow-2xl'} overflow-hidden mb-6 flex flex-col transition-all`}>
-      <div className="p-5 flex justify-between items-center border-b border-[#222225] bg-[#1a1a1c]">
+    <div className={`bg-[#121214] rounded-[24px] border ${isEditing ? 'border-blue-500/30' : 'border-zinc-800/80'} overflow-hidden mb-5 flex flex-col transition-all`}>
+      <div className="p-4 flex justify-between items-center border-b border-zinc-800/50 bg-zinc-900/20">
         <div>
-          <h3 className="text-[17px] font-bold text-white leading-tight">{data.name}</h3>
+          <h3 className="text-sm font-bold text-white leading-tight">{data.name}</h3>
           {isEditing ? (
               <div className="flex gap-2 mt-2 items-center">
-                  <input type="number" value={data.sets} onChange={e => onUpdate({sets: e.target.value})} className="w-12 bg-zinc-900 border border-zinc-700 py-1 rounded text-center text-xs font-black text-blue-500 outline-none" />
-                  <span className="text-zinc-600 font-black text-xs">x</span>
-                  <input type="text" value={data.reps} onChange={e => onUpdate({reps: e.target.value})} className="w-16 bg-zinc-900 border border-zinc-700 py-1 rounded text-center text-xs font-black text-white outline-none" />
+                  <input type="number" value={data.sets} onChange={e => onUpdate({sets: e.target.value})} className="w-10 bg-black border border-zinc-700 py-0.5 rounded text-center text-xs font-bold text-blue-400 outline-none" />
+                  <span className="text-zinc-600 font-bold text-xs">x</span>
+                  <input type="text" value={data.reps} onChange={e => onUpdate({reps: e.target.value})} className="w-14 bg-black border border-zinc-700 py-0.5 rounded text-center text-xs font-bold text-white outline-none" />
               </div>
           ) : (
-              <div className={`px-2.5 py-1 rounded-md text-[10px] font-black inline-block uppercase tracking-widest border mt-2 ${isTired ? 'bg-red-900/30 text-red-500 border-red-500/30' : 'bg-black text-blue-500 border-zinc-800'}`}>
-                {isTired && <span className="mr-1">⚠️ -1 SÉRIE :</span>}
-                {actualSets}x{data.reps} • {data.tempo}
+              <div className={`px-2 py-0.5 rounded-md text-[10px] font-bold inline-block mt-1.5 ${isTired ? 'bg-red-900/20 text-red-400 border border-red-500/20' : 'bg-black text-blue-400 border border-zinc-800/50'}`}>
+                {isTired && <span className="mr-1">⚠️ 75% MAX | </span>}
+                {actualSets}x{displayReps}
               </div>
           )}
         </div>
 
         {isEditing && (
             <div className="flex gap-2">
-                <button onClick={onSwap} className="w-10 h-10 bg-orange-500/20 text-orange-500 rounded-full flex items-center justify-center border border-orange-500/30 active:scale-90"><Repeat size={18}/></button>
-                <button onClick={onDelete} className="w-10 h-10 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center border border-red-500/30 active:scale-90"><Trash2 size={18}/></button>
+                <button onClick={onSwap} className="w-8 h-8 bg-zinc-800 text-zinc-400 rounded-full flex items-center justify-center hover:bg-zinc-700 active:scale-90"><Repeat size={14}/></button>
+                <button onClick={onDelete} className="w-8 h-8 bg-red-900/20 text-red-500 rounded-full flex items-center justify-center hover:bg-red-900/40 active:scale-90"><Trash2 size={14}/></button>
             </div>
         )}
       </div>
 
-      <div className="p-5 space-y-5">
-        <div className="h-48 bg-black rounded-[24px] overflow-hidden border border-[#222225] flex items-center justify-center relative" style={{ touchAction: "pan-y" }}>
-          <img src={data.image || "https://cdn-icons-png.flaticon.com/512/3048/3048364.png"} draggable={false} alt="" className="w-full h-full object-contain opacity-80 pointer-events-none" style={{ touchAction: "none" }} />
+      <div className="p-4 space-y-4">
+        <div className="h-40 bg-black/50 rounded-[16px] overflow-hidden border border-zinc-800/50 flex items-center justify-center relative" style={{ touchAction: "pan-y" }}>
+          <img src={data.image || "https://cdn-icons-png.flaticon.com/512/3048/3048364.png"} draggable={false} alt="" className="w-full h-full object-contain opacity-70 pointer-events-none" style={{ touchAction: "none" }} />
           {!isEditing && (
-            <button onClick={onSwap} className="absolute top-3 right-3 bg-black/80 backdrop-blur border border-zinc-800 text-orange-500 p-2 rounded-xl shadow-xl active:scale-90">
-              <Repeat size={18} />
+            <button onClick={onSwap} className="absolute top-2 right-2 bg-black/60 backdrop-blur text-zinc-400 p-2 rounded-lg hover:text-white active:scale-90 border border-zinc-800">
+              <Repeat size={14} />
             </button>
           )}
         </div>
         
-        <div className="flex gap-3"><div className="flex-1 bg-black p-4 rounded-[24px] border border-[#222225] flex items-center"><span className="text-[11px] text-zinc-600 uppercase font-black mr-4 tracking-widest">Kilos</span><input type="number" value={weight} onChange={e => setWeight(e.target.value)} placeholder="---" className="bg-transparent font-black text-white text-xl outline-none w-full" /></div></div>
+        <div className="flex gap-3">
+            <div className="flex-1 bg-black p-3 rounded-[16px] border border-zinc-800/50 flex items-center justify-between">
+                <div className="flex items-center">
+                    <span className="text-[10px] text-zinc-500 uppercase font-bold mr-3">Kilos</span>
+                </div>
+                <input type="number" value={weight} onChange={e => setWeight(e.target.value)} placeholder={isTired && limitWeight > 0 ? `~${limitWeight}kg` : "-"} className="bg-transparent font-bold text-white text-lg outline-none w-20 text-right" />
+            </div>
+        </div>
         
-        <div className="flex justify-between items-center px-1 bg-zinc-900/30 p-2 rounded-full border border-zinc-800/50">
-            <div className="flex gap-2 pl-1">{[...Array(actualSets)].map((_, i) => (<button key={i} onClick={() => toggleSet(i)} className={`w-12 h-12 rounded-full flex items-center justify-center font-black text-sm ${completedSets.includes(i) ? 'bg-[#34C759] text-black shadow-[0_0_20px_rgba(52,199,89,0.4)]' : 'bg-[#222225] text-[#8E8E93]'}`}>{completedSets.includes(i) ? <Check size={22} strokeWidth={4} /> : i + 1}</button>))}</div>
-            <button onClick={onStartRest} className="w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(10,132,255,0.4)] mr-1 active:scale-90"><Play size={24} fill="white" className="ml-1"/></button>
+        <div className="flex justify-between items-center px-1 bg-black/40 p-1.5 rounded-full border border-zinc-800/50">
+            <div className="flex gap-1.5 pl-1">{[...Array(actualSets)].map((_, i) => (<button key={i} onClick={() => toggleSet(i)} className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs transition-colors ${completedSets.includes(i) ? 'bg-[#10b981] text-black shadow-sm' : 'bg-zinc-900 text-zinc-500 border border-zinc-800'}`}>{completedSets.includes(i) ? <Check size={16} strokeWidth={3} /> : i + 1}</button>))}</div>
+            <button onClick={onStartRest} className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center active:scale-90"><Play size={16} fill="white" className="ml-0.5"/></button>
         </div>
 
         {!isEditing && (
-          <div className="pt-2 border-t border-zinc-800/50">
-             <button onClick={() => setShowChart(!showChart)} className={`w-full py-3 rounded-xl flex items-center justify-center gap-2 font-bold text-[11px] uppercase tracking-widest transition-colors ${showChart ? 'bg-blue-600 text-white' : 'bg-black text-blue-500 border border-zinc-800'}`}>
-                 <TrendingUp size={16}/> Surcharge Progressive
+          <div className="pt-2 border-t border-zinc-800/30">
+             <button onClick={() => setShowChart(!showChart)} className={`w-full py-2.5 rounded-xl flex items-center justify-center gap-2 font-bold text-[10px] uppercase tracking-wider transition-colors ${showChart ? 'text-blue-400 bg-blue-900/10' : 'text-zinc-500'}`}>
+                 <TrendingUp size={14}/> Historique
              </button>
              
              <AnimatePresence>
                {showChart && (
-                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 150, opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="w-full mt-4 overflow-hidden" style={{ touchAction: "pan-y" }}>
+                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 120, opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="w-full mt-3 overflow-hidden" style={{ touchAction: "pan-y" }}>
                     {history.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={history}>
-                                <Line type="monotone" dataKey="weight" stroke="#3b82f6" strokeWidth={3} dot={{r: 4, fill: "#3b82f6", stroke: "#000", strokeWidth: 2}} activeDot={{r: 6}} />
-                                <Tooltip content={<ChartTooltip color="#3b82f6" />} cursor={{ stroke: '#27272a', strokeWidth: 2, strokeDasharray: '5 5' }} />
+                                <Line type="monotone" dataKey="weight" stroke="#3b82f6" strokeWidth={2} dot={{r: 3, fill: "#3b82f6", stroke: "#000", strokeWidth: 1}} activeDot={{r: 5}} />
+                                <Tooltip content={<ChartTooltip color="#3b82f6" />} cursor={{ stroke: '#27272a', strokeWidth: 1, strokeDasharray: '4 4' }} />
                             </LineChart>
                         </ResponsiveContainer>
                     ) : (
-                       <div className="h-full flex items-center justify-center"><p className="text-center text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Aucun historique de poids enregistré.</p></div>
+                       <div className="h-full flex items-center justify-center"><p className="text-[10px] text-zinc-600 font-medium">Aucun poids enregistré.</p></div>
                     )}
                  </motion.div>
                )}
@@ -699,23 +737,21 @@ function ExerciseCard({ data, isTired, isEditing, onStartRest, history, onLogWei
 
 function CardioCard({ data, isFinisher }) {
   return (
-    <article className="bg-[#1A1111] rounded-[32px] border border-[#3A1D1D] p-8 mb-6 shadow-2xl relative overflow-hidden">
-      <div className="relative z-10">
-        <div className="flex items-center gap-2 mb-6"><HeartPulse size={18} className="text-[#FF453A] animate-pulse" /><span className="text-[#FF453A] text-[11px] font-black uppercase tracking-widest">{isFinisher ? "Finisher FATmax" : "Cardio Exclusif"}</span></div>
-        <h3 className="text-2xl font-black text-white mb-6 tracking-tight">{data.name}</h3>
-        <div className="flex gap-4 mb-6"><div className="flex-1 bg-black/80 rounded-[20px] p-5 border border-[#3A1D1D] text-center shadow-inner"><span className="text-[10px] text-zinc-500 font-black block mb-2 uppercase tracking-widest">Temps</span><span className="font-black text-xl text-white">{data.duration}</span></div><div className="flex-1 bg-[#FF453A]/10 rounded-[20px] p-5 border border-[#FF453A]/30 text-center shadow-inner"><span className="text-[10px] text-[#FF453A] font-black block mb-2 uppercase tracking-widest">BPM Cible</span><span className="font-black text-xl text-[#FF453A] font-mono">{data.bpm}</span></div></div>
-        <div className="bg-black/60 p-4 rounded-[20px] flex gap-4 items-start border border-[#3A1D1D]/50"><Info size={18} className="text-[#FF453A] mt-0.5 shrink-0" /><p className="text-[12px] text-[#D1D1D6] leading-relaxed font-medium">{data.focus}</p></div>
-      </div>
+    <article className="bg-[#121214] rounded-[24px] border border-zinc-800/80 p-6 mb-5">
+      <div className="flex items-center gap-2 mb-4"><HeartPulse size={16} className="text-[#FF453A] animate-pulse" /><span className="text-[#FF453A] text-[10px] font-bold uppercase tracking-widest">{isFinisher ? "Finisher Cardio" : "Cardio"}</span></div>
+      <h3 className="text-lg font-bold text-white mb-4">{data.name}</h3>
+      <div className="flex gap-3 mb-4"><div className="flex-1 bg-black rounded-2xl p-4 border border-zinc-800/50 text-center"><span className="text-[10px] text-zinc-500 font-bold block mb-1">TEMPS</span><span className="font-bold text-sm text-white">{data.duration}</span></div><div className="flex-1 bg-black rounded-2xl p-4 border border-zinc-800/50 text-center"><span className="text-[10px] text-zinc-500 font-bold block mb-1">BPM CIBLE</span><span className="font-bold text-sm text-[#FF453A]">{data.bpm}</span></div></div>
+      <div className="bg-black/50 p-3 rounded-xl flex gap-3 items-start"><Info size={14} className="text-zinc-500 shrink-0 mt-0.5" /><p className="text-[11px] text-zinc-400 leading-relaxed font-medium">{data.focus}</p></div>
     </article>
   );
 }
 
 function RestCard({ data }) {
   return (
-    <div className="bg-[#151517] p-10 rounded-[32px] border border-[#222225] text-center mt-8 shadow-2xl">
-      <div className="w-20 h-20 bg-blue-600/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-blue-600/20"><BedDouble size={40} className="text-blue-500" /></div>
-      <h3 className="text-2xl font-black text-white mb-4 uppercase tracking-tighter">{data.focus}</h3>
-      <p className="text-sm text-zinc-400 leading-relaxed font-medium">{data.desc}</p>
+    <div className="bg-[#121214] p-8 rounded-[24px] border border-zinc-800/80 text-center mt-6">
+      <div className="w-16 h-16 bg-blue-900/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-900/20"><BedDouble size={32} className="text-blue-500" /></div>
+      <h3 className="text-lg font-bold text-white mb-2">{data.focus}</h3>
+      <p className="text-xs text-zinc-500 leading-relaxed font-medium">{data.desc}</p>
     </div>
   );
 }
@@ -766,21 +802,21 @@ function FloatingSpotifyWidget({ token, track, onClose, refreshTrack, setSpotify
 }
 
 // ==========================================
-// COMPOSANT DE MISE A JOUR V3 (POPUP UNIQUE)
+// 🔔 COMPOSANT DE MISE A JOUR V3 (POPUP UNIQUE)
 // ==========================================
 function UpdateModal({ onClose }) {
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-6">
-      <div className="bg-[#151517] w-full max-w-sm rounded-[32px] p-8 border border-emerald-500/30 shadow-[0_0_40px_rgba(16,185,129,0.2)] relative overflow-hidden">
-        <button onClick={onClose} className="absolute top-5 right-5 p-2 bg-zinc-900 rounded-full text-zinc-400 active:scale-90"><X size={20}/></button>
-        <div className="flex justify-center mb-6"><div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center border border-emerald-500/50"><Sparkles size={32} className="text-emerald-500" /></div></div>
-        <h2 className="text-2xl font-black uppercase tracking-tighter mb-6 text-center text-white">Mise à jour V3.0</h2>
-        <div className="space-y-4 mb-8">
-          <div className="flex gap-3 items-start"><Trophy size={20} className="text-yellow-500 shrink-0"/><p className="text-sm text-zinc-300 font-medium"><strong className="text-white">Classement par exercice :</strong> Comparez vos Max (1RM) avec les autres athlètes.</p></div>
-          <div className="flex gap-3 items-start"><Plus size={20} className="text-blue-500 shrink-0"/><p className="text-sm text-zinc-300 font-medium"><strong className="text-white">Exercices Custom :</strong> Ajoutez vos propres machines au catalogue.</p></div>
-          <div className="flex gap-3 items-start"><ChevronRight size={20} className="text-emerald-500 shrink-0"/><p className="text-sm text-zinc-300 font-medium"><strong className="text-white">Swipe Navigation :</strong> Glissez à gauche/droite pour naviguer dans vos séances d'entraînement.</p></div>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[300] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-6">
+      <div className="bg-[#121214] w-full max-w-sm rounded-[24px] p-6 border border-emerald-500/20 shadow-2xl relative overflow-hidden">
+        <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-black rounded-full text-zinc-400 active:scale-90"><X size={16}/></button>
+        <div className="flex justify-center mb-5"><div className="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center border border-emerald-500/30"><Sparkles size={24} className="text-emerald-500" /></div></div>
+        <h2 className="text-lg font-bold tracking-tight mb-5 text-center text-white">Quoi de neuf ? (V3.0)</h2>
+        <div className="space-y-4 mb-6">
+          <div className="flex gap-3 items-start"><Trophy size={16} className="text-yellow-500 shrink-0 mt-0.5"/><p className="text-xs text-zinc-400 font-medium"><strong className="text-white">Ligue ciblée :</strong> Classement mondial par exercice (Max 1RM).</p></div>
+          <div className="flex gap-3 items-start"><Plus size={16} className="text-blue-500 shrink-0 mt-0.5"/><p className="text-xs text-zinc-400 font-medium"><strong className="text-white">Machines Custom :</strong> Créez vos propres exercices dans le builder.</p></div>
+          <div className="flex gap-3 items-start"><ChevronRight size={16} className="text-emerald-500 shrink-0 mt-0.5"/><p className="text-xs text-zinc-400 font-medium"><strong className="text-white">Swipe UI :</strong> Glissez l'écran pour naviguer facilement dans les jours.</p></div>
         </div>
-        <button onClick={onClose} className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs shadow-[0_0_20px_rgba(16,185,129,0.4)] active:scale-95 transition-all">Génial, on y va !</button>
+        <button onClick={onClose} className="w-full py-3.5 bg-emerald-600 text-white rounded-xl font-bold text-sm active:scale-95 transition-all">Génial !</button>
       </div>
     </motion.div>
   );
@@ -795,13 +831,12 @@ function AppRouter() {
   const [spotifyTrack, setSpotifyTrack] = useState(null);
   const [showSpotifyWidget, setShowSpotifyWidget] = useState(false);
 
-  // ETAT POUR LE POPUP DE MISE A JOUR V3
   const [showUpdateNote, setShowUpdateNote] = useState(() => {
-    return localStorage.getItem('mecanik_update_v3_1') !== 'true';
+    return localStorage.getItem('mecanik_update_v3_2') !== 'true';
   });
 
   const closeUpdateNote = () => {
-    localStorage.setItem('mecanik_update_v3_1', 'true');
+    localStorage.setItem('mecanik_update_v3_2', 'true');
     setShowUpdateNote(false);
   };
 
@@ -854,20 +889,23 @@ function AppRouter() {
 
       <div className="flex-1 relative overflow-hidden" style={{ touchAction: "pan-y" }}>
         <AnimatePresence mode="wait">
-          {currentTab === 'home' && <DashboardTab key="home" onNavigate={setCurrentTab} spotifyToken={spotifyToken} loginSpotify={loginSpotify} setShowSpotifyWidget={setShowSpotifyWidget} />}
+          {currentTab === 'home' && <DashboardTab key="home" onNavigate={setCurrentTab} />}
           {currentTab === 'workout' && <WorkoutTab key="workout" spotifyToken={spotifyToken} spotifyTrack={spotifyTrack} setShowSpotifyWidget={setShowSpotifyWidget} loginSpotify={loginSpotify} />}
           {currentTab === 'nutrition' && <Nutrition key="nutrition" onBack={() => setCurrentTab('home')} dataContext={dataContextValues} />}
+          {currentTab === 'progress' && <Progress key="progress" onBack={() => setCurrentTab('home')} dataContext={dataContextValues} />}
           {currentTab === 'social' && <Social key="social" onBack={() => setCurrentTab('home')} currentUser={currentUser} db={db} />}
         </AnimatePresence>
       </div>
       {showSpotifyWidget && spotifyToken && <FloatingSpotifyWidget token={spotifyToken} track={spotifyTrack} onClose={() => setShowSpotifyWidget(false)} refreshTrack={fetchCurrentlyPlaying} setSpotifyToken={setSpotifyToken} />}
       
-      <div className="fixed bottom-0 left-0 right-0 p-4 z-[90] pointer-events-none">
-         <div className="max-w-md mx-auto bg-black/80 backdrop-blur-xl border border-zinc-800 rounded-[32px] flex justify-between items-center p-2 shadow-[0_20px_50px_rgba(0,0,0,0.8)] pointer-events-auto">
-            <button onClick={() => setCurrentTab('home')} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-[24px] transition-all ${currentTab === 'home' ? 'text-white bg-zinc-900 shadow-inner' : 'text-zinc-500 hover:text-zinc-300'}`}><LayoutDashboard size={20} className="mb-1" /><span className="text-[9px] font-bold uppercase tracking-widest">Accueil</span></button>
-            <button onClick={() => setCurrentTab('workout')} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-[24px] transition-all ${currentTab === 'workout' ? 'text-white bg-zinc-900 shadow-inner' : 'text-zinc-500 hover:text-zinc-300'}`}><Dumbbell size={20} className="mb-1" /><span className="text-[9px] font-bold uppercase tracking-widest">Training</span></button>
-            <button onClick={() => setCurrentTab('nutrition')} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-[24px] transition-all ${currentTab === 'nutrition' ? 'text-white bg-zinc-900 shadow-inner' : 'text-zinc-500 hover:text-zinc-300'}`}><Utensils size={20} className="mb-1" /><span className="text-[9px] font-bold uppercase tracking-widest">Diet</span></button>
-            <button onClick={() => setCurrentTab('social')} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-[24px] transition-all ${currentTab === 'social' ? 'text-yellow-500 bg-yellow-500/10 border border-yellow-500/20' : 'text-zinc-500 hover:text-zinc-300'}`}><Trophy size={20} className="mb-1" /><span className="text-[9px] font-bold uppercase tracking-widest">Ligue</span></button>
+      {/* NOUVELLE BARRE DE NAVIGATION A 5 BOUTONS */}
+      <div className="fixed bottom-0 left-0 right-0 p-3 z-[90] pointer-events-none">
+         <div className="max-w-md mx-auto bg-black/90 backdrop-blur-lg border border-zinc-800/80 rounded-2xl flex justify-between items-center p-1.5 shadow-2xl pointer-events-auto">
+            <button onClick={() => setCurrentTab('home')} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl transition-all ${currentTab === 'home' ? 'text-white bg-zinc-800/50' : 'text-zinc-500 hover:text-zinc-300'}`}><LayoutDashboard size={18} className="mb-1" /><span className="text-[8px] font-bold uppercase tracking-widest">Accueil</span></button>
+            <button onClick={() => setCurrentTab('workout')} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl transition-all ${currentTab === 'workout' ? 'text-white bg-zinc-800/50' : 'text-zinc-500 hover:text-zinc-300'}`}><Dumbbell size={18} className="mb-1" /><span className="text-[8px] font-bold uppercase tracking-widest">Train</span></button>
+            <button onClick={() => setCurrentTab('nutrition')} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl transition-all ${currentTab === 'nutrition' ? 'text-white bg-zinc-800/50' : 'text-zinc-500 hover:text-zinc-300'}`}><Utensils size={18} className="mb-1" /><span className="text-[8px] font-bold uppercase tracking-widest">Diète</span></button>
+            <button onClick={() => setCurrentTab('progress')} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl transition-all ${currentTab === 'progress' ? 'text-emerald-500 bg-emerald-500/10 border border-emerald-500/20' : 'text-zinc-500 hover:text-zinc-300'}`}><TrendingUp size={18} className="mb-1" /><span className="text-[8px] font-bold uppercase tracking-widest">Progrès</span></button>
+            <button onClick={() => setCurrentTab('social')} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl transition-all ${currentTab === 'social' ? 'text-yellow-500 bg-yellow-500/10 border border-yellow-500/20' : 'text-zinc-500 hover:text-zinc-300'}`}><Trophy size={18} className="mb-1" /><span className="text-[8px] font-bold uppercase tracking-widest">Ligue</span></button>
          </div>
       </div>
     </div>
