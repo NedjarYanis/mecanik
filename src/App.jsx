@@ -6,7 +6,7 @@ import {
   LogIn, LogOut, Minus, MonitorSpeaker, FastForward, Rewind, 
   Edit3, Plus, Trash2, ChevronLeft, ChevronRight, Utensils, Dumbbell, 
   LayoutDashboard, Calendar, ArrowRight, CloudLightning, AlertTriangle,
-  Repeat, Settings2, Search, Download, Trophy, BrainCircuit
+  Repeat, Settings2, Search, Download, Trophy, BrainCircuit, Image as ImageIcon, Sparkles
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
@@ -31,8 +31,9 @@ import imgPullover from './assets/pull-over-poulie.gif';
 import imgHammerCurl from './assets/Dumbbell-Hammer-Curl_Forearm.gif';
 import imgCurlBiceps from './assets/Curl_Biceps.png';
 
+// IMPORT FIRESTORE COMPLET
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, doc, setDoc, getDoc } from "firebase/firestore";
+import { getFirestore, doc, setDoc, getDoc, collection, getDocs, addDoc } from "firebase/firestore";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 const firebaseConfig = {
@@ -81,7 +82,6 @@ const defaultProgramData = {
   7: { type: 'rest', dayName: "Dimanche", focus: "Repos Absolu", desc: "Restauration du SNC." }
 };
 
-// AJOUT DES NOUVEAUX EXERCICES DIRECTEMENT DANS LE CATALOGUE
 const CATALOGUE_EXERCICES = [
   { id: 'NEW1', name: "Développé Couché Haltères", sets: 4, reps: "8-12", tempo: "3-0-1-0", rest: 120, image: imgDCSmith },
   { id: 'NEW2', name: "Développé Incliné Barre", sets: 4, reps: "8-12", tempo: "3-0-1-0", rest: 120, image: imgDCSmith },
@@ -111,6 +111,8 @@ function DataProvider({ children }) {
   const [journal, setJournal] = useState(() => JSON.parse(localStorage.getItem('mecanik_journal_v6')) || { [getTodayStr()]: { meals: { breakfast: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, lunch: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, dinner: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 }, snacks: { items: [], cals: 0, carbs: 0, prot: 0, fat: 0 } }, activity: 0, water: 0 } });
   const [isSyncing, setIsSyncing] = useState(false);
 
+  const [customCatalog, setCustomCatalog] = useState([]);
+
   useEffect(() => { localStorage.setItem('mecanik_program_v6', JSON.stringify(program)); }, [program]);
   useEffect(() => { localStorage.setItem('mecanik_history_v6', JSON.stringify(history)); }, [history]);
   useEffect(() => { if (profile) localStorage.setItem('mecanik_profile_v6', JSON.stringify(profile)); }, [profile]);
@@ -127,6 +129,9 @@ function DataProvider({ children }) {
           if (cloudData.journal) setJournal(cloudData.journal);
         }
       });
+      getDocs(collection(db, "custom_exercises")).then(snap => {
+        setCustomCatalog(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }).catch(() => console.log("Aucun exercice custom trouvé."));
     }
   }, [currentUser]);
 
@@ -152,7 +157,7 @@ function DataProvider({ children }) {
     return () => clearInterval(timer);
   }, [currentUser]);
 
-  return <DataContext.Provider value={{ program, setProgram, history, setHistory, profile, setProfile, journal, setJournal, syncToCloud, isSyncing }}>{children}</DataContext.Provider>;
+  return <DataContext.Provider value={{ program, setProgram, history, setHistory, profile, setProfile, journal, setJournal, syncToCloud, isSyncing, customCatalog }}>{children}</DataContext.Provider>;
 }
 
 const ChartTooltip = ({ active, payload, color }) => {
@@ -263,7 +268,7 @@ function DashboardTab({ onNavigate, spotifyToken, loginSpotify, setShowSpotifyWi
   };
 
   return (
-    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} className="h-full w-full bg-black p-6 overflow-y-auto pb-32">
+    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} className="h-full w-full bg-black p-6 overflow-y-auto pb-32" style={{ touchAction: "pan-y" }}>
       
       <AnimatePresence>
         {showReadiness && !showWeeklyReview && (
@@ -317,7 +322,7 @@ function DashboardTab({ onNavigate, spotifyToken, loginSpotify, setShowSpotifyWi
               <button onClick={logWeight} className="bg-emerald-500 text-black px-4 py-1.5 rounded-full text-[10px] font-black uppercase shadow-[0_0_10px_rgba(16,185,129,0.3)] active:scale-95">OK</button>
             </div>
           </div>
-          <div className="h-32 w-full mt-2 -ml-4">
+          <div className="h-32 w-full mt-2 -ml-4" style={{ touchAction: "pan-y" }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={profile?.weightHistory || []}>
                 <Line type="monotone" dataKey="weight" stroke="#10b981" strokeWidth={4} dot={{r: 4, fill: "#10b981", stroke: "#000", strokeWidth: 2}} activeDot={{r: 6}} />
@@ -347,7 +352,7 @@ function DashboardTab({ onNavigate, spotifyToken, loginSpotify, setShowSpotifyWi
 }
 
 function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpotify }) {
-  const { program, setProgram, history, setHistory, syncToCloud, isSyncing, journal } = useData(); 
+  const { program, setProgram, history, setHistory, syncToCloud, isSyncing, journal, customCatalog } = useData(); 
   
   const getTodayStr = () => new Date().toISOString().split('T')[0];
   const [currentDateStr, setCurrentDateStr] = useState(getTodayStr());
@@ -370,6 +375,10 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpo
   const [showCatalog, setShowCatalog] = useState(false);
   const [swapId, setSwapId] = useState(null); 
   const [catalogSearch, setCatalogSearch] = useState('');
+  
+  const [isCreatingExo, setIsCreatingExo] = useState(false);
+  const [newExo, setNewExo] = useState({ name: '', focus: '', image: '' });
+  const [isSavingExo, setIsSavingExo] = useState(false);
 
   const readiness = journal[currentDateStr]?.readiness || 10;
   const isTired = readiness <= 4; 
@@ -393,7 +402,9 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpo
   const handleDeleteExo = (exoId) => { setProgram(prev => { const day = prev[activeDay]; const newExercises = day.exercises.filter(e => e.id !== exoId); return { ...prev, [activeDay]: { ...day, exercises: newExercises } }; }); };
 
   const handleSelectFromCatalog = (exoTemplate) => {
-    const newExo = { ...exoTemplate, id: Date.now().toString() }; 
+    const newExoId = exoTemplate.id.startsWith('CUST-') ? exoTemplate.id : Date.now().toString();
+    const newExo = { ...exoTemplate, id: newExoId }; 
+
     setProgram(prev => {
       const day = prev[activeDay];
       let newExercises = [...(day.exercises || [])];
@@ -406,11 +417,35 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpo
       return { ...prev, [activeDay]: { ...day, type: newType, exercises: newExercises } };
     });
     setShowCatalog(false);
+    setIsCreatingExo(false);
     setSwapId(null);
     setCatalogSearch('');
   };
 
-  const filteredCatalog = CATALOGUE_EXERCICES.filter(e => e.name.toLowerCase().includes(catalogSearch.toLowerCase()));
+  const handleCreateCustomExo = async () => {
+    if (!newExo.name) return alert("Le nom de l'exercice est obligatoire !");
+    setIsSavingExo(true);
+    const exoObj = {
+       name: newExo.name,
+       focus: newExo.focus || "Général",
+       image: newExo.image || "https://cdn-icons-png.flaticon.com/512/3048/3048364.png",
+       sets: 4, reps: "10-12", tempo: "2-0-1-1", rest: 90
+    };
+    try {
+      const docRef = await addDoc(collection(db, "custom_exercises"), exoObj);
+      const completeExo = { ...exoObj, id: docRef.id };
+      handleSelectFromCatalog(completeExo); 
+      setNewExo({name:'', focus:'', image:''});
+    } catch (e) {
+      console.error(e);
+      alert("Erreur réseau");
+    } finally {
+      setIsSavingExo(false);
+    }
+  };
+
+  const FULL_CATALOG = [...CATALOGUE_EXERCICES, ...(customCatalog || [])];
+  const filteredCatalog = FULL_CATALOG.filter(e => e.name.toLowerCase().includes(catalogSearch.toLowerCase()));
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col h-full w-full bg-black relative overflow-hidden">
@@ -432,7 +467,6 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpo
         </div>
       </header>
       
-      {/* L'AJOUT DU touchAction ICI REGLE LE PROBLEME DE SCROLL ! */}
       <motion.main 
         drag="x" 
         dragConstraints={{ left: 0, right: 0 }} 
@@ -476,12 +510,12 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpo
             onLogWeight={(w) => logWeight(exo.id, w)} 
             onUpdate={(newProps) => handleUpdateExo(exo.id, newProps)}
             onDelete={() => handleDeleteExo(exo.id)}
-            onSwap={() => { setSwapId(exo.id); setShowCatalog(true); }}
+            onSwap={() => { setSwapId(exo.id); setShowCatalog(true); setIsCreatingExo(false); }}
           />
         ))}
 
         {isEditingDay && (
-          <button onClick={() => { setSwapId(null); setShowCatalog(true); }} className="w-full py-5 border-2 border-dashed border-zinc-700 rounded-[24px] text-zinc-500 font-black uppercase text-xs flex justify-center items-center gap-2 hover:bg-zinc-900 transition-colors mb-6 active:scale-95">
+          <button onClick={() => { setSwapId(null); setShowCatalog(true); setIsCreatingExo(false); }} className="w-full py-5 border-2 border-dashed border-zinc-700 rounded-[24px] text-zinc-500 font-black uppercase text-xs flex justify-center items-center gap-2 hover:bg-zinc-900 transition-colors mb-6 active:scale-95">
             <Plus size={18} /> Ajouter un exercice
           </button>
         )}
@@ -520,22 +554,56 @@ function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpo
               <button onClick={() => { setShowCatalog(false); setSwapId(null); }} className="p-2 bg-zinc-800 rounded-full active:scale-90"><X size={20}/></button>
             </div>
             
-            {/* CORRECTION DU SCROLL ICI AUSSI : Ajout de min-h-0 et pb-32 */}
             <div className="p-4 flex-1 flex flex-col min-h-0">
-              <div className="flex items-center gap-3 bg-zinc-900 p-4 rounded-2xl mb-4 border border-zinc-800 shadow-inner">
-                <Search size={20} className="text-zinc-500" />
-                <input type="text" placeholder="Rechercher une machine..." value={catalogSearch} onChange={e => setCatalogSearch(e.target.value)} className="bg-transparent font-bold text-white outline-none w-full placeholder:text-zinc-600" autoFocus />
-              </div>
-              <div className="flex-1 overflow-y-auto space-y-3 pb-32" style={{ touchAction: "pan-y" }}>
-                  {filteredCatalog.length === 0 && <p className="text-center text-zinc-500 font-bold text-xs mt-10 uppercase tracking-widest">Aucun résultat trouvé.</p>}
-                  {filteredCatalog.map((exo, idx) => (
-                      <div key={idx} onClick={() => handleSelectFromCatalog(exo)} className="bg-[#151517] p-3 rounded-2xl border border-zinc-800 flex items-center gap-4 cursor-pointer active:scale-95 shadow-lg">
-                          <div className="w-16 h-16 bg-black rounded-xl p-1 shrink-0 flex items-center justify-center border border-zinc-800"><img src={exo.image} className="max-w-full max-h-full object-contain" alt="" /></div>
-                          <div className="flex-1"><h3 className="font-bold text-white text-sm">{exo.name}</h3><p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mt-1">Sélectionner</p></div>
-                          <button className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center shadow-lg pointer-events-none"><Plus size={20} className="text-white"/></button>
-                      </div>
-                  ))}
-              </div>
+              {isCreatingExo ? (
+                <div className="flex-1 overflow-y-auto space-y-4 pb-32" style={{ touchAction: "pan-y" }}>
+                   <div className="bg-[#151517] p-5 rounded-[24px] border border-zinc-800 shadow-xl space-y-4">
+                       <div>
+                          <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest block mb-2">Nom de l'exercice *</span>
+                          <input type="text" value={newExo.name} onChange={e=>setNewExo({...newExo, name: e.target.value})} className="w-full bg-black border border-zinc-800 p-4 rounded-xl text-white font-bold outline-none focus:border-blue-500" placeholder="Ex: Soulevé de terre" />
+                       </div>
+                       <div>
+                          <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest block mb-2">Focus (Muscle)</span>
+                          <input type="text" value={newExo.focus} onChange={e=>setNewExo({...newExo, focus: e.target.value})} className="w-full bg-black border border-zinc-800 p-4 rounded-xl text-white font-bold outline-none focus:border-blue-500" placeholder="Ex: Dos / Ischios" />
+                       </div>
+                       <div>
+                          <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest block mb-2">Lien Image (Optionnel)</span>
+                          <input type="text" value={newExo.image} onChange={e=>setNewExo({...newExo, image: e.target.value})} className="w-full bg-black border border-zinc-800 p-4 rounded-xl text-white font-bold outline-none focus:border-blue-500" placeholder="https://..." />
+                       </div>
+                       <button onClick={handleCreateCustomExo} disabled={isSavingExo} className="w-full py-4 bg-blue-600 text-white rounded-xl font-black uppercase text-xs shadow-lg active:scale-95 flex items-center justify-center gap-2">
+                           {isSavingExo ? <RefreshCw size={16} className="animate-spin" /> : <Plus size={16} />}
+                           {isSavingExo ? "Création..." : "Créer et Ajouter"}
+                       </button>
+                       <button onClick={() => setIsCreatingExo(false)} className="w-full py-4 bg-zinc-900 text-zinc-400 rounded-xl font-black uppercase text-xs active:scale-95 border border-zinc-800">
+                           Retour au catalogue
+                       </button>
+                   </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3 bg-zinc-900 p-4 rounded-2xl mb-4 border border-zinc-800 shadow-inner">
+                    <Search size={20} className="text-zinc-500" />
+                    <input type="text" placeholder="Rechercher une machine..." value={catalogSearch} onChange={e => setCatalogSearch(e.target.value)} className="bg-transparent font-bold text-white outline-none w-full placeholder:text-zinc-600" autoFocus />
+                  </div>
+                  
+                  <button onClick={() => setIsCreatingExo(true)} className="w-full py-4 mb-4 bg-zinc-900 border border-dashed border-zinc-700 rounded-2xl text-blue-500 font-black uppercase text-xs flex justify-center items-center gap-2 active:scale-95">
+                      <Plus size={18} /> Créer un exercice manuellement
+                  </button>
+
+                  <div className="flex-1 overflow-y-auto space-y-3 pb-32" style={{ touchAction: "pan-y" }}>
+                      {filteredCatalog.length === 0 && <p className="text-center text-zinc-500 font-bold text-xs mt-10 uppercase tracking-widest">Aucun résultat trouvé.</p>}
+                      {filteredCatalog.map((exo, idx) => (
+                          <div key={idx} onClick={() => handleSelectFromCatalog(exo)} className="bg-[#151517] p-3 rounded-2xl border border-zinc-800 flex items-center gap-4 cursor-pointer active:scale-95 shadow-lg">
+                              <div className="w-16 h-16 bg-black rounded-xl p-1 shrink-0 flex items-center justify-center border border-zinc-800">
+                                <img src={exo.image || "https://cdn-icons-png.flaticon.com/512/3048/3048364.png"} className="max-w-full max-h-full object-contain" alt="" />
+                              </div>
+                              <div className="flex-1"><h3 className="font-bold text-white text-sm">{exo.name}</h3><p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mt-1">Sélectionner</p></div>
+                              <button className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center shadow-lg pointer-events-none"><Plus size={20} className="text-white"/></button>
+                          </div>
+                      ))}
+                  </div>
+                </>
+              )}
             </div>
           </motion.div>
         )}
@@ -584,8 +652,8 @@ function ExerciseCard({ data, isTired, isEditing, onStartRest, history, onLogWei
       </div>
 
       <div className="p-5 space-y-5">
-        <div className="h-48 bg-black rounded-[24px] overflow-hidden border border-[#222225] flex items-center justify-center relative">
-          <img src={data.image} alt="" className="w-full h-full object-contain opacity-80" />
+        <div className="h-48 bg-black rounded-[24px] overflow-hidden border border-[#222225] flex items-center justify-center relative" style={{ touchAction: "pan-y" }}>
+          <img src={data.image || "https://cdn-icons-png.flaticon.com/512/3048/3048364.png"} draggable={false} alt="" className="w-full h-full object-contain opacity-80 pointer-events-none" style={{ touchAction: "none" }} />
           {!isEditing && (
             <button onClick={onSwap} className="absolute top-3 right-3 bg-black/80 backdrop-blur border border-zinc-800 text-orange-500 p-2 rounded-xl shadow-xl active:scale-90">
               <Repeat size={18} />
@@ -608,7 +676,7 @@ function ExerciseCard({ data, isTired, isEditing, onStartRest, history, onLogWei
              
              <AnimatePresence>
                {showChart && (
-                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 150, opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="w-full mt-4 overflow-hidden">
+                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 150, opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="w-full mt-4 overflow-hidden" style={{ touchAction: "pan-y" }}>
                     {history.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={history}>
@@ -697,6 +765,27 @@ function FloatingSpotifyWidget({ token, track, onClose, refreshTrack, setSpotify
   );
 }
 
+// ==========================================
+// COMPOSANT DE MISE A JOUR V3 (POPUP UNIQUE)
+// ==========================================
+function UpdateModal({ onClose }) {
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-6">
+      <div className="bg-[#151517] w-full max-w-sm rounded-[32px] p-8 border border-emerald-500/30 shadow-[0_0_40px_rgba(16,185,129,0.2)] relative overflow-hidden">
+        <button onClick={onClose} className="absolute top-5 right-5 p-2 bg-zinc-900 rounded-full text-zinc-400 active:scale-90"><X size={20}/></button>
+        <div className="flex justify-center mb-6"><div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center border border-emerald-500/50"><Sparkles size={32} className="text-emerald-500" /></div></div>
+        <h2 className="text-2xl font-black uppercase tracking-tighter mb-6 text-center text-white">Mise à jour V3.0</h2>
+        <div className="space-y-4 mb-8">
+          <div className="flex gap-3 items-start"><Trophy size={20} className="text-yellow-500 shrink-0"/><p className="text-sm text-zinc-300 font-medium"><strong className="text-white">Classement par exercice :</strong> Comparez vos Max (1RM) avec les autres athlètes.</p></div>
+          <div className="flex gap-3 items-start"><Plus size={20} className="text-blue-500 shrink-0"/><p className="text-sm text-zinc-300 font-medium"><strong className="text-white">Exercices Custom :</strong> Ajoutez vos propres machines au catalogue.</p></div>
+          <div className="flex gap-3 items-start"><ChevronRight size={20} className="text-emerald-500 shrink-0"/><p className="text-sm text-zinc-300 font-medium"><strong className="text-white">Swipe Navigation :</strong> Glissez à gauche/droite pour naviguer dans vos séances d'entraînement.</p></div>
+        </div>
+        <button onClick={onClose} className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs shadow-[0_0_20px_rgba(16,185,129,0.4)] active:scale-95 transition-all">Génial, on y va !</button>
+      </div>
+    </motion.div>
+  );
+}
+
 function AppRouter() {
   const { currentUser } = useAuth();
   const dataContextValues = useData(); 
@@ -705,6 +794,16 @@ function AppRouter() {
   const [spotifyToken, setSpotifyToken] = useState("");
   const [spotifyTrack, setSpotifyTrack] = useState(null);
   const [showSpotifyWidget, setShowSpotifyWidget] = useState(false);
+
+  // ETAT POUR LE POPUP DE MISE A JOUR V3
+  const [showUpdateNote, setShowUpdateNote] = useState(() => {
+    return localStorage.getItem('mecanik_update_v3_1') !== 'true';
+  });
+
+  const closeUpdateNote = () => {
+    localStorage.setItem('mecanik_update_v3_1', 'true');
+    setShowUpdateNote(false);
+  };
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -748,7 +847,12 @@ function AppRouter() {
 
   return (
     <div className="max-w-md mx-auto h-screen flex flex-col bg-black text-white font-sans relative overflow-hidden">
-      <div className="flex-1 relative overflow-hidden">
+      
+      <AnimatePresence>
+        {showUpdateNote && <UpdateModal onClose={closeUpdateNote} />}
+      </AnimatePresence>
+
+      <div className="flex-1 relative overflow-hidden" style={{ touchAction: "pan-y" }}>
         <AnimatePresence mode="wait">
           {currentTab === 'home' && <DashboardTab key="home" onNavigate={setCurrentTab} spotifyToken={spotifyToken} loginSpotify={loginSpotify} setShowSpotifyWidget={setShowSpotifyWidget} />}
           {currentTab === 'workout' && <WorkoutTab key="workout" spotifyToken={spotifyToken} spotifyTrack={spotifyTrack} setShowSpotifyWidget={setShowSpotifyWidget} loginSpotify={loginSpotify} />}
