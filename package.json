@@ -1,120 +1,345 @@
 {
-  
+  
+
+
+
   "name": "mecanik",
-  
+  
+
+
+
   "private": true,
-  
+  
+
+
+
   "version": "0.0.0",
-  
-  "homepage": "https://TON_PSEUDO_GITHUB.github.io/mecanik",
-  
+  
+
+
+
+  "homepage": "https://nedjaryanis.github.io/mecanik",
+  
+
+
+
   "type": "module",
-  
+  
+
+
+
   "scripts": {
-  
-    
+  
+
+
+
+    
+
+
+
   "dev": "vite",
-  
-    
+  
+
+
+
+    
+
+
+
   "build": "vite build",
-  
-    
+  
+
+
+
+    
+
+
+
   "lint": "eslint .",
-  
-    
+  
+
+
+
+    
+
+
+
   "preview": "vite preview",
-  
-    
+  
+
+
+
+    
+
+
+
   "predeploy": "npm run build",
-  
-    
+  
+
+
+
+    
+
+
+
   "deploy": "gh-pages -d dist"
-  
+  
+
+
+
   },
-  
+  
+
+
+
   "dependencies": {
-  
-    
+  
+
+
+
+    
+
+
+
   "es-toolkit": "^1.45.1",
-  
-    
+  
+
+
+
+    
+
+
+
   "firebase": "^12.12.1",
-  
-    
+  
+
+
+
+    
+
+
+
   "framer-motion": "^12.38.0",
-  
-    
-  "gh-pages": "^6.3.0",
-  
-    
+  
+
+
+
+    
+
+
+
   "html5-qrcode": "^2.3.8",
-  
-    
+  
+
+
+
+    
+
+
+
   "lucide-react": "^0.577.0",
-  
-    
+  
+
+
+
+    
+
+
+
   "react": "^19.2.4",
-  
-    
+  
+
+
+
+    
+
+
+
   "react-dom": "^19.2.4",
-  
-    
+  
+
+
+
+    
+
+
+
   "react-is": "^19.2.4",
-  
-    
+  
+
+
+
+    
+
+
+
   "recharts": "^2.15.4",
-  
-    
+  
+
+
+
+    
+
+
+
   "tesseract.js": "^7.0.0"
-  
+  
+
+
+
   },
-  
+  
+
+
+
   "devDependencies": {
-  
-    
+  
+
+
+
+    
+
+
+
   "@eslint/js": "^9.39.4",
-  
-    
+  
+
+
+
+    
+
+
+
   "@tailwindcss/vite": "^4.2.2",
-  
-    
+  
+
+
+
+    
+
+
+
   "@types/react": "^19.2.14",
-  
-    
+  
+
+
+
+    
+
+
+
   "@types/react-dom": "^19.2.3",
-  
-    
+  
+
+
+
+    
+
+
+
   "@vitejs/plugin-basic-ssl": "^2.2.0",
-  
-    
+  
+
+
+
+    
+
+
+
   "@vitejs/plugin-react": "^6.0.1",
-  
-    
+  
+
+
+
+    
+
+
+
   "autoprefixer": "^10.4.27",
-  
-    
+  
+
+
+
+    
+
+
+
   "eslint": "^9.39.4",
-  
-    
+  
+
+
+
+    
+
+
+
   "eslint-plugin-react-hooks": "^7.0.1",
-  
-    
+  
+
+
+
+    
+
+
+
   "eslint-plugin-react-refresh": "^0.5.2",
-  
-    
+  
+
+
+
+    
+
+
+
+  "gh-pages": "^6.3.0",
+  
+
+
+
+    
+
+
+
   "globals": "^17.4.0",
-  
-    
+  
+
+
+
+    
+
+
+
   "postcss": "^8.5.8",
-  
-    
+  
+
+
+
+    
+
+
+
   "tailwindcss": "^4.2.2",
-  
-    
+  
+
+
+
+    
+
+
+
   "vite": "^8.0.1",
-  
-    
+  
+
+
+
+    
+
+
+
   "vite-plugin-pwa": "^1.2.0"
-  
+  
+
+
+
   }
 }
