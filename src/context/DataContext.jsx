@@ -5,6 +5,9 @@ import { useAuth } from '../App';
 
 // --- IMPORTS IMAGES ---
 import imgPresse from '../assets/presse-a-cuisses-inclinee.gif';
+import imgRomain from '../assets/souleve-de-terre-roumain-kettlebell.gif';
+import imgLegCurl from '../assets/leg-curl-allonge.gif'
+import imgElevMol  from '../assets/extension-mollets-debout-machine.gif'
 import imgHackSquat from '../assets/Sled-Hack-Squat.gif';
 import imgLegExtension from '../assets/leg-extension.gif';
 import imgAdducteur from '../assets/adducteur-machine-cuisse.png';
@@ -33,6 +36,9 @@ const defaultJournalDay = { meals: { breakfast: { items: [], cals: 0, carbs: 0, 
 
 export const CATALOGUE_EXERCICES = [
   { id: 'cat_presse', name: "Presse à Cuisses", image: imgPresse },
+  { id: 'cat_soulver', name: "Soulevé de Terre Roumain aux Haltères ", image: imgRomain },
+  { id: 'cat_LegCurl', name: "Leg Curl Allongé (Machine)", image: imgLegCurl },
+  { id: 'cat_ElevMol', name: "Élévations Mollets Debout (Machine guidée)", image: imgElevMol },
   { id: 'cat_hacksquat', name: "Hack Squat", image: imgHackSquat },
   { id: 'cat_legext', name: "Leg Extension", image: imgLegExtension },
   { id: 'cat_adduct', name: "Adducteurs", image: imgAdducteur },
@@ -49,15 +55,7 @@ export const CATALOGUE_EXERCICES = [
   { id: 'cat_curlbiceps', name: "Curl Biceps Machine", image: imgCurlBiceps }
 ];
 
-const defaultProgramData = {
-  1: { type: 'lift', dayName: "Lundi", focus: "Membres Inférieurs", desc: "Surstimulation globale.", exercises: [ { refId: 'cat_presse', sets: 4, reps: "12-15", rest: 180 }, { refId: 'cat_hacksquat', sets: 3, reps: "10-12", rest: 150 }, { refId: 'cat_legext', sets: 4, reps: "15-20", rest: 90 }, { refId: 'cat_adduct', sets: 3, reps: "15-20", rest: 90 }, { refId: 'cat_mollets', sets: 4, reps: "12-15", rest: 90 } ] },
-  2: { type: 'mixed', dayName: "Mardi", focus: "Poussée Supérieure", desc: "Sécurité mécanique.", exercises: [ { refId: 'cat_dcsmith', sets: 4, reps: "6-8", rest: 180 }, { refId: 'cat_chestpress', sets: 3, reps: "10-12", rest: 120 }, { refId: 'cat_shoulderpress', sets: 3, reps: "10-12", rest: 120 }, { refId: 'cat_triceps', sets: 4, reps: "12-15", rest: 90 }, { refId: 'cat_latraise', sets: 3, reps: "15-20", rest: 90 } ], cardio: { name: "Vélo Assis", duration: "30 min", bpm: "119-129", focus: "FATmax post-séance." } },
-  3: { type: 'cardio', dayName: "Mercredi", focus: "Régénération", desc: "Consommer la graisse viscérale.", cardio: { name: "Elliptique", duration: "45-60 min", bpm: "119-129", focus: "Ne JAMAIS courir." } },
-  4: { type: 'mixed', dayName: "Jeudi", focus: "Tirage Supérieur", desc: "Épaisseur Dorsale.", exercises: [ { refId: 'cat_latpull', sets: 4, reps: "10-12", rest: 120 }, { refId: 'cat_seatedrow', sets: 4, reps: "10-12", rest: 120 }, { refId: 'cat_pullover', sets: 3, reps: "15", rest: 90 }, { refId: 'cat_hammercurl', sets: 4, reps: "8-10", rest: 90 }, { refId: 'cat_curlbiceps', sets: 3, reps: "12-15", rest: 90 } ], cardio: { name: "Marche Inclinée", duration: "30 min", bpm: "119-129", focus: "Inclinaison 8-12%." } },
-  5: { type: 'cardio', dayName: "Vendredi", focus: "Lavage Métabolique", desc: "Sensibilité à l'insuline.", cardio: { name: "Protocole Croisé", duration: "60-75 min", bpm: "119-129", focus: "20' Vélo + 20' Elliptique + 20' Hand-Bike." } },
-  6: { type: 'rest', dayName: "Samedi", focus: "Croissance Tissulaire", desc: "L'inflammation locale va se résorber." },
-  7: { type: 'rest', dayName: "Dimanche", focus: "Repos Absolu", desc: "Restauration du SNC." }
-};
+const defaultProgramData = {};
 
 export function DataProvider({ children }) {
   const { currentUser } = useAuth();
