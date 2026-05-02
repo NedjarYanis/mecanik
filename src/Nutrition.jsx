@@ -14,7 +14,6 @@ import {
   CircularGauge, LiveBarcodeScanner, OnboardingWizard 
 } from './NutritionUtils'; 
 
-// Ces chemins fonctionnent maintenant car vous avez déplacé les fichiers
 import FoodQuantityModal from './components/FoodQuantityModal';
 import MealSearchModal from './components/MealSearchModal';
 import ProfileModal from './components/ProfileModal';
@@ -219,7 +218,7 @@ export default function Nutrition({ onBack, dataContext }) {
 
         <div className="mt-8 mb-4">
           <button onClick={saveToCloud} disabled={!hasUnsavedChanges || saveStatus === 'saving'} className={`w-full py-4 rounded-[20px] font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl transition-all ${ saveStatus === 'saving' ? 'bg-blue-900/50 text-blue-400 cursor-not-allowed border border-blue-500/30' : saveStatus === 'saved' ? 'bg-emerald-600/20 text-emerald-500 border border-emerald-500/30' : hasUnsavedChanges ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] active:scale-95' : 'bg-zinc-900 text-zinc-500 border border-zinc-800 cursor-not-allowed' }`}>
-            {saveStatus === 'saving' ? <Loader2 size="{16}" className="animate-spin"/> : saveStatus === 'saved' ? <Check size="{16}"/> : <Save size="{16}"/>} 
+            {saveStatus === 'saving' ? <Loader2 size={16} className="animate-spin" /> : saveStatus === 'saved' ? <Check size={16} /> : <Save size={16} />} 
             {saveStatus === 'saving' ? 'Sauvegarde...' : saveStatus === 'saved' ? 'Sauvegardé !' : hasUnsavedChanges ? 'Sauvegarder maintenant' : 'Synchronisé'}
           </button>
         </div>
@@ -239,7 +238,7 @@ export default function Nutrition({ onBack, dataContext }) {
           <MealSearchModal 
              mealId={activeMealModal} mealData={currentData.meals[activeMealModal]} onClose={() => setActiveMealModal(null)} 
              onRemoveFood={removeFoodFromMeal} onScanClick={() => setIsScanningFood(true)} globalDB={globalDB} 
-             onFoodSelect={setFoodToQuantify} favorites={favorites} onToggleFavorite={toggleFavorite} recentFoods={recentFoods} 
+             onFoodSelect={setFoodToQuantify} favorites={favorites} recentFoods={recentFoods} 
           />
         )}
         {showContributeModal && (

@@ -131,7 +131,7 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
       return { ...prev, [refId]: updatedHistory };
     }); 
 
-    // 2. Mise à jour du PR dans le profil pour la Ligue[cite: 12]
+    // 2. Mise à jour du PR dans le profil pour la Ligue
     if (profile) {
       const currentPR = profile.prs?.[refId] || 0;
       if (numWeight > currentPR) {
