@@ -16,8 +16,9 @@ body {
   border-radius: 20px 36px 28px 36px;
 }
 
-.bento-organic-pill {
-  border-radius: 9999px;
+/* Filigranes d'arrière-plan pour dynamiser les espaces vides */
+.bg-muscular-watermark {
+  background-image: radial-gradient(circle at 80% 20%, rgba(212, 252, 71, 0.03) 0%, transparent 50%);
 }
 
 /* Masquage de scrollbar */

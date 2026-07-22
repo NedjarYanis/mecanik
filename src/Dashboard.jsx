@@ -31,7 +31,7 @@ export default function DashboardTab({ onNavigate }) {
     <motion.div 
        initial={{ opacity: 0, y: 10 }} 
        animate={{ opacity: 1, y: 0 }} 
-       className="flex flex-col h-full w-full bg-[#0B0E0B] text-white p-5 overflow-y-auto pb-32"
+       className="flex flex-col h-full w-full bg-[#0B0E0B] text-white p-5 overflow-y-auto pb-32 bg-muscular-watermark"
     >
       {/* HEADER */}
       <header className="flex justify-between items-center mb-6 pt-4">
@@ -41,7 +41,7 @@ export default function DashboardTab({ onNavigate }) {
             Salut, <span className="text-[#D4FC47]">{profile?.pseudo || currentUser?.email?.split('@')[0]}</span>
           </h1>
         </div>
-        <div className="w-12 h-12 bg-[#1A1E1A] rounded-full border border-zinc-800 flex items-center justify-center relative">
+        <div className="w-12 h-12 bg-[#141814] rounded-2xl border border-zinc-800/80 flex items-center justify-center relative shadow-lg">
           <User className="text-zinc-400" size={20} />
           <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-[#D4FC47] rounded-full border-2 border-[#0B0E0B] flex items-center justify-center">
             <Check className="text-black" size={10} strokeWidth={4} />
@@ -49,8 +49,8 @@ export default function DashboardTab({ onNavigate }) {
         </div>
       </header>
 
-      {/* BANNIÈRE DÉFI DU JOUR (Néon/Citron #D4FC47 comme sur l'image) */}
-      <div className="bg-[#D4FC47] text-black p-5 mb-6 shape-asym-1 shadow-xl relative overflow-hidden">
+      {/* DÉFI DU JOUR (Unique accent vert citron électrique #D4FC47) */}
+      <div className="bg-[#D4FC47] text-black p-5 mb-6 bento-organic-1 shadow-[0_10px_30px_rgba(212,252,71,0.15)] relative overflow-hidden">
         <div className="flex justify-between items-start mb-2">
           <span className="text-[9px] font-black uppercase tracking-widest bg-black/10 px-2.5 py-1 rounded-full">Aujourd'hui</span>
           <Sparkles size={16} className="text-black" />
@@ -59,13 +59,13 @@ export default function DashboardTab({ onNavigate }) {
         <p className="text-xs font-bold mt-1 text-black/80">Do your plan before 9:00 AM</p>
       </div>
 
-      {/* BANNIÈRE AI COACH SECONDAIRE */}
+      {/* ACCÈS IA COACH */}
       <button 
          onClick={() => onNavigate('coach')}
-        className="w-full bg-[#1A1E1A] border border-zinc-800 p-5 mb-6 shape-asym-2 flex items-center justify-between shadow-lg active:scale-[0.98] transition-all group"
+        className="w-full bg-[#141814] hover:bg-[#1C221C] border border-zinc-800/80 p-5 mb-6 bento-organic-2 flex items-center justify-between shadow-lg active:scale-[0.98] transition-all group"
       >
         <div className="flex items-center gap-4">
-          <div className="bg-black/40 p-3 rounded-2xl border border-white/10 text-[#D4FC47]">
+          <div className="bg-[#0B0E0B] p-3 rounded-2xl border border-zinc-800 text-[#D4FC47]">
             <BrainCircuit size={24} />
           </div>
           <div className="text-left">
@@ -78,36 +78,40 @@ export default function DashboardTab({ onNavigate }) {
         <ChevronRight className="text-zinc-500 group-hover:translate-x-1 transition-transform" />
       </button>
 
-      {/* STATS : ENERGIE & EAU (Cartes asymétriques en Lavande/Gris mat #D0BFFF et #1A1E1A) */}
+      {/* STATS : ÉNERGIE & EAU (Gris fumé mat texturé unifié) */}
       <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="bg-[#D0BFFF] text-black p-5 rounded-[28px] border border-white/20 shadow-md">
+        <div className="bg-[#141814] p-5 rounded-[28px] border border-zinc-800/80 shadow-md relative overflow-hidden">
           <div className="flex items-center gap-2 mb-3">
-            <div className="p-2 bg-black/10 rounded-xl text-black"><Flame size={16} /></div>
-            <span className="text-[9px] font-black uppercase tracking-widest text-black/70">Énergie</span>
+            <div className="p-2 bg-[#D4FC47]/10 rounded-xl text-[#D4FC47]"><Flame size={16} /></div>
+            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Énergie</span>
           </div>
-          <p className="text-2xl font-black">{stats.consumed} <span className="text-xs text-black/60 font-bold">kcal</span></p>
+          <p className="text-2xl font-black text-white">{stats.consumed} <span className="text-xs text-zinc-500 font-bold">kcal</span></p>
+          {/* Ligne lumineuse fine de structure */}
+          <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#D4FC47]/30" />
         </div>
         
-        <div className="bg-[#1A1E1A] p-5 rounded-[28px] border border-zinc-800">
+        <div className="bg-[#141814] p-5 rounded-[28px] border border-zinc-800/80 shadow-md relative overflow-hidden">
           <div className="flex items-center gap-2 mb-3">
             <div className="p-2 bg-cyan-500/10 rounded-xl text-cyan-400"><Droplet size={16} /></div>
             <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Eau</span>
           </div>
           <p className="text-2xl font-black text-white">{stats.water} <span className="text-xs text-zinc-500">ml</span></p>
+          <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-cyan-500/30" />
         </div>
       </div>
 
-      {/* SÉANCE DU JOUR */}
-      <h3 className="text-xs font-black uppercase text-zinc-400 tracking-[0.2em] mb-3 flex items-center gap-2">
-        <Calendar size={14} /> Séance du Jour
+      {/* SÉANCE DU JOUR AVEC FILIGRANE */}
+      <h3 className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] mb-3 flex items-center gap-2">
+        <Calendar size={14} className="text-[#D4FC47]" /> Séance du Jour
       </h3>
       
       <div 
         onClick={() => onNavigate('workout')}
-        className="bg-[#1A1E1A] border border-zinc-800 p-6 shape-asym-1 relative overflow-hidden active:scale-[0.98] transition-transform cursor-pointer group mb-6"
+        className="bg-[#141814] border border-zinc-800/80 p-6 bento-organic-1 relative overflow-hidden active:scale-[0.98] transition-transform cursor-pointer group mb-6 shadow-xl"
       >
-        <div className="absolute top-0 right-0 p-6 text-zinc-800/40 group-hover:text-[#D4FC47]/20 transition-colors pointer-events-none">
-          <Dumbbell size={70} strokeWidth={3} />
+        {/* Filigrane d'arrière-plan pour dynamiser l'espace */}
+        <div className="absolute right-[-10px] bottom-[-20px] text-zinc-800/30 pointer-events-none select-none">
+          <Dumbbell size={110} strokeWidth={2.5} />
         </div>
         
         <div className="relative z-10">

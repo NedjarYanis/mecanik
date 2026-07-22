@@ -121,24 +121,24 @@ function AppRouter() {
         </Suspense>
       </div>
 
-      {/* Île Flottante (Floating Dock) - Style Pilule claire et contrastée */}
+      {/* Île Flottante (Floating Dock) - Style Noir Charbon & Vert Citron */}
       <div className="fixed bottom-6 left-0 right-0 px-6 z-[90] pointer-events-none flex justify-center">
-         <div className="bg-[#D0BFFF] text-black backdrop-blur-xl border border-white/20 rounded-full flex justify-between items-center px-4 py-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.5)] pointer-events-auto gap-3 w-full max-w-xs">
-            <button onClick={() => setCurrentTab('home')} className={`flex-1 flex flex-col items-center justify-center py-2 rounded-full transition-all ${currentTab === 'home' ? 'bg-black text-[#D4FC47]' : 'text-black/70 hover:text-black'}`}>
-              <LayoutDashboard size={18} className="mb-0.5" />
-              <span className="text-[7px] font-black uppercase tracking-widest">Accueil</span>
+         <div className="bg-[#141814]/90 backdrop-blur-xl border border-zinc-800 rounded-full flex justify-between items-center px-4 py-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.8)] pointer-events-auto gap-3 w-full max-w-xs">
+            <button onClick={() => setCurrentTab('home')} className={`flex-1 flex flex-col items-center justify-center py-2 rounded-full transition-all ${currentTab === 'home' ? 'bg-[#D4FC47] text-black font-black' : 'text-zinc-400 hover:text-white'}`}>
+              <LayoutDashboard size={16} className="mb-0.5" />
+              <span className="text-[7px] uppercase tracking-widest">Accueil</span>
             </button>
-            <button onClick={() => setCurrentTab('workout')} className={`flex-1 flex flex-col items-center justify-center py-2 rounded-full transition-all ${currentTab === 'workout' ? 'bg-black text-[#D4FC47]' : 'text-black/70 hover:text-black'}`}>
-              <Dumbbell size={18} className="mb-0.5" />
-              <span className="text-[7px] font-black uppercase tracking-widest">Train</span>
+            <button onClick={() => setCurrentTab('workout')} className={`flex-1 flex flex-col items-center justify-center py-2 rounded-full transition-all ${currentTab === 'workout' ? 'bg-[#D4FC47] text-black font-black' : 'text-zinc-400 hover:text-white'}`}>
+              <Dumbbell size={16} className="mb-0.5" />
+              <span className="text-[7px] uppercase tracking-widest">Train</span>
             </button>
-            <button onClick={() => setCurrentTab('nutrition')} className={`flex-1 flex flex-col items-center justify-center py-2 rounded-full transition-all ${currentTab === 'nutrition' ? 'bg-black text-[#D4FC47]' : 'text-black/70 hover:text-black'}`}>
-              <Utensils size={18} className="mb-0.5" />
-              <span className="text-[7px] font-black uppercase tracking-widest">Diète</span>
+            <button onClick={() => setCurrentTab('nutrition')} className={`flex-1 flex flex-col items-center justify-center py-2 rounded-full transition-all ${currentTab === 'nutrition' ? 'bg-[#D4FC47] text-black font-black' : 'text-zinc-400 hover:text-white'}`}>
+              <Utensils size={16} className="mb-0.5" />
+              <span className="text-[7px] uppercase tracking-widest">Diète</span>
             </button>
-            <button onClick={() => setCurrentTab('social')} className={`flex-1 flex flex-col items-center justify-center py-2 rounded-full transition-all ${currentTab === 'social' ? 'bg-black text-[#D4FC47]' : 'text-black/70 hover:text-black'}`}>
-              <Trophy size={18} className="mb-0.5" />
-              <span className="text-[7px] font-black uppercase tracking-widest">Ligue</span>
+            <button onClick={() => setCurrentTab('social')} className={`flex-1 flex flex-col items-center justify-center py-2 rounded-full transition-all ${currentTab === 'social' ? 'bg-[#D4FC47] text-black font-black' : 'text-zinc-400 hover:text-white'}`}>
+              <Trophy size={16} className="mb-0.5" />
+              <span className="text-[7px] uppercase tracking-widest">Ligue</span>
             </button>
          </div>
       </div>

@@ -14,7 +14,7 @@ import { collection, addDoc } from "firebase/firestore";
 const ChartTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-[#1A1E1A] border border-zinc-800 p-3 rounded-2xl shadow-xl flex flex-col gap-1">
+      <div className="bg-[#141814] border border-zinc-800 p-3 rounded-2xl shadow-xl flex flex-col gap-1">
         <span className="text-[9px] text-zinc-400 font-bold uppercase">{label}</span>
         <p className="font-black text-sm text-[#D4FC47]">{`${payload[0].value} kg`}</p>
       </div>
@@ -206,12 +206,12 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
   const filteredCatalog = FULL_CATALOG.filter(e => e.name.toLowerCase().includes(catalogSearch.toLowerCase()));
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full w-full bg-[#0B0E0B] relative overflow-hidden text-white">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full w-full bg-[#0B0E0B] relative overflow-hidden text-white bg-muscular-watermark">
       <header className="px-5 pt-10 pb-4 bg-[#0B0E0B]/90 backdrop-blur-xl z-40 border-b border-zinc-900 flex-shrink-0">
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-extrabold tracking-tight uppercase italic text-[#D4FC47]">Entraînement</h1>
-            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[#1A1E1A]">
+            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[#141814]">
               {saveStatus === 'saving' && <Loader2 size={12} className="text-[#D4FC47] animate-spin" />}
               {saveStatus === 'saved' && <Check size={12} className="text-[#D4FC47]" />}
               {saveStatus === 'idle' && !hasUnsavedChanges && <CloudLightning size={12} className="text-zinc-600" />}
@@ -219,11 +219,11 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
             </div>
           </div>
           <div className="flex gap-2">
-            {!spotifyToken ? ( <button onClick={loginSpotify} className="p-2 bg-[#1DB954]/10 rounded-full text-[#1DB954] border border-[#1DB954]/20 active:scale-95"><Music size={18}/></button> ) : ( <button onClick={() => setShowSpotifyWidget(true)} className="p-2 bg-[#1A1E1A] rounded-full text-[#1DB954] border border-zinc-800 active:scale-95"><Music size={18}/></button> )}
+            {!spotifyToken ? ( <button onClick={loginSpotify} className="p-2 bg-[#1DB954]/10 rounded-full text-[#1DB954] border border-[#1DB954]/20 active:scale-95"><Music size={18}/></button> ) : ( <button onClick={() => setShowSpotifyWidget(true)} className="p-2 bg-[#141814] rounded-full text-[#1DB954] border border-zinc-800 active:scale-95"><Music size={18}/></button> )}
           </div>
         </div>
          
-        <div className="flex justify-between items-center bg-[#1A1E1A] p-2 rounded-full border border-zinc-800">
+        <div className="flex justify-between items-center bg-[#141814] p-2 rounded-2xl border border-zinc-800/80">
           <button onClick={() => changeDate(-1)} className="p-1 text-zinc-400 hover:text-white"><ChevronLeft size={18}/></button>
           <span className="text-xs font-bold uppercase tracking-widest text-[#D4FC47] flex items-center gap-2">
             <Calendar size={12}/> 
@@ -243,7 +243,7 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
             )}
             <p className="text-zinc-400 text-[11px] mt-1 font-medium">{['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'][activeDay-1]} • {currentDay.desc || ""}</p>
           </div>
-          <button onClick={() => setIsEditingDay(!isEditingDay)} className={`p-2 rounded-full shadow-sm transition-colors ${isEditingDay ? 'bg-[#D4FC47] text-black' : 'bg-[#1A1E1A] text-zinc-400 active:scale-90'}`}>
+          <button onClick={() => setIsEditingDay(!isEditingDay)} className={`p-2 rounded-full shadow-sm transition-colors ${isEditingDay ? 'bg-[#D4FC47] text-black' : 'bg-[#141814] text-zinc-400 active:scale-90'}`}>
             {isEditingDay ? <Check size={18}/> : <Settings2 size={18}/>}
           </button>
         </div>
@@ -276,7 +276,7 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
         })}
 
         {isEditingDay && (
-          <button onClick={() => { setSwapRefId(null); setShowCatalog(true); }} className="w-full py-4 border border-dashed border-zinc-700 rounded-[24px] text-zinc-400 font-bold text-sm flex justify-center items-center gap-2 hover:bg-[#1A1E1A] active:scale-95">
+          <button onClick={() => { setSwapRefId(null); setShowCatalog(true); }} className="w-full py-4 border border-dashed border-zinc-700 rounded-[24px] text-zinc-400 font-bold text-sm flex justify-center items-center gap-2 hover:bg-[#141814] active:scale-95">
             <Plus size={18} /> Ajouter un exercice
           </button>
         )}
@@ -288,11 +288,11 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
           <button 
              onClick={saveToCloud}
              disabled={!hasUnsavedChanges || saveStatus === 'saving'}
-             className={`w-full py-4 rounded-[24px] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl transition-all ${ 
+             className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl transition-all ${ 
               saveStatus === 'saving' ? 'bg-[#D4FC47]/50 text-black cursor-not-allowed' : 
               saveStatus === 'saved' ? 'bg-[#D4FC47] text-black' :
               hasUnsavedChanges ? 'bg-[#D4FC47] text-black active:scale-95' : 
-              'bg-[#1A1E1A] text-zinc-500 border border-zinc-800'
+              'bg-[#141814] text-zinc-500 border border-zinc-800'
             }`}
           >
             {saveStatus === 'saving' ? <Loader2 size={16} className="animate-spin" /> : 
@@ -312,9 +312,9 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
               {Math.floor(timeLeft/60)}:{(timeLeft%60).toString().padStart(2,'0')}
             </span>
             <div className="flex items-center gap-4 w-full max-w-xs justify-center">
-              <button onClick={() => adjustTime(-15)} className="w-14 h-14 bg-[#1A1E1A] rounded-full font-bold text-lg text-white border border-zinc-800 active:scale-95">-15</button>
+              <button onClick={() => adjustTime(-15)} className="w-14 h-14 bg-[#141814] rounded-full font-bold text-lg text-white border border-zinc-800 active:scale-95">-15</button>
               <button onClick={stopRest} className="flex-1 h-14 bg-[#D4FC47] rounded-full font-bold text-sm text-black shadow-lg active:scale-95">Passer</button>
-              <button onClick={() => adjustTime(15)} className="w-14 h-14 bg-[#1A1E1A] rounded-full font-bold text-lg text-white border border-zinc-800 active:scale-95">+15</button>
+              <button onClick={() => adjustTime(15)} className="w-14 h-14 bg-[#141814] rounded-full font-bold text-lg text-white border border-zinc-800 active:scale-95">+15</button>
             </div>
           </motion.div>
         )}
@@ -346,7 +346,7 @@ function ExerciseCard({ data, isTired, isEditing, onStartRest, history, onLogWei
   };
 
   return (
-    <div className={`bg-[#1A1E1A] rounded-[28px] border ${isEditing ? 'border-[#D4FC47]/40' : 'border-zinc-800'} overflow-hidden mb-5 flex flex-col shadow-xl`}>
+    <div className={`bg-[#141814] rounded-[28px] border ${isEditing ? 'border-[#D4FC47]/40' : 'border-zinc-800/80'} overflow-hidden mb-5 flex flex-col shadow-xl`}>
       <div className="p-4 flex justify-between items-center border-b border-zinc-800/50 bg-[#0B0E0B]/30">
         <div>
           <h3 className="text-sm font-bold text-white leading-tight">{data.name}</h3>
@@ -372,7 +372,6 @@ function ExerciseCard({ data, isTired, isEditing, onStartRest, history, onLogWei
       </div>
 
       <div className="p-4 space-y-4">
-        {/* Conteneur image visuel doux sans carré rigide */}
         <div className="h-36 bg-[#0B0E0B]/50 rounded-[20px] overflow-hidden border border-zinc-800/50 flex items-center justify-center relative">
           <img src={data.image || "https://cdn-icons-png.flaticon.com/512/3048/3048364.png"} alt="" className="w-full h-full object-contain opacity-80 pointer-events-none" />
           {!isEditing && (
@@ -390,11 +389,10 @@ function ExerciseCard({ data, isTired, isEditing, onStartRest, history, onLogWei
             </div>
         </div>
 
-        {/* Validation des séries et bouton de repos accentué #D4FC47 */}
         <div className="flex justify-between items-center px-1 bg-[#0B0E0B] p-1.5 rounded-full border border-zinc-800">
             <div className="flex gap-1.5 pl-1">
               {[...Array(actualSets)].map((_, i) => (
-                <button key={i} onClick={() => toggleSet(i)} className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs transition-colors ${completedSets.includes(i) ? 'bg-[#D4FC47] text-black shadow-md' : 'bg-[#1A1E1A] text-zinc-400 border border-zinc-800'}`}>
+                <button key={i} onClick={() => toggleSet(i)} className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs transition-colors ${completedSets.includes(i) ? 'bg-[#D4FC47] text-black shadow-md' : 'bg-[#141814] text-zinc-400 border border-zinc-800'}`}>
                   {completedSets.includes(i) ? <Check size={14} strokeWidth={3} /> : i + 1}
                 </button>
               ))}
@@ -434,7 +432,7 @@ function ExerciseCard({ data, isTired, isEditing, onStartRest, history, onLogWei
 
 function CardioCard({ data, isFinisher }) {
   return (
-    <article className="bg-[#1A1E1A] rounded-[28px] border border-zinc-800 p-6 mb-5 shadow-lg">
+    <article className="bg-[#141814] rounded-[28px] border border-zinc-800 p-6 mb-5 shadow-lg">
       <div className="flex items-center gap-2 mb-3"><HeartPulse size={16} className="text-[#D4FC47] animate-pulse" /><span className="text-[#D4FC47] text-[10px] font-bold uppercase tracking-widest">{isFinisher ? "Finisher Cardio" : "Cardio"}</span></div>
       <h3 className="text-lg font-bold text-white mb-4 italic uppercase tracking-tight">{data.name}</h3>
       <div className="flex gap-3 mb-4">
@@ -448,7 +446,7 @@ function CardioCard({ data, isFinisher }) {
 
 function RestCard({ data }) {
   return (
-    <div className="bg-[#1A1E1A] p-8 rounded-[32px] border border-zinc-800 text-center mt-6 shadow-xl">
+    <div className="bg-[#141814] p-8 rounded-[32px] border border-zinc-800 text-center mt-6 shadow-xl relative overflow-hidden bg-muscular-watermark">
       <div className="w-16 h-16 bg-[#D4FC47]/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-[#D4FC47]/20"><BedDouble size={32} className="text-[#D4FC47]" /></div>
       <h3 className="text-lg font-bold text-white mb-2 uppercase italic tracking-tighter">{data.focus}</h3>
       <p className="text-xs text-zinc-400 leading-relaxed font-medium">{data.desc}</p>
