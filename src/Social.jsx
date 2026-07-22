@@ -38,62 +38,68 @@ function UserProfileView({ user, catalog, onBack }) {
 
   const badges = useMemo(() => {
     const b = [];
-    if (personalBests.some(p => p.max >= 100)) b.push({ icon: <Dumbbell size={14}/>, label: "Club 100", color: "text-[#D4FC47]", bg: "bg-[#D4FC47]/10" });
-    if (personalBests.length >= 5) b.push({ icon: <Star size={14}/>, label: "Polyvalent", color: "text-[#D4FC47]", bg: "bg-[#D4FC47]/10" });
+    if (personalBests.some(p => p.max >= 100)) b.push({ icon: <Dumbbell size={14}/>, label: "Club 100", color: "text-[#ADFF2F]", bg: "bg-[#ADFF2F]/10" });
+    if (personalBests.length >= 5) b.push({ icon: <Star size={14}/>, label: "Polyvalent", color: "text-[#ADFF2F]", bg: "bg-[#ADFF2F]/10" });
     return b;
   }, [personalBests]);
 
   return (
-    <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="fixed inset-0 z-[150] bg-[#0B0E0B] flex flex-col text-white">
-      <div className="p-6 flex items-center gap-4 border-b border-zinc-800 bg-[#0B0E0B]/80 backdrop-blur-xl">
-        <button onClick={onBack} className="p-3 bg-[#141814] hover:bg-[#1C221C] rounded-2xl text-zinc-300 transition-all"><ArrowLeft size={18}/></button>
-        <h2 className="text-lg font-black uppercase tracking-tighter italic text-white">Profil Athlète</h2>
+    <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="fixed inset-0 z-[150] bg-adaptive flex flex-col text-white">
+      
+      {/* Header Profil */}
+      <div className="p-6 pt-12 flex items-center gap-5 z-10">
+        <button onClick={onBack} className="p-3 glass-panel bubble-pill text-zinc-300 hover:text-white transition-all active:scale-95"><ArrowLeft size={20}/></button>
+        <h2 className="text-2xl font-black uppercase tracking-tighter italic text-white drop-shadow-md">Profil Athlète</h2>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-8 pb-32">
+      <div className="flex-1 overflow-y-auto px-6 pt-4 pb-32 space-y-8">
+        
+        {/* Avatar & Pseudo */}
         <div className="text-center">
-          <div className="w-24 h-24 bg-gradient-to-tr from-[#D4FC47] to-emerald-700 rounded-full mx-auto mb-4 p-1 shadow-[0_0_20px_rgba(212,252,71,0.2)]">
-            <div className="w-full h-full bg-[#0B0E0B] rounded-full flex items-center justify-center">
-              <User size={40} className="text-zinc-400" />
+          <div className="w-28 h-28 bg-gradient-to-tr from-[#ADFF2F] to-emerald-900 rounded-full mx-auto mb-5 p-1 shadow-[0_0_30px_rgba(173,255,47,0.2)]">
+            <div className="w-full h-full bg-[#070908] rounded-full flex items-center justify-center">
+              <User size={48} className="text-[#ADFF2F]/70" />
             </div>
           </div>
-          <h3 className="text-2xl font-black text-white uppercase italic">{user.pseudo}</h3>
-          <p className="text-[10px] font-bold text-zinc-500 tracking-widest mt-1">ATHLÈTE MĘCANIK</p>
+          <h3 className="text-3xl font-black text-white uppercase italic tracking-tight">{user.pseudo}</h3>
+          <p className="text-[10px] font-black text-[#ADFF2F] tracking-[0.3em] mt-2">ATHLÈTE MĘCANIK</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-[#141814] p-5 rounded-[24px] border border-zinc-800 text-center col-span-2 shadow-lg">
-            <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">Exercices Maîtrisés</p>
-            <p className="text-3xl font-black text-[#D4FC47]">{personalBests.length}</p>
-          </div>
+        {/* Stats */}
+        <div className="glass-panel p-6 bubble-1 text-center shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-32 h-32 bg-[#ADFF2F]/5 blur-3xl rounded-full pointer-events-none" />
+          <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-2">Exercices Maîtrisés</p>
+          <p className="text-5xl font-black text-[#ADFF2F] drop-shadow-lg">{personalBests.length}</p>
         </div>
 
+        {/* Distinctions */}
         {badges.length > 0 && (
           <div>
-            <h4 className="text-[10px] font-black uppercase text-zinc-500 tracking-widest mb-4 flex items-center gap-2">
-              <Star size={14} className="text-[#D4FC47]"/> Distinctions
+            <h4 className="text-[11px] font-black uppercase text-zinc-500 tracking-[0.2em] mb-4 flex items-center gap-2">
+              <Star size={14} className="text-[#ADFF2F]"/> Distinctions
             </h4>
             <div className="flex flex-wrap gap-3">
               {badges.map((b, i) => (
-                <div key={i} className={`${b.bg} ${b.color} px-4 py-2.5 rounded-2xl flex items-center gap-2 border border-[#D4FC47]/20`}>
-                  {b.icon}
-                  <span className="text-[10px] font-black uppercase tracking-tight">{b.label}</span>
+                <div key={i} className={`glass-panel px-4 py-2.5 bubble-pill flex items-center gap-2 border border-[#ADFF2F]/20`}>
+                  {React.cloneElement(b.icon, { className: "text-[#ADFF2F]" })}
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white">{b.label}</span>
                 </div>
               ))}
             </div>
           </div>
         )}
 
+        {/* Records */}
         <div>
-          <h4 className="text-[10px] font-black uppercase text-zinc-500 tracking-widest mb-4 flex items-center gap-2">
-            <Trophy size={14} className="text-[#D4FC47]"/> Records Personnels
+          <h4 className="text-[11px] font-black uppercase text-zinc-500 tracking-[0.2em] mb-4 flex items-center gap-2">
+            <Trophy size={14} className="text-[#ADFF2F]"/> Records Personnels
           </h4>
-          <div className="space-y-3">
-            {personalBests.length === 0 && <p className="text-xs text-zinc-500 italic">Aucun record public.</p>}
+          <div className="space-y-4">
+            {personalBests.length === 0 && <p className="text-sm text-zinc-500 italic font-medium">Aucun record public.</p>}
             {personalBests.map((pb, i) => (
-              <div key={i} className="bg-[#141814] p-4 rounded-2xl border border-zinc-800 flex justify-between items-center shadow-md">
-                <span className="text-xs font-bold text-zinc-200">{pb.name}</span>
-                <span className="font-black text-white">{pb.max} <span className="text-[#D4FC47] text-[10px]">KG</span></span>
+              <div key={i} className="glass-panel p-5 bubble-2 flex justify-between items-center shadow-lg hover:bg-[#141A16] transition-colors">
+                <span className="text-sm font-bold text-zinc-200">{pb.name}</span>
+                <span className="text-2xl font-black text-white">{pb.max} <span className="text-[#ADFF2F] text-xs uppercase tracking-widest">kg</span></span>
               </div>
             ))}
           </div>
@@ -164,7 +170,7 @@ export default function Social({ onBack, currentUser, db }) {
   }, [db, currentUser, selectedExoId]);
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col h-full w-full bg-[#0B0E0B] text-white relative overflow-hidden bg-muscular-watermark">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col h-full w-full bg-adaptive text-white relative overflow-hidden">
       
       <AnimatePresence>
         {selectedUser && (
@@ -176,94 +182,104 @@ export default function Social({ onBack, currentUser, db }) {
         )}
       </AnimatePresence>
 
+      {/* Modal Pseudo en Glassmorphism */}
       <AnimatePresence>
         {needsPseudo && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[250] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-6">
-            <div className="bg-[#141814] w-full max-w-sm rounded-[32px] p-8 border border-zinc-800 text-center shadow-2xl">
-              <User size={40} className="text-[#D4FC47] mx-auto mb-4" />
-              <h2 className="text-xl font-bold mb-2 text-white italic uppercase tracking-tight">Choisir un Pseudo</h2>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[250] bg-black/80 backdrop-blur-2xl flex flex-col items-center justify-center p-6">
+            <div className="glass-panel w-full max-w-sm bubble-1 p-8 text-center shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-32 h-32 bg-[#ADFF2F]/10 blur-[40px] rounded-full pointer-events-none" />
+              <User size={48} className="text-[#ADFF2F] mx-auto mb-6 glow-accent" />
+              <h2 className="text-3xl font-black mb-3 text-white italic uppercase tracking-tighter">Ton Pseudo</h2>
+              <p className="text-xs text-zinc-400 font-medium mb-8">Choisis ton nom d'athlète pour apparaître dans la ligue MĘCANIK.</p>
+              
               <input
                  type="text" value={pseudoInput} onChange={e => setPseudoInput(e.target.value)}
-                 className="w-full bg-[#0B0E0B] border border-zinc-800 rounded-2xl p-4 text-white font-bold uppercase text-center mb-6 outline-none focus:border-[#D4FC47]"
+                 className="w-full bg-[#070908]/80 border border-zinc-700 bubble-pill p-5 text-white font-black uppercase tracking-widest text-center mb-6 outline-none focus:border-[#ADFF2F] transition-colors shadow-inner"
                  maxLength={15}
-                 placeholder="Votre pseudo"
+                 placeholder="EX: RONNIE"
               />
               <button onClick={async () => {
                 setIsSavingPseudo(true);
                 await setDoc(doc(db, "users", currentUser.uid), { profile: { pseudo: pseudoInput } }, { merge: true });
                 setNeedsPseudo(false); 
                 fetchData();
-              }} className="w-full py-4 bg-[#D4FC47] text-black rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 shadow-md">
-                {isSavingPseudo ? "Enregistrement..." : "C'est parti"}
+              }} className="w-full py-5 bg-[#ADFF2F] text-black bubble-pill font-black text-xs uppercase tracking-[0.2em] active:scale-95 transition-transform glow-accent">
+                {isSavingPseudo ? "Validation..." : "Entrer dans l'arène"}
               </button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* HEADER AÉRÉ ET FLOTTANT */}
-      <header className="px-5 pt-10 pb-4 bg-[#0B0E0B]/90 backdrop-blur-xl z-40 border-b border-zinc-900/60 flex-shrink-0">
-        <div className="flex justify-between items-center mb-4">
-          <button onClick={onBack} className="p-3 bg-[#141814] hover:bg-[#1C221C] rounded-2xl text-zinc-300 transition-all"><ChevronLeft size={18}/></button>
-          <h1 className="text-lg font-black uppercase flex items-center gap-2 italic tracking-tight"><Trophy size={18} className="text-[#D4FC47]"/> Ligue</h1>
-          <div className="w-10"></div>
+      {/* HEADER AÉRÉ */}
+      <header className="px-6 pt-12 pb-4 z-40 flex-shrink-0">
+        <div className="flex justify-between items-center mb-8">
+          <button onClick={onBack} className="p-3 glass-panel bubble-pill text-zinc-300 hover:text-white transition-all active:scale-95"><ChevronLeft size={20}/></button>
+          <h1 className="text-2xl font-black uppercase flex items-center gap-3 italic tracking-tighter drop-shadow-md">
+            <Trophy size={24} className="text-[#ADFF2F] glow-accent"/> Ligue
+          </h1>
+          <div className="w-12"></div>
         </div>
 
-        {/* Menu déroulant aéré avec des marges nettes (mx-1) */}
-        <div className="bg-[#141814] border border-zinc-800/80 p-3.5 rounded-2xl flex items-center gap-3 shadow-lg mx-1">
-           <Dumbbell size={18} className="text-[#D4FC47]" />
-           <select value={selectedExoId} onChange={e => setSelectedExoId(e.target.value)} className="bg-transparent text-white font-bold text-sm w-full outline-none cursor-pointer">
-              {fullCatalog.map(exo => <option key={exo.id} value={exo.id} className="bg-[#141814] text-white">{exo.name}</option>)}
+        {/* Menu déroulant organique */}
+        <div className="glass-panel bubble-pill p-2 flex items-center gap-3 shadow-lg relative">
+           <div className="w-10 h-10 bg-[#ADFF2F] bubble-pill flex items-center justify-center shrink-0">
+             <Dumbbell size={20} className="text-black" />
+           </div>
+           <select value={selectedExoId} onChange={e => setSelectedExoId(e.target.value)} className="bg-transparent text-white font-black uppercase tracking-tight text-sm w-full outline-none cursor-pointer pr-4 appearance-none">
+              {fullCatalog.map(exo => <option key={exo.id} value={exo.id} className="bg-[#070908] text-white uppercase">{exo.name}</option>)}
            </select>
+           <ChevronRight size={18} className="text-zinc-500 absolute right-4 pointer-events-none" />
         </div>
       </header>
 
-      {/* CONTENU PRINCIPAL AVEC PADDING-BOTTOM CONSÉQUENT POUR ÉVITER LE MASQUAGE PAR LE DOCK */}
-      <main className="flex-1 overflow-y-auto px-5 pt-6 pb-48 space-y-3">
+      {/* PADDING BOTTOM POUR L'ÎLE FLOTTANTE */}
+      <main className="flex-1 overflow-y-auto px-6 pt-6 pb-[160px] space-y-4 relative">
         {loading ? (
-            <div className="flex justify-center py-20"><Activity size={28} className="text-[#D4FC47] animate-pulse" /></div>
+            <div className="flex justify-center py-24"><Activity size={36} className="text-[#ADFF2F] animate-pulse" /></div>
         ) : (
             leaderboard.length === 0 ? (
-                /* ÉTAT VIDE (EMPTY STATE) ARTISTIQUE ET IMMERSIF */
-                <div className="flex flex-col items-center justify-center py-20 text-center px-6 relative overflow-hidden bg-[#141814] rounded-[36px] border border-zinc-800/80 shadow-2xl mt-4">
-                    {/* Graphique de fond en fausses données estompées */}
-                    <div className="absolute inset-0 opacity-10 flex items-end justify-around px-6 pb-4 pointer-events-none select-none">
-                        <div className="w-8 h-24 bg-[#D4FC47] rounded-t-xl" />
-                        <div className="w-8 h-40 bg-[#D4FC47] rounded-t-xl" />
-                        <div className="w-8 h-32 bg-[#D4FC47] rounded-t-xl" />
-                        <div className="w-8 h-52 bg-[#D4FC47] rounded-t-xl" />
-                        <div className="w-8 h-48 bg-[#D4FC47] rounded-t-xl" />
+                /* ÉTAT VIDE ARTISTIQUE (Organic Empty State) */
+                <div className="flex flex-col items-center justify-center py-24 text-center relative mt-4">
+                    {/* Graphique de fond en fausses données estompées/morphes */}
+                    <div className="absolute inset-0 flex items-end justify-center gap-4 px-6 pb-4 opacity-10 pointer-events-none select-none">
+                        <div className="w-12 h-32 bg-white bubble-1" />
+                        <div className="w-12 h-56 bg-white bubble-2" />
+                        <div className="w-12 h-40 bg-white bubble-1" />
+                        <div className="w-12 h-72 bg-[#ADFF2F] bubble-3 glow-accent" />
                     </div>
 
-                    <div className="w-16 h-16 bg-[#D4FC47]/10 rounded-2xl flex items-center justify-center text-[#D4FC47] border border-[#D4FC47]/30 mb-4 shadow-[0_0_25px_rgba(212,252,71,0.2)] relative z-10">
-                        <Trophy size={32} />
+                    <div className="w-24 h-24 glass-panel bubble-pill flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(173,255,47,0.15)] relative z-10">
+                        <Trophy size={48} className="text-[#ADFF2F] glow-accent" />
                     </div>
-                    <h3 className="text-base font-black uppercase tracking-tight text-white mb-1 relative z-10 italic">Aucun record enregistré</h3>
-                    <p className="text-xs text-zinc-400 max-w-xs leading-relaxed relative z-10 font-medium">
-                        Enregistre tes premières charges sur cet exercice pour débloquer ton classement dans la ligue MĘCANIK.
+                    <h3 className="text-3xl font-black uppercase tracking-tighter text-white mb-2 relative z-10 italic drop-shadow-md">Arène Vide</h3>
+                    <p className="text-sm text-zinc-400 font-medium max-w-[260px] leading-relaxed relative z-10">
+                        La compétition commence avec toi. Enregistre une charge sur cet exercice pour écrire l'histoire.
                     </p>
                 </div>
             ) : (
                 leaderboard.map((user, index) => {
                     const isMe = user.id === currentUser?.uid;
-                    let badge = index === 0 ? <Crown size={18} className="text-[#D4FC47]" /> : index === 1 ? <Medal size={18} className="text-zinc-400" /> : index === 2 ? <Medal size={18} className="text-amber-600" /> : <span className="font-bold text-zinc-500 w-5 text-center text-xs">{index + 1}</span>;
+                    let badge = index === 0 ? <Crown size={20} className="text-[#ADFF2F]" /> : index === 1 ? <Medal size={20} className="text-zinc-300" /> : index === 2 ? <Medal size={20} className="text-amber-600" /> : <span className="font-black text-zinc-500 w-5 text-center text-sm">{index + 1}</span>;
 
                     return (
                         <motion.div 
                             key={user.id} 
-                            whileTap={{ scale: 0.98 }}
+                            whileTap={{ scale: 0.96 }}
                             onClick={() => setSelectedUser(user)}
-                            className={`p-4 rounded-2xl border flex items-center gap-4 cursor-pointer transition-all shadow-md ${isMe ? 'bg-[#D4FC47]/10 border-[#D4FC47]/40' : 'bg-[#141814] border-zinc-800/80 hover:bg-[#1C221C]'}`}
+                            className={`p-5 glass-panel bubble-3 flex items-center gap-5 cursor-pointer transition-all shadow-lg overflow-hidden relative ${isMe ? 'border border-[#ADFF2F]/40 bg-[#ADFF2F]/5 glow-accent' : 'hover:bg-[#141A16]'}`}
                         >
-                            <div className="w-8 flex justify-center shrink-0">{badge}</div>
-                            <div className="flex-1">
-                                <p className={`font-black text-sm truncate uppercase italic ${isMe ? 'text-[#D4FC47]' : 'text-white'}`}>{user.pseudo}</p>
+                            {/* Halo subtil si c'est l'utilisateur courant */}
+                            {isMe && <div className="absolute top-0 left-0 w-16 h-16 bg-[#ADFF2F]/20 blur-2xl rounded-full" />}
+                            
+                            <div className="w-10 h-10 bg-[#070908]/80 bubble-pill flex items-center justify-center shrink-0 border border-white/5 relative z-10">{badge}</div>
+                            <div className="flex-1 relative z-10">
+                                <p className={`font-black text-base truncate uppercase italic tracking-tight ${isMe ? 'text-[#ADFF2F]' : 'text-white'}`}>{user.pseudo}</p>
                             </div>
-                            <div className="text-right">
-                                <span className="text-lg font-black text-white">{user.maxWeight}</span>
-                                <span className="text-[10px] text-[#D4FC47] ml-1 font-black uppercase">KG</span>
+                            <div className="text-right relative z-10">
+                                <span className="text-3xl font-black text-white">{user.maxWeight}</span>
+                                <span className="text-[10px] text-[#ADFF2F] ml-1 font-black uppercase tracking-widest">KG</span>
                             </div>
-                            <ChevronRight size={14} className="text-zinc-600" />
                         </motion.div>
                     );
                 })

@@ -446,15 +446,26 @@ function CardioCard({ data, isFinisher }) {
 
 function RestCard({ data }) {
   return (
-    <div className="bg-[#141814] p-10 rounded-[36px] border border-zinc-800 text-center mt-6 shadow-2xl relative overflow-hidden bg-muscular-watermark flex flex-col items-center justify-center min-h-[320px]">
-      <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
-        <div className="w-64 h-64 rounded-full border-[30px] border-[#D4FC47] blur-sm animate-pulse" />
+    <div className="flex-1 flex flex-col items-center justify-center min-h-[500px] w-full px-6 relative">
+      {/* Ondes de respiration organiques en arrière-plan */}
+      <motion.div 
+        animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.3, 0.1] }} 
+        transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
+        className="absolute w-64 h-64 border border-[#ADFF2F] bubble-pill pointer-events-none"
+      />
+      <motion.div 
+        animate={{ scale: [1, 1.5, 1], opacity: [0.05, 0.1, 0.05] }} 
+        transition={{ repeat: Infinity, duration: 6, ease: "easeInOut", delay: 1 }}
+        className="absolute w-80 h-80 border-[20px] border-[#ADFF2F] bubble-pill blur-2xl pointer-events-none"
+      />
+
+      {/* Cœur de l'icône */}
+      <div className="w-24 h-24 glass-panel bubble-pill flex items-center justify-center mb-8 relative z-10">
+        <BedDouble size={40} className="text-[#ADFF2F]" />
       </div>
-      <div className="w-20 h-20 bg-[#D4FC47]/10 rounded-full flex items-center justify-center mx-auto mb-5 border border-[#D4FC47]/30 shadow-[0_0_30px_rgba(212,252,71,0.15)] relative z-10">
-        <BedDouble size={36} className="text-[#D4FC47]" />
-      </div>
-      <h3 className="text-2xl font-black text-white mb-2 uppercase italic tracking-tighter relative z-10">{data.focus}</h3>
-      <p className="text-xs text-zinc-400 max-w-xs leading-relaxed font-medium relative z-10">{data.desc}</p>
+
+      <h3 className="text-3xl font-black text-white uppercase italic tracking-tighter text-center relative z-10">{data.focus}</h3>
+      <p className="text-sm text-zinc-500 font-medium mt-4 max-w-[250px] text-center relative z-10">{data.desc}</p>
     </div>
   );
 }

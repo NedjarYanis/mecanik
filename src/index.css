@@ -2,30 +2,39 @@
 
 body {
   overscroll-behavior-y: none;
-  background-color: #0B0E0B;
-  color: #FFFFFF;
+  background-color: #070908;
+  color: #F3F4F6;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* Formes asymétriques organiques et fluides */
-.bento-organic-1 {
-  border-radius: 36px 16px 36px 28px;
+/* Fond abyssal adaptatif et vivant */
+.bg-adaptive {
+  background: 
+    radial-gradient(circle at 20% 0%, rgba(173, 255, 47, 0.08) 0%, transparent 60%),
+    radial-gradient(circle at 90% 80%, rgba(255, 184, 0, 0.05) 0%, transparent 50%),
+    #070908;
+  background-attachment: fixed;
 }
 
-.bento-organic-2 {
-  border-radius: 20px 36px 28px 36px;
+/* Glassmorphism 2.0 (Verre givré organique) */
+.glass-panel {
+  background: rgba(20, 26, 22, 0.4);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
 }
 
-/* Filigranes d'arrière-plan pour dynamiser les espaces vides */
-.bg-muscular-watermark {
-  background-image: radial-gradient(circle at 80% 20%, rgba(212, 252, 71, 0.03) 0%, transparent 50%);
+/* Formes liquides et asymétriques (Organic Motion) */
+.bubble-1 { border-radius: 40px 16px 40px 16px; }
+.bubble-2 { border-radius: 16px 40px 16px 40px; }
+.bubble-3 { border-radius: 36px 36px 16px 36px; }
+.bubble-pill { border-radius: 9999px; }
+
+/* Lueur douce */
+.glow-accent {
+  box-shadow: 0 0 40px -10px rgba(173, 255, 47, 0.4);
 }
 
-/* Masquage de scrollbar */
-.hide-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.hide-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

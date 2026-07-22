@@ -1,9 +1,6 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { 
-   Flame, Droplet, BrainCircuit, ChevronRight, 
-   Play, Calendar, Clock, User, Check, Dumbbell, Sparkles 
-} from 'lucide-react';
+import { Flame, Droplet, BrainCircuit, Play, Calendar, User, Sparkles } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import { useData } from './context/DataContext';
 
@@ -28,112 +25,73 @@ export default function DashboardTab({ onNavigate }) {
   }, [program]);
 
   return (
-    <motion.div 
-       initial={{ opacity: 0, y: 10 }} 
-       animate={{ opacity: 1, y: 0 }} 
-       className="flex flex-col h-full w-full bg-[#0B0E0B] text-white p-6 overflow-y-auto pb-48 space-y-6 bg-muscular-watermark"
-    >
-      {/* HEADER AÉRÉ */}
-      <header className="flex justify-between items-center pt-4 mb-2">
-        <div>
-          <p className="text-zinc-500 text-[9px] font-black uppercase tracking-[0.2em]">Tableau de Bord</p>
-          <h1 className="text-2xl font-black tracking-tighter uppercase italic text-white mt-1">
-            Salut, <span className="text-[#D4FC47]">{profile?.pseudo || currentUser?.email?.split('@')[0]}</span>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full w-full p-6 overflow-y-auto pb-40 space-y-8">
+      
+      {/* HEADER ULTRA AÉRÉ */}
+      <header className="flex justify-between items-center pt-8">
+        <div className="space-y-1">
+          <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.3em]">Tableau de Bord</p>
+          <h1 className="text-3xl font-black tracking-tighter uppercase text-white">
+            Salut, <br/><span className="text-[#ADFF2F] italic">{profile?.pseudo || currentUser?.email?.split('@')[0]}</span>
           </h1>
         </div>
-        <div className="w-12 h-12 bg-[#141814] rounded-2xl border border-zinc-800 flex items-center justify-center relative shadow-lg">
-          <User className="text-zinc-400" size={20} />
-          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-[#D4FC47] rounded-full border-2 border-[#0B0E0B] flex items-center justify-center">
-            <Check className="text-black" size={10} strokeWidth={4} />
-          </div>
+        <div className="w-14 h-14 glass-panel rounded-full flex items-center justify-center">
+          <User className="text-[#ADFF2F]" size={24} />
         </div>
       </header>
 
-      {/* TODAY'S CHALLENGE */}
-      <div className="bg-[#D4FC47] text-black p-6 rounded-[32px] shadow-[0_10px_30px_rgba(212,252,71,0.15)] relative overflow-hidden">
-        <div className="flex justify-between items-start mb-2">
-          <span className="text-[9px] font-black uppercase tracking-widest bg-black/10 px-3 py-1 rounded-full">Aujourd'hui</span>
-          <Sparkles size={18} className="text-black" />
+      {/* TODAY'S CHALLENGE : BULLE ORGANIQUE ÉTIRÉE */}
+      <div className="bg-[#ADFF2F] text-black p-8 bubble-1 glow-accent relative">
+        <div className="flex justify-between items-start mb-4">
+          <span className="text-[10px] font-black uppercase tracking-widest bg-black/10 px-3 py-1.5 bubble-pill">Aujourd'hui</span>
+          <Sparkles size={20} className="text-black/60" />
         </div>
-        <h3 className="text-2xl font-black uppercase tracking-tight italic">Today's Challenge</h3>
-        <p className="text-xs font-bold mt-1 text-black/80">Do your plan before 9:00 AM</p>
+        <h3 className="text-3xl font-black uppercase tracking-tight leading-none mb-2">Today's <br/>Challenge</h3>
+        <p className="text-sm font-bold text-black/70">Do your plan before 9:00 AM</p>
       </div>
 
-      {/* AI COACH */}
-      <button 
-         onClick={() => onNavigate('coach')}
-        className="w-full bg-[#141814] hover:bg-[#1C221C] border border-zinc-800 p-5 rounded-[28px] flex items-center justify-between shadow-lg active:scale-[0.98] transition-all group"
-      >
-        <div className="flex items-center gap-4">
-          <div className="bg-[#0B0E0B] p-3 rounded-2xl border border-zinc-800 text-[#D4FC47]">
-            <BrainCircuit size={24} />
-          </div>
-          <div className="text-left">
-            <p className="text-white font-black uppercase text-xs tracking-widest flex items-center gap-2">
-              MĘCANIK AI <Sparkles size={12} className="text-[#D4FC47]" />
-            </p>
-            <p className="text-zinc-400 text-[10px] font-bold mt-0.5">Analyse tes performances</p>
-          </div>
-        </div>
-        <ChevronRight className="text-zinc-500 group-hover:translate-x-1 transition-transform" />
-      </button>
-
-      {/* DUO SYMÉTRIQUE : ÉNERGIE / EAU (Sans clipping de texte) */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-[#141814] p-5 rounded-[28px] border border-zinc-800 shadow-md relative overflow-hidden flex flex-col justify-between">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="p-2 bg-[#D4FC47]/10 rounded-xl text-[#D4FC47]"><Flame size={16} /></div>
-            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Énergie</span>
+      {/* DUO LIQUIDE : ÉNERGIE / EAU (Bug du texte résolu grâce au flex étendu) */}
+      <div className="grid grid-cols-2 gap-5">
+        <div className="glass-panel p-6 bubble-2 flex flex-col justify-between min-h-[140px]">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2.5 bg-[#ADFF2F]/10 bubble-pill text-[#ADFF2F]"><Flame size={18} /></div>
           </div>
           <div>
-            <p className="text-2xl font-black text-white">{stats.consumed} <span className="text-xs text-zinc-500 font-bold">kcal</span></p>
+            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block mb-1">Énergie</span>
+            <p className="text-3xl font-black text-white">{stats.consumed} <span className="text-sm text-zinc-600">kcal</span></p>
           </div>
-          <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#D4FC47]/30" />
         </div>
         
-        <div className="bg-[#141814] p-5 rounded-[28px] border border-zinc-800 shadow-md relative overflow-hidden flex flex-col justify-between">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="p-2 bg-cyan-500/10 rounded-xl text-cyan-400"><Droplet size={16} /></div>
-            <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Eau</span>
+        <div className="glass-panel p-6 bubble-1 flex flex-col justify-between min-h-[140px]">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2.5 bg-cyan-500/10 bubble-pill text-cyan-400"><Droplet size={18} /></div>
           </div>
           <div>
-            <p className="text-xl font-black text-white tracking-tight">{stats.water} <span className="text-xs text-zinc-500 font-bold">ml</span></p>
+            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block mb-1">Eau</span>
+            {/* Flex-wrap et dimensions adaptatives pour empêcher le texte de couper */}
+            <p className="text-3xl font-black text-white flex items-baseline gap-1 flex-wrap">{stats.water} <span className="text-sm text-zinc-600">ml</span></p>
           </div>
-          <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-cyan-500/30" />
         </div>
       </div>
 
-      {/* SÉANCE DU JOUR */}
+      {/* SÉANCE DU JOUR AÉRÉE */}
       <div>
-        <h3 className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] mb-3 flex items-center gap-2">
-          <Calendar size={14} className="text-[#D4FC47]" /> Séance du Jour
+        <h3 className="text-[11px] font-black uppercase text-zinc-500 tracking-[0.2em] mb-4 flex items-center gap-2 px-2">
+          <Calendar size={14} className="text-[#ADFF2F]" /> Séance du Jour
         </h3>
         
-        <div 
-          onClick={() => onNavigate('workout')}
-          className="bg-[#141814] border border-zinc-800 p-6 rounded-[32px] relative overflow-hidden active:scale-[0.98] transition-transform cursor-pointer group shadow-xl"
-        >
-          <div className="absolute right-[-10px] bottom-[-20px] text-zinc-800/30 pointer-events-none select-none">
-            <Dumbbell size={110} strokeWidth={2.5} />
+        <div onClick={() => onNavigate('workout')} className="glass-panel p-8 bubble-3 cursor-pointer group">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-2.5 h-2.5 bg-[#ADFF2F] rounded-full animate-pulse" />
+            <span className="text-[10px] font-black text-[#ADFF2F] uppercase tracking-widest">PRÊTE</span>
           </div>
+          <h4 className="text-2xl font-black uppercase italic tracking-tighter mb-2 text-white">{todayProgram.focus}</h4>
+          <p className="text-zinc-400 text-sm mb-8">{todayProgram.desc}</p>
           
-          <div className="relative z-10">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-2 h-2 bg-[#D4FC47] rounded-full animate-pulse" />
-              <span className="text-[9px] font-black text-[#D4FC47] uppercase tracking-widest">PRÊTE</span>
-            </div>
-            <h4 className="text-xl font-black uppercase italic tracking-tighter mb-1 text-white">{todayProgram.focus}</h4>
-            <p className="text-zinc-400 text-xs font-medium mb-5">{todayProgram.desc}</p>
-            
-            <div className="flex items-center justify-between">
-               <div className="px-3 py-1.5 bg-[#0B0E0B] rounded-xl border border-zinc-800 flex items-center gap-2">
-                 <Clock size={12} className="text-zinc-500" />
-                 <span className="text-[9px] font-black text-white">~75 MIN</span>
-               </div>
-               <div className="w-11 h-11 bg-[#D4FC47] text-black rounded-full flex items-center justify-center shadow-lg active:scale-95">
-                  <Play size={18} fill="black" className="ml-0.5" />
-               </div>
-            </div>
+          <div className="flex justify-end">
+             <div className="w-14 h-14 bg-[#ADFF2F] text-black rounded-full flex items-center justify-center glow-accent group-active:scale-90 transition-transform">
+                <Play size={20} fill="black" className="ml-1" />
+             </div>
           </div>
         </div>
       </div>
