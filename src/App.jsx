@@ -56,10 +56,21 @@ function AuthScreen() {
     e.preventDefault();
     setError('');
     try {
-      if (isLogin) await login(email, password);
-      else await signup(email, password);
+      if (isLogin) {
+        await login(email, password);
+      } else {
+        await signup(email, password);
+      }
     } catch (err) {
-      setError("Erreur d'authentification. Vérifiez vos identifiants.");
+      if (err.code === 'auth/weak-password') {
+        setError("Le mot de passe doit faire au moins 6 caractères.");
+      } else if (err.code === 'auth/email-already-in-use') {
+        setError("Cet email est déjà associé à un compte.");
+      } else if (err.code === 'auth/invalid-email') {
+        setError("Format d'email invalide.");
+      } else {
+        setError(err.message || "Erreur lors de l'authentification.");
+      }
     }
   };
 
