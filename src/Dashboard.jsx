@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 
 // Assure-toi que les chemins d'importation sont corrects
-import { useAuth } from './App';
+import { useAuth } from './context/AuthContext';
 import { useData } from './context/DataContext';
 
 export default function DashboardTab({ onNavigate }) {

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { collection, getDocs, addDoc } from "firebase/firestore";
 import { deleteUser } from "firebase/auth";
-import { useAuth } from './App'; 
+import { useAuth } from './context/AuthContext'
 import { db, auth } from './services/firebase'; 
 import { 
   calculateMifflin, calculateTargetGoals, 

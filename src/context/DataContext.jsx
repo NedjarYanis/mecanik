@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { db } from '../services/firebase';
 import { doc, getDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
-import { useAuth } from '../App'; 
+import { useAuth } from './AuthContext';
 
 // --- IMPORTS IMAGES ---
 import imgPresse from '../assets/presse-a-cuisses-inclinee.gif';
