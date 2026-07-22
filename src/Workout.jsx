@@ -14,9 +14,9 @@ import { collection, addDoc } from "firebase/firestore";
 const ChartTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="glass-panel border border-zinc-800 p-3 bubble-2 shadow-xl flex flex-col gap-1">
-        <span className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest">{label}</span>
-        <p className="font-black text-sm text-[#ADFF2F]">{`${payload[0].value} kg`}</p>
+      <div className="glass-panel border border-zinc-800/50 p-4 bubble-2 shadow-2xl flex flex-col gap-1">
+        <span className="text-[9px] text-zinc-400 font-black uppercase tracking-widest">{label}</span>
+        <p className="font-black text-base text-[#ADFF2F]">{`${payload[0].value} kg`}</p>
       </div>
     );
   }
@@ -168,7 +168,9 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
   const handleSelectFromCatalog = (catalogItem) => {
     const newExoConfig = { refId: catalogItem.id, sets: 4, reps: "10-12", rest: 90 }; 
     setProgram(prev => {
+      // CORRECTION DU BUG : On initialise un jour par défaut si celui-ci est vide
       const day = prev[activeDay] || { focus: "Nouvelle Séance", type: "mixed", exercises: [] };
+      
       let newExercises = [...(day.exercises || [])];
       const newType = (day.type === 'rest' || day.type === 'cardio') ? 'mixed' : day.type; 
 
@@ -180,11 +182,7 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
        }
       return { ...prev, [activeDay]: { ...day, type: newType, exercises: newExercises } };
     });
-    
-    setShowCatalog(false); 
-    setIsCreatingExo(false); 
-    setSwapRefId(null); 
-    setCatalogSearch('');
+    setShowCatalog(false); setIsCreatingExo(false); setSwapRefId(null); setCatalogSearch('');
   };
 
   const handleCreateCustomExo = async () => {
@@ -223,7 +221,7 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
             <div className="flex items-center justify-center w-8 h-8 rounded-full glass-panel glow-accent">
               {saveStatus === 'saving' && <Loader2 size={14} className="text-[#ADFF2F] animate-spin" />}
               {saveStatus === 'saved' && <Check size={14} className="text-[#ADFF2F]" />}
-              {saveStatus === 'idle' && !hasUnsavedChanges && <CloudLightning size={14} className="text-zinc-600" />}
+              {saveStatus === 'idle' && !hasUnsavedChanges && <CloudLightning size={14} className="text-zinc-500" />}
               {saveStatus === 'idle' && hasUnsavedChanges && <div className="w-3 h-3 bg-[#ADFF2F] rounded-full animate-pulse" />}
             </div>
           </div>
@@ -316,7 +314,7 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
               saveStatus === 'saving' ? 'bg-[#ADFF2F]/50 text-black cursor-not-allowed' : 
               saveStatus === 'saved' ? 'bg-[#ADFF2F] text-black glow-accent' :
               hasUnsavedChanges ? 'bg-[#ADFF2F] text-black active:scale-95 glow-accent' : 
-              'glass-panel text-zinc-600 cursor-not-allowed'
+              'glass-panel text-zinc-500 cursor-not-allowed'
             }`}
           >
             {saveStatus === 'saving' ? <Loader2 size={18} className="animate-spin" /> : 
@@ -374,11 +372,11 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
                        <div className="space-y-5 relative z-10">
                          <div>
                            <span className="text-[10px] text-zinc-400 font-black uppercase tracking-widest block mb-2">Nom de l'exercice *</span>
-                           <input type="text" value={newExo.name} onChange={e=>setNewExo({...newExo, name: e.target.value})} className="w-full bg-[#070908]/80 border border-zinc-800 p-4 bubble-pill text-white font-bold outline-none focus:border-[#ADFF2F] transition-colors" placeholder="Ex: Soulevé de terre" />
+                           <input type="text" value={newExo.name} onChange={e=>setNewExo({...newExo, name: e.target.value})} className="w-full bg-[#070908]/80 border border-zinc-800/80 p-4 bubble-pill text-white font-bold outline-none focus:border-[#ADFF2F] transition-colors" placeholder="Ex: Soulevé de terre" />
                          </div>
                          <div>
                            <span className="text-[10px] text-zinc-400 font-black uppercase tracking-widest block mb-2">Muscles ciblés</span>
-                           <input type="text" value={newExo.focus} onChange={e=>setNewExo({...newExo, focus: e.target.value})} className="w-full bg-[#070908]/80 border border-zinc-800 p-4 bubble-pill text-white font-bold outline-none focus:border-[#ADFF2F] transition-colors" placeholder="Ex: Dos / Ischios" />
+                           <input type="text" value={newExo.focus} onChange={e=>setNewExo({...newExo, focus: e.target.value})} className="w-full bg-[#070908]/80 border border-zinc-800/80 p-4 bubble-pill text-white font-bold outline-none focus:border-[#ADFF2F] transition-colors" placeholder="Ex: Dos / Ischios" />
                          </div>
                          
                          <div className="pt-4 flex gap-3">
@@ -393,8 +391,8 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
               ) : (
                 <>
                   <div className="flex items-center gap-4 glass-panel p-2 bubble-pill mb-6 shadow-inner relative z-10 mt-2">
-                    <div className="w-10 h-10 bg-[#ADFF2F]/10 bubble-pill flex items-center justify-center shrink-0">
-                      <Search size={18} className="text-[#ADFF2F]" />
+                    <div className="w-12 h-12 bg-[#ADFF2F]/10 bubble-pill flex items-center justify-center shrink-0">
+                      <Search size={20} className="text-[#ADFF2F]" />
                     </div>
                     <input type="text" placeholder="Rechercher un exercice..." value={catalogSearch} onChange={e => setCatalogSearch(e.target.value)} className="bg-transparent font-black text-white outline-none w-full placeholder:text-zinc-600 uppercase tracking-wide text-sm" autoFocus />
                   </div>
@@ -403,17 +401,17 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
                     <Plus size={18} /> Nouvel Exercice
                   </button>
 
-                  <div className="flex-1 overflow-y-auto space-y-3 pb-32 hide-scrollbar">
+                  <div className="flex-1 overflow-y-auto space-y-4 pb-32 hide-scrollbar">
                       {filteredCatalog.map((exo, idx) => (
                           <div key={idx} onClick={() => handleSelectFromCatalog(exo)} className="glass-panel p-4 bubble-2 flex items-center gap-5 cursor-pointer active:scale-[0.98] transition-all hover:bg-[#141A16] group shadow-lg">
-                              <div className="w-14 h-14 bg-[#070908]/80 bubble-pill shrink-0 flex items-center justify-center border border-white/5 overflow-hidden">
-                                <img src={exo.image || "https://cdn-icons-png.flaticon.com/512/3048/3048364.png"} className="w-8 h-8 object-contain opacity-70 group-hover:opacity-100 transition-opacity" alt="" />
+                              <div className="w-16 h-16 bg-[#070908]/80 bubble-pill shrink-0 flex items-center justify-center border border-white/5 overflow-hidden">
+                                <img src={exo.image || "https://cdn-icons-png.flaticon.com/512/3048/3048364.png"} className="w-10 h-10 object-contain opacity-70 group-hover:opacity-100 transition-opacity" alt="" />
                               </div>
                               <div className="flex-1">
                                 <h3 className="font-black text-white text-sm italic uppercase tracking-tight">{exo.name}</h3>
                               </div>
-                              <div className="w-10 h-10 bg-[#ADFF2F]/10 bubble-pill flex items-center justify-center text-[#ADFF2F] group-hover:bg-[#ADFF2F] group-hover:text-black transition-all glow-accent">
-                                <Plus size={18}/>
+                              <div className="w-12 h-12 bg-[#ADFF2F]/10 bubble-pill flex items-center justify-center text-[#ADFF2F] group-hover:bg-[#ADFF2F] group-hover:text-black transition-all glow-accent">
+                                <Plus size={20}/>
                               </div>
                           </div>
                       ))}
@@ -467,7 +465,7 @@ function ExerciseCard({ data, isTired, isEditing, onStartRest, history, onLogWei
                   <input type="text" value={data.reps} onChange={e => onUpdate({reps: e.target.value})} className="w-16 bg-black border border-zinc-700 py-1 rounded-xl text-center text-sm font-black text-white outline-none" />
               </div>
           ) : (
-              <div className={`px-3 py-1 bubble-pill text-[10px] font-black inline-block mt-2 tracking-widest ${isTired ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-[#070908] text-[#ADFF2F] border border-zinc-800'}`}>
+              <div className={`px-3 py-1.5 bubble-pill text-[10px] font-black inline-block mt-2 tracking-widest ${isTired ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-[#070908] text-[#ADFF2F] border border-zinc-800'}`}>
                 {isTired && <span className="mr-1">⚡ 75% MAX | </span>}
                 {actualSets}x{displayReps}
               </div>
