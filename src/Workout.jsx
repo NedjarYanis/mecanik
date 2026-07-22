@@ -446,10 +446,15 @@ function CardioCard({ data, isFinisher }) {
 
 function RestCard({ data }) {
   return (
-    <div className="bg-[#141814] p-8 rounded-[32px] border border-zinc-800 text-center mt-6 shadow-xl relative overflow-hidden bg-muscular-watermark">
-      <div className="w-16 h-16 bg-[#D4FC47]/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-[#D4FC47]/20"><BedDouble size={32} className="text-[#D4FC47]" /></div>
-      <h3 className="text-lg font-bold text-white mb-2 uppercase italic tracking-tighter">{data.focus}</h3>
-      <p className="text-xs text-zinc-400 leading-relaxed font-medium">{data.desc}</p>
+    <div className="bg-[#141814] p-10 rounded-[36px] border border-zinc-800 text-center mt-6 shadow-2xl relative overflow-hidden bg-muscular-watermark flex flex-col items-center justify-center min-h-[320px]">
+      <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
+        <div className="w-64 h-64 rounded-full border-[30px] border-[#D4FC47] blur-sm animate-pulse" />
+      </div>
+      <div className="w-20 h-20 bg-[#D4FC47]/10 rounded-full flex items-center justify-center mx-auto mb-5 border border-[#D4FC47]/30 shadow-[0_0_30px_rgba(212,252,71,0.15)] relative z-10">
+        <BedDouble size={36} className="text-[#D4FC47]" />
+      </div>
+      <h3 className="text-2xl font-black text-white mb-2 uppercase italic tracking-tighter relative z-10">{data.focus}</h3>
+      <p className="text-xs text-zinc-400 max-w-xs leading-relaxed font-medium relative z-10">{data.desc}</p>
     </div>
   );
 }

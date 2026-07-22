@@ -177,7 +177,7 @@ export default function Nutrition({ onBack, dataContext }) {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-5 pt-4 pb-32 space-y-4">
+      <main className="flex-1 overflow-y-auto px-5 pt-4 pb-48 space-y-6">
         
         {/* BENTO MASTER CARD : CALORIES & OBJECTIFS */}
         <section className="bg-[#141814] bento-organic-1 p-6 border border-zinc-800/60 shadow-2xl relative overflow-hidden">
