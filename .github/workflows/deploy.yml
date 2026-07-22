@@ -32,7 +32,7 @@ jobs:
           cache: 'npm'
 
       - name: Installation des dépendances
-        run: npm install 
+        run: npm install --legacy-peer-deps
 
       - name: Build du projet Vite
         run: npm run build
