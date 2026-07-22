@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { BrainCircuit, X, Camera, Loader2, RefreshCw } from 'lucide-react';
 import { getOcrWorker } from '../services/ocrService'; // Import du service singleton
+import { useToast } from '../context/ToastContext';
 import { collection, addDoc } from "firebase/firestore";
 import { db } from '../services/firebase';
 
@@ -21,6 +22,7 @@ export default function ContributeFoodModal({ onClose, onFoodAdded, initialBarco
   const [isPublishing, setIsPublishing] = useState(false);
   const [isOcrScanning, setIsOcrScanning] = useState(false);
   const fileInputRef = useRef(null);
+  const { showToast } = useToast();
 
   // Pré-chargement silencieux du worker IA dès l'ouverture de la modale
   useEffect(() => {
@@ -33,7 +35,7 @@ export default function ContributeFoodModal({ onClose, onFoodAdded, initialBarco
 
     setIsOcrScanning(true);
     try {
-      // Utilisation de l'instance partagée (Singleton) au lieu de createWorker()[cite: 22]
+      // Utilisation de l'instance partagée (Singleton) au lieu de createWorker()
       const worker = await getOcrWorker();
       const { data: { text } } = await worker.recognize(file);
       
@@ -43,7 +45,7 @@ export default function ContributeFoodModal({ onClose, onFoodAdded, initialBarco
         return m ? parseFloat(m[1].replace(',', '.')) : 0; 
       };
 
-      // Analyse intelligente des valeurs nutritionnelles via Regex[cite: 22]
+      // Analyse intelligente des valeurs nutritionnelles via Regex
       setNewFood(prev => ({
         ...prev,
         cals: Math.round(extract(/(?:kcal|calories|énergie|energie|kj).*?(\d+[.,]?\d*)/i)) || prev.cals,
@@ -53,7 +55,7 @@ export default function ContributeFoodModal({ onClose, onFoodAdded, initialBarco
       }));
     } catch (err) {
       console.error("Erreur OCR:", err);
-      alert("Impossible d'analyser l'image. Assurez-vous que les macros sont bien visibles.");
+      showToast("Impossible d'analyser l'image. Assurez-vous que les macros sont bien visibles.", "error");
     } finally {
       setIsOcrScanning(false);
     }
@@ -61,7 +63,7 @@ export default function ContributeFoodModal({ onClose, onFoodAdded, initialBarco
 
   const handleContributeFood = async () => {
     if (!newFood.name || !newFood.cals) {
-      alert("Le nom et les calories sont obligatoires.");
+      showToast("Le nom et les calories sont obligatoires.", "error");
       return;
     }
 
@@ -79,10 +81,11 @@ export default function ContributeFoodModal({ onClose, onFoodAdded, initialBarco
       // Ajout de l'aliment à la collection Firebase 'foods'
       const docRef = await addDoc(foodsCollection, item);
       onFoodAdded({ id: docRef.id, ...item });
+      showToast("Aliment publié dans la base !", "success");
       onClose();
     } catch (e) {
       console.error("Erreur lors de l'ajout Firebase:", e);
-      alert("Erreur lors de la sauvegarde.");
+      showToast("Erreur lors de la sauvegarde.", "error");
     } finally {
       setIsPublishing(false);
     }
@@ -103,7 +106,7 @@ export default function ContributeFoodModal({ onClose, onFoodAdded, initialBarco
       </div>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* Section Scanner IA[cite: 22] */}
+        {/* Section Scanner IA */}
         <div className="bg-blue-600/10 border border-blue-500/20 rounded-2xl p-4 flex flex-col items-center text-center">
           <BrainCircuit className="w-12 h-12 text-blue-400 mb-2" />
           <h3 className="text-white font-bold mb-1">Scanner de Macros IA</h3>
@@ -134,7 +137,7 @@ export default function ContributeFoodModal({ onClose, onFoodAdded, initialBarco
           </button>
         </div>
 
-        {/* Formulaire de saisie[cite: 26] */}
+        {/* Formulaire de saisie */}
         <div className="space-y-4 text-white">
           <div className="grid grid-cols-1 gap-4">
             <input 

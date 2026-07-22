@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  ChevronLeft, ChevronRight, Calendar, Music, Settings2, Check, 
-  AlertTriangle, Plus, Search, X, RefreshCw, CloudLightning, 
-  Repeat, Trash2, Play, Timer, HeartPulse, Info, BedDouble, TrendingUp,
-  Save, Loader2
+   ChevronLeft, ChevronRight, Calendar, Music, Settings2, Check, 
+   AlertTriangle, Plus, Search, X, RefreshCw, CloudLightning, 
+   Repeat, Trash2, Play, Timer, HeartPulse, Info, BedDouble, TrendingUp, 
+   Save, Loader2 
 } from 'lucide-react';
 import { LineChart, Line, Tooltip, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import { useData } from './context/DataContext'; 
+import { useToast } from './context/ToastContext';
 import { collection, addDoc } from "firebase/firestore";
 
 const ChartTooltip = ({ active, payload, label }) => {
@@ -24,28 +25,30 @@ const ChartTooltip = ({ active, payload, label }) => {
 
 export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyWidget, loginSpotify, db }) {
   const { 
-    profile, setProfile, 
-    program, setProgram, 
-    history, setHistory, 
-    saveToCloud, saveStatus, 
-    hasUnsavedChanges, journal, 
-    customCatalog, CATALOGUE_EXERCICES, 
-    getFullExerciseData 
+     profile, setProfile, 
+     program, setProgram, 
+     history, setHistory, 
+     saveToCloud, saveStatus, 
+     hasUnsavedChanges, journal, 
+     customCatalog, CATALOGUE_EXERCICES, 
+     getFullExerciseData 
   } = useData(); 
+
+  const { showToast } = useToast();
 
   const getTodayStr = () => new Date().toISOString().split('T')[0];
   const [currentDateStr, setCurrentDateStr] = useState(getTodayStr());
-  
+
   const activeDay = React.useMemo(() => {
     const d = new Date(currentDateStr).getDay();
     return d === 0 ? 7 : d;
   }, [currentDateStr]);
 
-  const changeDate = (offset) => { 
-     const d = new Date(currentDateStr); 
-     d.setDate(d.getDate() + offset); 
-     setCurrentDateStr(d.toISOString().split('T')[0]); 
-  };
+  const changeDate = (offset) => {
+      const d = new Date(currentDateStr);
+      d.setDate(d.getDate() + offset);
+      setCurrentDateStr(d.toISOString().split('T')[0]);
+   };
 
   // --- SYSTÈME DE CHRONOMÈTRE ---
   const [targetTime, setTargetTime] = useState(null); 
@@ -114,7 +117,7 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
   const isTired = readiness <= 4; 
 
   const logWeight = (refId, weight) => {
-    if (!weight || isNaN(weight)) return;
+    if (!weight || isNaN(weight)) return; 
     
     const numWeight = parseFloat(weight);
     const dateObj = new Date(currentDateStr);
@@ -144,26 +147,26 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
   };
 
   const currentDay = program[activeDay] || { focus: "Repos", type: "rest" };
-  
-  const handleUpdateDayFocus = (newFocus) => { 
-    setProgram(prev => ({ ...prev, [activeDay]: { ...prev[activeDay], focus: newFocus } })); 
-  };
-  
-  const handleUpdateExo = (refId, newProps) => { 
-    setProgram(prev => { 
-      const day = prev[activeDay]; 
-      const newExercises = day.exercises.map(e => e.refId === refId ? { ...e, ...newProps } : e); 
-      return { ...prev, [activeDay]: { ...day, exercises: newExercises } }; 
-    }); 
-  };
 
-  const handleDeleteExo = (refId) => { 
-    setProgram(prev => { 
-      const day = prev[activeDay]; 
-      const newExercises = day.exercises.filter(e => e.refId !== refId); 
-      return { ...prev, [activeDay]: { ...day, exercises: newExercises } }; 
-    }); 
-  };
+  const handleUpdateDayFocus = (newFocus) => {
+     setProgram(prev => ({ ...prev, [activeDay]: { ...prev[activeDay], focus: newFocus } }));
+   };
+
+  const handleUpdateExo = (refId, newProps) => {
+     setProgram(prev => {
+       const day = prev[activeDay];
+       const newExercises = day.exercises.map(e => e.refId === refId ? { ...e, ...newProps } : e);
+       return { ...prev, [activeDay]: { ...day, exercises: newExercises } };
+     });
+   };
+
+  const handleDeleteExo = (refId) => {
+     setProgram(prev => {
+       const day = prev[activeDay];
+       const newExercises = day.exercises.filter(e => e.refId !== refId);
+       return { ...prev, [activeDay]: { ...day, exercises: newExercises } };
+     });
+   };
 
   const handleSelectFromCatalog = (catalogItem) => {
     const newExoConfig = { refId: catalogItem.id, sets: 4, reps: "10-12", rest: 90 }; 
@@ -171,29 +174,38 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
       const day = prev[activeDay];
       let newExercises = [...(day.exercises || [])];
       const newType = (day.type === 'rest' || day.type === 'cardio') ? 'mixed' : day.type; 
+
       if (swapRefId) {
         const index = newExercises.findIndex(e => e.refId === swapRefId);
         if (index !== -1) newExercises[index] = newExoConfig;
       } else { 
-        newExercises.push(newExoConfig); 
-      }
+        newExercises.push(newExoConfig);
+       }
       return { ...prev, [activeDay]: { ...day, type: newType, exercises: newExercises } };
     });
     setShowCatalog(false); setIsCreatingExo(false); setSwapRefId(null); setCatalogSearch('');
   };
 
   const handleCreateCustomExo = async () => {
-    if (!newExo.name) return alert("Le nom est obligatoire !");
+    if (!newExo.name) {
+      showToast("Le nom est obligatoire !", "error");
+      return;
+    }
     setIsSavingExo(true);
     const exoCatalogObj = { 
-       name: newExo.name, focus: newExo.focus || "Général", 
-       image: newExo.image || "https://cdn-icons-png.flaticon.com/512/3048/3048364.png"
+        name: newExo.name, focus: newExo.focus || "Général", 
+        image: newExo.image || "https://cdn-icons-png.flaticon.com/512/3048/3048364.png"
     };
     try {
       const docRef = await addDoc(collection(db, "custom_exercises"), exoCatalogObj);
       handleSelectFromCatalog({ ...exoCatalogObj, id: docRef.id }); 
       setNewExo({name:'', focus:'', image:''});
-    } catch (e) { alert("Erreur réseau"); } finally { setIsSavingExo(false); }
+      showToast("Exercice personnalisé créé !", "success");
+    } catch (e) { 
+      showToast("Erreur réseau", "error"); 
+    } finally { 
+      setIsSavingExo(false); 
+    }
   };
 
   const FULL_CATALOG = [...CATALOGUE_EXERCICES, ...(customCatalog || [])];
@@ -201,8 +213,7 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full w-full bg-black relative overflow-hidden">
-      
-      <header className="px-5 pt-10 pb-4 bg-black/90 backdrop-blur-xl z-40 border-b border-zinc-900 flex-shrink-0">
+             <header className="px-5 pt-10 pb-4 bg-black/90 backdrop-blur-xl z-40 border-b border-zinc-900 flex-shrink-0">
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-extrabold tracking-tight uppercase italic">Entraînement</h1>
@@ -217,7 +228,7 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
             {!spotifyToken ? ( <button onClick={loginSpotify} className="p-2 bg-[#1DB954]/10 rounded-full text-[#1DB954] border border-[#1DB954]/20 active:scale-95"><Music size={18}/></button> ) : ( <button onClick={() => setShowSpotifyWidget(true)} className="p-2 bg-zinc-900 rounded-full text-[#1DB954] border border-zinc-800 active:scale-95"><Music size={18}/></button> )}
           </div>
         </div>
-        
+         
         <div className="flex justify-between items-center bg-zinc-900/50 p-2 rounded-full border border-zinc-800">
           <button onClick={() => changeDate(-1)} className="p-1 text-zinc-400 hover:text-white"><ChevronLeft size={18}/></button>
           <span className="text-xs font-bold uppercase tracking-widest text-blue-500 flex items-center gap-2">
@@ -226,8 +237,8 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
           </span>
           <button onClick={() => changeDate(1)} className="p-1 text-zinc-400 hover:text-white"><ChevronRight size={18}/></button>
         </div>
-      </header>
-      
+      </header> 
+
       <main className="flex-1 overflow-y-auto px-4 pt-6 pb-32 space-y-5">
         <div className="mb-4 flex justify-between items-start border-l-2 border-blue-500 pl-3">
           <div className="flex-1 pr-4">
@@ -252,21 +263,21 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
 
         {(currentDay.type === 'lift' || currentDay.type === 'mixed') && currentDay.exercises && currentDay.exercises.map(exoConfig => {
           const fullExo = getFullExerciseData(exoConfig); 
-          if (!fullExo) return null; 
+          if (!fullExo) return null;
           
           return (
             <ExerciseCard 
-              key={fullExo.refId} 
-              data={fullExo} 
-              isTired={isTired} 
-              isEditing={isEditingDay} 
-              history={history[fullExo.refId] || []} 
-              onStartRest={() => startRest(fullExo.rest || 90)} 
-              onLogWeight={(w) => logWeight(fullExo.refId, w)} 
-              onUpdate={(newProps) => handleUpdateExo(fullExo.refId, newProps)} 
-              onDelete={() => handleDeleteExo(fullExo.refId)} 
-              onSwap={() => { setSwapRefId(fullExo.refId); setShowCatalog(true); }} 
-            />
+               key={fullExo.refId}
+               data={fullExo}
+               isTired={isTired}
+               isEditing={isEditingDay}
+               history={history[fullExo.refId] || []}
+               onStartRest={() => startRest(fullExo.rest || 90)}
+               onLogWeight={(w) => logWeight(fullExo.refId, w)}
+               onUpdate={(newProps) => handleUpdateExo(fullExo.refId, newProps)}
+               onDelete={() => handleDeleteExo(fullExo.refId)}
+               onSwap={() => { setSwapRefId(fullExo.refId); setShowCatalog(true); }}
+             />
           );
         })}
 
@@ -278,12 +289,12 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
 
         {currentDay.cardio && <CardioCard data={currentDay.cardio} isFinisher={currentDay.type === 'mixed'} />}
         {currentDay.type === 'rest' && !isEditingDay && <RestCard data={currentDay} />}
-        
-        <div className="mt-8 mb-4">
+
+         <div className="mt-8 mb-4">
           <button 
-            onClick={saveToCloud} 
-            disabled={!hasUnsavedChanges || saveStatus === 'saving'} 
-            className={`w-full py-4 rounded-[20px] font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl transition-all ${
+             onClick={saveToCloud}
+             disabled={!hasUnsavedChanges || saveStatus === 'saving'}
+             className={`w-full py-4 rounded-[20px] font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl transition-all ${ 
               saveStatus === 'saving' ? 'bg-blue-900/50 text-blue-400 border border-blue-500/30' : 
               saveStatus === 'saved' ? 'bg-emerald-600/20 text-emerald-500 border border-emerald-500/30' :
               hasUnsavedChanges ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] active:scale-95' : 
@@ -291,12 +302,12 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
             }`}
           >
             {saveStatus === 'saving' ? <Loader2 size={16} className="animate-spin" /> : 
-             saveStatus === 'saved' ? <Check size={16} /> : 
-             <Save size={16} />} 
-             
+              saveStatus === 'saved' ? <Check size={16} /> : 
+              <Save size={16} />}
+              
             {saveStatus === 'saving' ? 'Sauvegarde...' : 
-             saveStatus === 'saved' ? 'Sauvegardé !' : 
-             hasUnsavedChanges ? 'Sauvegarder maintenant' : 'Synchronisé'}
+              saveStatus === 'saved' ? 'Sauvegardé !' : 
+              hasUnsavedChanges ? 'Sauvegarder maintenant' : 'Synchronisé'}
           </button>
         </div>
       </main>
@@ -364,16 +375,17 @@ function ExerciseCard({ data, isTired, isEditing, onStartRest, history, onLogWei
   const [completedSets, setCompletedSets] = useState([]);
   const [weight, setWeight] = useState("");
   const [showChart, setShowChart] = useState(false); 
-  
+
   const actualSets = parseInt(data.sets || 1);
   const maxHistoricalWeight = history && history.length > 0 ? Math.max(...history.map(h => parseFloat(h.weight) || 0)) : 0;
   const limitWeight = maxHistoricalWeight > 0 ? Math.round(maxHistoricalWeight * 0.75) : 0;
-  
+
   const parseReps = (repStr) => {
     if(!repStr) return "8";
     if(repStr.toString().includes('-')) return repStr.split('-').map(r => Math.max(1, parseInt(r)-2)).join('-');
     return Math.max(1, parseInt(repStr)-2);
   };
+
   const displayReps = isTired ? parseReps(data.reps) : data.reps;
 
   const toggleSet = (i) => {
@@ -394,7 +406,7 @@ function ExerciseCard({ data, isTired, isEditing, onStartRest, history, onLogWei
               </div>
           ) : (
               <div className={`px-2 py-0.5 rounded-md text-[10px] font-bold inline-block mt-1.5 ${isTired ? 'bg-red-900/20 text-red-400 border border-red-500/20' : 'bg-black text-blue-400 border border-zinc-800/50'}`}>
-                {isTired && <span className="mr-1">⚠️ 75% MAX | </span>}
+                {isTired && <span className="mr-1">⚡ 75% MAX | </span>}
                 {actualSets}x{displayReps}
               </div>
           )}
@@ -406,6 +418,7 @@ function ExerciseCard({ data, isTired, isEditing, onStartRest, history, onLogWei
             </div>
         )}
       </div>
+
       <div className="p-4 space-y-4">
         <div className="h-40 bg-black/50 rounded-[16px] overflow-hidden border border-zinc-800/50 flex items-center justify-center relative">
           <img src={data.image || "https://cdn-icons-png.flaticon.com/512/3048/3048364.png"} alt="" className="w-full h-full object-contain opacity-70 pointer-events-none" />
@@ -423,7 +436,7 @@ function ExerciseCard({ data, isTired, isEditing, onStartRest, history, onLogWei
                 </div>
             </div>
         </div>
-        
+
         <div className="flex justify-between items-center px-1 bg-black/40 p-1.5 rounded-full border border-zinc-800/50">
             <div className="flex gap-1.5 pl-1">{[...Array(actualSets)].map((_, i) => (<button key={i} onClick={() => toggleSet(i)} className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs transition-colors ${completedSets.includes(i) ? 'bg-[#10b981] text-black shadow-sm' : 'bg-zinc-900 text-zinc-500 border border-zinc-800'}`}>{completedSets.includes(i) ? <Check size={16} strokeWidth={3} /> : i + 1}</button>))}</div>
             <button onClick={onStartRest} className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center active:scale-90"><Play size={16} fill="white" className="ml-0.5"/></button>

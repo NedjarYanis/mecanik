@@ -8,6 +8,7 @@ import {
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider, useData } from './context/DataContext';
 import { db } from './services/firebase';
+import { ToastProvider } from './context/ToastContext';
 
 // ========================================== // 
 // LAZY LOADING : Chargement à la demande      // 
@@ -290,7 +291,9 @@ export default function MecanikApp() {
   return (
     <AuthProvider>
       <DataProvider>
-        <AppRouter />
+        <ToastProvider>
+          <AppRouter />
+        </ToastProvider>
       </DataProvider>
     </AuthProvider>
   );

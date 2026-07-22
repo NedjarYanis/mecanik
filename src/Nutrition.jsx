@@ -19,6 +19,8 @@ import MealSearchModal from './components/MealSearchModal';
 import ProfileModal from './components/ProfileModal';
 import ContributeFoodModal from './components/ContributeFoodModal';
 
+import { useToast } from './context/ToastContext';
+
 const foodsCollection = collection(db, 'foods');
 
 export default function Nutrition({ onBack, dataContext }) {
@@ -129,6 +131,8 @@ export default function Nutrition({ onBack, dataContext }) {
     });
   };
 
+  const { showToast } = useToast();
+
   const syncWorkoutActivity = () => {
     const d = new Date(currentDateStr).getDay();
     const activeDayIndex = d === 0 ? 7 : d;
@@ -139,7 +143,7 @@ export default function Nutrition({ onBack, dataContext }) {
       if (dayProg.cardio) burned += 200;
     }
     updateCurrentJournal({ activity: burned });
-    alert(`Synchronisation : +${burned} kcal estimés pour l'entraînement !`);
+    showToast(`Synchronisation : +${burned} kcal estimées !`, 'success'); // Remplace l'alert
   };
 
   const handleScanComplete = async (barcode) => {
