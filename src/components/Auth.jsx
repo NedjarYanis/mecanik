@@ -20,15 +20,8 @@ export default function Auth() {
         await signup(email, password);
       }
     } catch (err) {
-      if (err.code === 'auth/weak-password') {
-        setError("Le mot de passe doit faire au moins 6 caractères.");
-      } else if (err.code === 'auth/email-already-in-use') {
-        setError("Cet email est déjà associé à un compte.");
-      } else if (err.code === 'auth/invalid-email') {
-        setError("Format d'email invalide.");
-      } else {
-        setError(err.message || "Erreur lors de l'authentification.");
-      }
+      console.error("Erreur Firebase complète :", err); // Affiche l'erreur technique dans la console du navigateur (F12)
+      setError(err.message); // Affiche directement le message technique de Firebase
     }
   };
 
