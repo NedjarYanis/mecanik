@@ -143,7 +143,10 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
   const currentDay = program[activeDay] || { focus: "Repos", type: "rest" };
 
   const handleUpdateDayFocus = (newFocus) => {
-     setProgram(prev => ({ ...prev, [activeDay]: { ...prev[activeDay], focus: newFocus } }));
+     setProgram(prev => ({ 
+       ...prev, 
+       [activeDay]: { ...(prev[activeDay] || { type: 'mixed', exercises: [] }), focus: newFocus } 
+     }));
    };
 
   const handleUpdateExo = (refId, newProps) => {
@@ -165,7 +168,7 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
   const handleSelectFromCatalog = (catalogItem) => {
     const newExoConfig = { refId: catalogItem.id, sets: 4, reps: "10-12", rest: 90 }; 
     setProgram(prev => {
-      const day = prev[activeDay];
+      const day = prev[activeDay] || { focus: "Nouvelle Séance", type: "mixed", exercises: [] };
       let newExercises = [...(day.exercises || [])];
       const newType = (day.type === 'rest' || day.type === 'cardio') ? 'mixed' : day.type; 
 
@@ -177,7 +180,11 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
        }
       return { ...prev, [activeDay]: { ...day, type: newType, exercises: newExercises } };
     });
-    setShowCatalog(false); setIsCreatingExo(false); setSwapRefId(null); setCatalogSearch('');
+    
+    setShowCatalog(false); 
+    setIsCreatingExo(false); 
+    setSwapRefId(null); 
+    setCatalogSearch('');
   };
 
   const handleCreateCustomExo = async () => {
@@ -244,7 +251,7 @@ export default function WorkoutTab({ spotifyToken, spotifyTrack, setShowSpotifyW
       </header> 
 
       {/* CONTENU PRINCIPAL AÉRÉ */}
-      <main className="flex-1 overflow-y-auto px-5 pt-6 pb-[160px] space-y-6">
+      <main className="flex-1 overflow-y-auto px-5 pt-6 pb-[160px] space-y-6 hide-scrollbar">
         
         {/* TITRE DE LA SÉANCE */}
         <div className="mb-6 flex justify-between items-start border-l-4 border-[#ADFF2F] pl-4">
@@ -567,6 +574,7 @@ function CardioCard({ data, isFinisher }) {
 function RestCard({ data }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center min-h-[500px] w-full px-6 relative mt-4">
+      {/* Ondes de respiration organiques en arrière-plan */}
       <motion.div 
         animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.3, 0.1] }} 
         transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
